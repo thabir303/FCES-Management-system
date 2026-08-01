@@ -1,0 +1,24 @@
+.venv/
+.pgdata/
+.cache/
+__pycache__/
+*.pyc
+*.egg-info/
+.env
+.DS_Store
+
+# Corpora are distributed as identifiers + reconstruction scripts, never redistributed.
+data/raw/
+data/interim/
+data/processed/
+
+storage/
+node_modules/
+.next/
+
+# Generated. `make tables` rebuilds these from results/runs/.
+results/tables/*
+!results/tables/.gitkeep
+
+# Run artefacts are committed; the LLM ledger is too (it is the cost evidence).
+PROJECT_PLAN.amendments.diff
