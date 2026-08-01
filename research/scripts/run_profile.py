@@ -20,7 +20,7 @@ import yaml
 
 from fcesreg.cpv import LEVELS, label_series, leaf_sparsity, supported_labels
 from fcesreg.normalise import normalise_key
-from fcesreg.runs import new_run_id, write_run
+from fcesreg.runs import capture_env, new_run_id, write_run
 from fcesreg.splits import load as load_splits
 
 SCRIPT = "run_profile"
@@ -131,6 +131,9 @@ def main(argv: list[str] | None = None) -> int:
 
     cfg = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     run_id = new_run_id(SCRIPT, args.config)
+    # Captured before any output exists, so it describes the tree the computation ran
+    # against rather than the tree plus this run's own artefacts.
+    env = capture_env()
 
     records_a = pd.read_parquet(cfg["corpus_a"])
     pairs_a = pd.read_parquet(cfg["corpus_a_pairs"])
@@ -156,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
     if cfg.get("natural_duplicate_stats"):
         metrics["natural_duplicates"] = natural_duplicate_stats(corpus_b)
 
-    out = write_run(run_id, params=cfg, metrics=metrics)
+    out = write_run(run_id, params=cfg, metrics=metrics, env=env)
     print(f"wrote {out}")
     return 0
 

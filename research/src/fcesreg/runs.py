@@ -150,13 +150,23 @@ def write_run(
     root: Path = RESULTS_ROOT,
     model_ids: dict[str, str] | None = None,
     seeds: dict[str, int] | None = None,
+    env: dict[str, Any] | None = None,
 ) -> Path:
     """Write ``<root>/<run_id>/{params.yaml,metrics.json,predictions.parquet,env.json}``.
 
     No ledger file: LLM spend goes to the single global ``results/ledger.jsonl``, keyed by
     ``run_id`` (§6.11). Cost aggregates across runs and cache hits span them, so a per-run
     ledger would make both uninterpretable.
+
+    The environment is captured **before** anything is written. Capturing it afterwards
+    would see the run's own freshly created output directory as an uncommitted change and
+    mark every run dirty, which would make ``make_tables`` refuse work that was in fact
+    reproducible. ``env`` may be supplied by the caller to record the state at the moment
+    the computation started rather than the moment its results were serialised.
     """
+    if env is None:
+        env = capture_env(model_ids, seeds)
+
     out = Path(root) / run_id
     out.mkdir(parents=True, exist_ok=True)
 
@@ -167,8 +177,7 @@ def write_run(
         json.dumps(metrics, indent=2, sort_keys=True, default=str), encoding="utf-8"
     )
     (out / "env.json").write_text(
-        json.dumps(capture_env(model_ids, seeds), indent=2, sort_keys=True),
-        encoding="utf-8",
+        json.dumps(env, indent=2, sort_keys=True), encoding="utf-8"
     )
     if predictions is not None:
         predictions.to_parquet(out / "predictions.parquet", index=False)
