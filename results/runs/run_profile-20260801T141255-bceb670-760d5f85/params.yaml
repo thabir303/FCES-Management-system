@@ -1,0 +1,29 @@
+adopted: eight_divisions
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: data/processed/corpus_a_abtbuy_pairs.parquet
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+discard_report: data/processed/corpus_b_contractsfinder.discard_report.json
+division_sets:
+  eight_divisions:
+  - '30'
+  - '31'
+  - '32'
+  - '33'
+  - '38'
+  - '42'
+  - '43'
+  - '44'
+  ten_divisions:
+  - '30'
+  - '31'
+  - '32'
+  - '33'
+  - '38'
+  - '39'
+  - '42'
+  - '43'
+  - '44'
+  - '48'
+min_examples: 50
+natural_duplicate_stats: true
+taxonomy: data/processed/cpv_taxonomy.parquet

@@ -1,0 +1,209 @@
+{
+  "corpus_a_abtbuy": {
+    "n_pairs": 9575,
+    "n_records": 2173,
+    "n_records_table_a": 1081,
+    "n_records_table_b": 1092,
+    "positive_rate_overall": 0.10736292428198434,
+    "split_provenance": "supplied with the benchmark; never regenerated",
+    "splits": {
+      "test": {
+        "n_pairs": 1916,
+        "n_positive": 206,
+        "positive_rate": 0.10751565762004175
+      },
+      "train": {
+        "n_pairs": 5743,
+        "n_positive": 616,
+        "positive_rate": 0.10726101340762667
+      },
+      "valid": {
+        "n_pairs": 1916,
+        "n_positive": 206,
+        "positive_rate": 0.10751565762004175
+      }
+    }
+  },
+  "corpus_b_contractsfinder": {
+    "adopted_division_set": "eight_divisions",
+    "discard": {
+      "combined": {
+        "dropped_boilerplate": 300,
+        "dropped_desc_equals_title": 3112,
+        "dropped_out_of_scope": 213148,
+        "dropped_short": 3841,
+        "total_in": 265452,
+        "total_out": 45051
+      },
+      "divisions": [
+        "30",
+        "31",
+        "32",
+        "33",
+        "38",
+        "39",
+        "42",
+        "43",
+        "44",
+        "48"
+      ],
+      "min_chars": 60,
+      "per_year": {
+        "2022": {
+          "dropped_boilerplate": 1,
+          "dropped_desc_equals_title": 836,
+          "dropped_out_of_scope": 54713,
+          "dropped_short": 1046,
+          "total_in": 68576,
+          "total_out": 11980
+        },
+        "2023": {
+          "dropped_boilerplate": 22,
+          "dropped_desc_equals_title": 917,
+          "dropped_out_of_scope": 61664,
+          "dropped_short": 1203,
+          "total_in": 76674,
+          "total_out": 12868
+        },
+        "2024": {
+          "dropped_boilerplate": 127,
+          "dropped_desc_equals_title": 822,
+          "dropped_out_of_scope": 59687,
+          "dropped_short": 981,
+          "total_in": 74019,
+          "total_out": 12402
+        },
+        "2025": {
+          "dropped_boilerplate": 150,
+          "dropped_desc_equals_title": 537,
+          "dropped_out_of_scope": 37084,
+          "dropped_short": 611,
+          "total_in": 46183,
+          "total_out": 7801
+        }
+      }
+    },
+    "division_sets": {
+      "eight_divisions": {
+        "division_distribution": {
+          "30": 3704,
+          "31": 2648,
+          "32": 3178,
+          "33": 4286,
+          "38": 4219,
+          "42": 2666,
+          "43": 622,
+          "44": 5090
+        },
+        "divisions": [
+          "30",
+          "31",
+          "32",
+          "33",
+          "38",
+          "42",
+          "43",
+          "44"
+        ],
+        "leaf_sparsity": {
+          "n_distinct_leaves": 1593,
+          "n_leaves_ge_20": 234,
+          "n_leaves_ge_50": 87,
+          "n_records": 26413,
+          "n_singleton_leaves": 385
+        },
+        "levels": {
+          "class": {
+            "coverage_of_dev": 0.8826778317224178,
+            "min_examples": 50,
+            "n_labels_observed": 260,
+            "n_labels_supported": 81
+          },
+          "division": {
+            "coverage_of_dev": 1.0,
+            "min_examples": 50,
+            "n_labels_observed": 8,
+            "n_labels_supported": 8
+          }
+        },
+        "n_dev": 22451,
+        "n_records": 26413,
+        "n_test": 3962
+      },
+      "ten_divisions": {
+        "division_distribution": {
+          "30": 3704,
+          "31": 2648,
+          "32": 3178,
+          "33": 4286,
+          "38": 4219,
+          "39": 2699,
+          "42": 2666,
+          "43": 622,
+          "44": 5090,
+          "48": 15939
+        },
+        "divisions": [
+          "30",
+          "31",
+          "32",
+          "33",
+          "38",
+          "39",
+          "42",
+          "43",
+          "44",
+          "48"
+        ],
+        "leaf_sparsity": {
+          "n_distinct_leaves": 1983,
+          "n_leaves_ge_20": 328,
+          "n_leaves_ge_50": 128,
+          "n_records": 45051,
+          "n_singleton_leaves": 474
+        },
+        "levels": {
+          "class": {
+            "coverage_of_dev": 0.9072751677852349,
+            "min_examples": 50,
+            "n_labels_observed": 351,
+            "n_labels_supported": 122
+          },
+          "division": {
+            "coverage_of_dev": 1.0,
+            "min_examples": 50,
+            "n_labels_observed": 10,
+            "n_labels_supported": 10
+          }
+        },
+        "n_dev": 37250,
+        "n_records": 45051,
+        "n_test": 7801
+      }
+    },
+    "n_records_all_candidate_divisions": 45051,
+    "per_year": {
+      "2022": 11980,
+      "2023": 12868,
+      "2024": 12402,
+      "2025": 7801
+    },
+    "split": {
+      "cutoff": "2025-01-01",
+      "n_dev": 37250,
+      "n_test": 7801,
+      "strategy": "temporal"
+    }
+  },
+  "natural_duplicates": {
+    "n_buyer_title_groups_with_repeats": 1685,
+    "n_notices_in_those_groups": 3799,
+    "n_titles_shared_across_buyers": 1088,
+    "note": "descriptive statistic only \u2014 no natural-duplicate experiment (\u00a74.5)"
+  },
+  "taxonomy": {
+    "n_classes": 1209,
+    "n_divisions": 45,
+    "n_leaves": 6424
+  }
+}
