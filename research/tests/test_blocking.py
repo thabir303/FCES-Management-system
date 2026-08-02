@@ -22,6 +22,7 @@ from fcesreg.blocking import (
     block_by_sorted_ngrams,
     candidate_pairs,
     evaluate_blocking,
+    ngram_overlap_candidates,
 )
 
 
@@ -73,6 +74,69 @@ class TestSortedNgrams:
     def test_applies_to_records_with_no_buyer(self):
         df = frame([{"record_id": "A:1", "title": "canon powershot camera"}])
         assert len(block_by_sorted_ngrams(df)) == 1
+
+
+class TestNgramOverlap:
+    def test_threshold_of_one_is_plain_qgram_indexing(self):
+        df = frame(
+            [
+                {"record_id": "1", "title": "zeiss microscope"},
+                {"record_id": "2", "title": "zeiss telescope"},
+            ]
+        )
+        pairs, _ = ngram_overlap_candidates(df, n=3, min_overlap=1)
+        assert len(pairs) == 1
+
+    def test_raising_the_threshold_prunes(self):
+        df = frame(
+            [
+                {"record_id": "1", "title": "zeiss microscope"},
+                {"record_id": "2", "title": "zeiss telescope"},
+            ]
+        )
+        # They share the "zeiss" grams and "scope"; demanding more separates them.
+        assert len(ngram_overlap_candidates(df, n=3, min_overlap=50)[0]) == 0
+
+    def test_pairs_are_upper_triangle_only(self):
+        df = frame(
+            [{"record_id": str(i), "title": "zeiss microscope unit"} for i in range(4)]
+        )
+        pairs, _ = ngram_overlap_candidates(df, n=3, min_overlap=1)
+        assert len(pairs) == 6  # 4 choose 2, each once
+        assert (pairs["left_id"] < pairs["right_id"]).all()
+
+    def test_identical_records_always_survive_any_threshold_they_can_meet(self):
+        df = frame(
+            [
+                {"record_id": "1", "title": "rotary vane vacuum pump"},
+                {"record_id": "2", "title": "rotary vane vacuum pump"},
+            ]
+        )
+        pairs, _ = ngram_overlap_candidates(df, n=3, min_overlap=8)
+        assert len(pairs) == 1
+
+    def test_oversized_gram_blocks_are_dropped_and_counted(self):
+        # A gram shared by everything carries no evidence of identity.
+        df = frame([{"record_id": str(i), "title": "aaa"} for i in range(20)])
+        _, report = ngram_overlap_candidates(df, n=3, min_overlap=1, max_block_size=5)
+        assert report.blocks_dropped == 1
+        assert report.records_in_dropped_blocks == 20
+        assert report.n_unblocked_records == 20
+
+    def test_report_carries_the_threshold_it_used(self):
+        df = frame([{"record_id": "1", "title": "zeiss microscope"}])
+        _, report = ngram_overlap_candidates(df, n=3, min_overlap=4)
+        assert report.extras["min_overlap"] == 4
+        assert report.extras["mode"] == "per_gram"
+
+    def test_chunking_does_not_change_the_result(self):
+        df = frame(
+            [{"record_id": str(i), "title": f"zeiss microscope model {i}"} for i in range(30)]
+        )
+        a, _ = ngram_overlap_candidates(df, n=3, min_overlap=3, chunk_rows=5)
+        b, _ = ngram_overlap_candidates(df, n=3, min_overlap=3, chunk_rows=1000)
+        assert len(a) == len(b)
+        assert set(map(tuple, a.values)) == set(map(tuple, b.values))
 
 
 class TestLeadingToken:

@@ -148,6 +148,80 @@ def _ngram_key(title: str, n: int, k: int) -> str | None:
     return "|".join(sorted(grams)[:k])
 
 
+def ngram_overlap_candidates(
+    df: pd.DataFrame,
+    n: int = 3,
+    min_overlap: int = 1,
+    max_block_size: int = 500,
+    chunk_rows: int = 2000,
+) -> tuple[pd.DataFrame, BlockingReport]:
+    """Per-gram q-gram indexing with a shared-gram threshold.
+
+    A pair is a candidate when the two records share at least ``min_overlap`` n-grams.
+    At ``min_overlap=1`` this is plain q-gram indexing, which retains every true pair on
+    Corpus A but only reaches reduction ratio 0.588 — too little pruning to carry a
+    four-matcher sweep, let alone a language-model cascade. Raising the threshold trades
+    completeness for reduction, and the curve traced by sweeping it is the blocking
+    result the paper reports.
+
+    Overlap counts come from a sparse record-by-gram incidence matrix multiplied by its
+    own transpose, in row chunks so the intermediate never has to fit in memory at once.
+    Grams whose block exceeds ``max_block_size`` are dropped before counting and the loss
+    is reported: a gram shared by thousands of records carries no evidence of identity,
+    and keeping it would dominate the product.
+    """
+    import numpy as np
+    from scipy import sparse
+
+    ids = list(df["record_id"])
+    index = {rid: i for i, rid in enumerate(ids)}
+
+    gram_members: dict[str, list[int]] = {}
+    for rid, title in zip(df["record_id"], _norm_titles(df), strict=True):
+        for gram in _grams(title, n):
+            gram_members.setdefault(gram, []).append(index[rid])
+
+    kept_grams = {g: m for g, m in gram_members.items() if len(m) <= max_block_size}
+    dropped = len(gram_members) - len(kept_grams)
+    dropped_records = sum(
+        len(m) for g, m in gram_members.items() if len(m) > max_block_size
+    )
+
+    rows, cols = [], []
+    for col, members in enumerate(kept_grams.values()):
+        rows.extend(members)
+        cols.extend([col] * len(members))
+    incidence = sparse.csr_matrix(
+        (np.ones(len(rows), dtype=np.int32), (rows, cols)),
+        shape=(len(ids), max(len(kept_grams), 1)),
+    )
+
+    left, right = [], []
+    for start in range(0, len(ids), chunk_rows):
+        stop = min(start + chunk_rows, len(ids))
+        overlap = (incidence[start:stop] @ incidence.T).tocoo()
+        for i, j, count in zip(overlap.row, overlap.col, overlap.data, strict=True):
+            gi = start + i
+            if gi < j and count >= min_overlap:  # upper triangle only
+                left.append(ids[gi])
+                right.append(ids[j])
+
+    pairs = pd.DataFrame({"left_id": left, "right_id": right})
+    blocked = {i for m in kept_grams.values() for i in m}
+    report = BlockingReport(
+        scheme="sorted_ngrams",
+        n_records=len(ids),
+        n_blocks=len(kept_grams),
+        n_candidates=len(pairs),
+        blocks_dropped=dropped,
+        records_in_dropped_blocks=dropped_records,
+        n_unblocked_records=len(ids) - len(blocked),
+        largest_block=max((len(m) for m in kept_grams.values()), default=0),
+        extras={"min_overlap": min_overlap, "n": n, "mode": "per_gram"},
+    )
+    return pairs, report
+
+
 def block_by_leading_token(
     df: pd.DataFrame, stopwords: frozenset[str] = LEADING_STOPWORDS
 ) -> dict[str, list[str]]:
@@ -238,7 +312,27 @@ def candidate_pairs(
 
     scheme_kwargs = scheme_kwargs or {}
     for scheme in schemes:
-        blocks = build_blocks(df, scheme, **scheme_kwargs.get(scheme, {}))
+        kwargs = dict(scheme_kwargs.get(scheme, {}))
+
+        # Per-gram indexing with an overlap threshold cannot be expressed as
+        # blocks-then-pairs: a pair qualifies on how many blocks it shares, not on
+        # sharing any one of them. It has its own counting path.
+        if scheme == "sorted_ngrams" and kwargs.get("mode") == "per_gram":
+            kwargs.pop("mode", None)
+            kwargs.pop("k", None)
+            scheme_pairs_df, report = ngram_overlap_candidates(
+                df, max_block_size=max_block_size, **kwargs
+            )
+            reports.append(report)
+            pairs |= {
+                (a, b)
+                for a, b in zip(
+                    scheme_pairs_df["left_id"], scheme_pairs_df["right_id"], strict=True
+                )
+            }
+            continue
+
+        blocks = build_blocks(df, scheme, **kwargs)
 
         kept, dropped, dropped_records = {}, 0, 0
         for key, members in blocks.items():

@@ -25,7 +25,9 @@ from fcesreg.blocking import (
     applicable_schemes,
     candidate_pairs,
     evaluate_blocking,
+    ngram_overlap_candidates,
 )
+from fcesreg.splits import load as load_splits
 from fcesreg.runs import capture_env, new_run_id, write_run
 
 SCRIPT = "run_blocking"
@@ -43,6 +45,78 @@ def _report_dict(r) -> dict:
         "largest_block": r.largest_block,
         "mean_block_size": (
             r.n_records - r.n_unblocked_records) / r.n_blocks if r.n_blocks else None,
+    }
+
+
+def sweep_overlap(
+    records: pd.DataFrame,
+    dev_truth: pd.DataFrame,
+    n: int,
+    thresholds: list[int],
+    max_block_size: int,
+) -> list[dict]:
+    """Pair completeness against reduction ratio, as a curve. Selected on dev only."""
+    curve = []
+    for t in thresholds:
+        pairs, _ = ngram_overlap_candidates(
+            records, n=n, min_overlap=t, max_block_size=max_block_size
+        )
+        e = evaluate_blocking(pairs, dev_truth, n_records=len(records))
+        curve.append({"min_overlap": t} | e)
+    return curve
+
+
+def sweep_single_key(
+    records: pd.DataFrame,
+    dev_truth: pd.DataFrame,
+    n: int,
+    ks: list[int],
+    max_block_size: int,
+) -> list[dict]:
+    """The formulation §6.8 originally specified, retained as a negative result.
+
+    It degrades monotonically as k grows: a larger k demands agreement on more
+    alphabetically-early n-grams, and agreement on any of them is already an exact match
+    over a derived string.
+    """
+    curve = []
+    for k in ks:
+        pairs, _ = candidate_pairs(
+            records,
+            ["sorted_ngrams"],
+            max_block_size,
+            {"sorted_ngrams": {"n": n, "k": k, "mode": "single_key"}},
+        )
+        e = evaluate_blocking(pairs[0] if isinstance(pairs, tuple) else pairs,
+                              dev_truth, n_records=len(records))
+        curve.append({"k": k} | e)
+    return curve
+
+
+def select_operating_point(curve: list[dict], floor: float) -> dict:
+    """Highest reduction ratio holding pair completeness at or above ``floor``.
+
+    Returns the chosen row plus the completeness given up, which is unrecoverable
+    downstream and is reported as such.
+    """
+    eligible = [c for c in curve if (c["pair_completeness"] or 0.0) >= floor]
+    if not eligible:
+        best = max(curve, key=lambda c: c["pair_completeness"] or 0.0)
+        return {
+            "selected": None,
+            "floor": floor,
+            "reason": "no threshold met the floor",
+            "best_available": best,
+        }
+    chosen = max(eligible, key=lambda c: c["reduction_ratio"])
+    return {
+        "selected": chosen,
+        "floor": floor,
+        "completeness_forgone": 1.0 - chosen["pair_completeness"],
+        "note": (
+            "completeness lost in blocking is unrecoverable downstream; the floor is "
+            "stated rather than tuned per result"
+        ),
     }
 
 
@@ -107,24 +181,60 @@ def main(argv: list[str] | None = None) -> int:
     corpus_b = pd.read_parquet(cfg["corpus_b"])
     corpus_b = corpus_b[corpus_b["cpv_code"].str[:2].isin(set(cfg["divisions"]))]
 
-    # Both n-gram formulations are measured. §6.8 specifies single_key; per_gram is the
-    # standard q-gram indexing of the blocking literature the paper cites. Which one the
-    # study adopts is a decision to be made against these numbers, not assumed.
-    metrics = {}
-    for mode in cfg["sorted_ngrams"]["modes"]:
-        kw = {"sorted_ngrams": {"n": cfg["sorted_ngrams"]["n"],
-                                "k": cfg["sorted_ngrams"]["k"], "mode": mode}}
-        metrics[f"corpus_a_abtbuy::{mode}"] = evaluate_corpus(
+    sn = cfg["sorted_ngrams"]
+    splits = load_splits()
+    dev_truth = splits.abtbuy(truth_a, "dev")
+
+    # The operating point is chosen on the Corpus A dev partition and then applied
+    # unchanged to both corpora. Nothing is selected against test.
+    overlap_curve = sweep_overlap(
+        records_a, dev_truth, sn["n"], sn["overlap_sweep"], cfg["max_block_size"]
+    )
+    single_key_curve = sweep_single_key(
+        records_a, dev_truth, sn["n"], sn["single_key_k_sweep"], cfg["max_block_size"]
+    )
+    operating_point = select_operating_point(overlap_curve, cfg["min_pair_completeness"])
+    chosen_t = (operating_point["selected"] or {}).get("min_overlap", sn["min_overlap"])
+
+    kw = {"sorted_ngrams": {"n": sn["n"], "min_overlap": chosen_t, "mode": "per_gram"}}
+    metrics = {
+        "selection": {
+            "selected_on": "corpus A dev partition",
+            "operating_point": operating_point,
+            "overlap_curve": overlap_curve,
+            "single_key_curve": single_key_curve,
+            "single_key_note": (
+                "retained as a negative result: the formulation degrades monotonically "
+                "as k grows and is not a usable blocking scheme"
+            ),
+        },
+        "severity": cfg.get("severity"),
+        "severity_note": (
+            "these figures are measured on UNDEGRADED records; blocking is re-run across "
+            "the severity range once the degradation model exists (C4), and the two sets "
+            "must not be compared silently"
+        ),
+        "corpus_a_abtbuy": evaluate_corpus(
             "corpus_a_abtbuy", records_a, truth_a, cfg["max_block_size"], kw
-        )
-        metrics[f"corpus_b_contractsfinder::{mode}"] = evaluate_corpus(
+        ),
+        "corpus_b_contractsfinder": evaluate_corpus(
             "corpus_b_contractsfinder", corpus_b, None, cfg["max_block_size"], kw
-        )
+        ),
+    }
 
     out = write_run(run_id, params=cfg, metrics=metrics, env=env)
     print(f"wrote {out}")
 
+    op = metrics["selection"]["operating_point"]
+    sel = op.get("selected")
+    if sel:
+        print(f"\noperating point (dev, floor {op['floor']}): "
+              f"t={sel['min_overlap']}  PC {sel['pair_completeness']:.3f}  "
+              f"RR {sel['reduction_ratio']:.4f}  "
+              f"forgone {op['completeness_forgone']:.3f}")
     for corpus, m in metrics.items():
+        if not isinstance(m, dict) or "per_scheme" not in m:
+            continue
         print(f"\n{corpus}  ({m['n_records']:,} records)")
         print(f"  available: {', '.join(m['schemes_available'])}")
         if m["schemes_unavailable"]:

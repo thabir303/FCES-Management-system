@@ -13,15 +13,27 @@ divisions: ["30", "31", "32", "33", "38", "42", "43", "44"]
 
 sorted_ngrams:
   n: 3
-  k: 4
-  # single_key is what §6.8 specifies; per_gram is standard q-gram indexing.
-  # Both are measured so the choice is evidence-based.
-  modes: [single_key, per_gram]
+  # per_gram is q-gram indexing, the standard formulation. single_key is what §6.8
+  # originally specified; it is retained in the sweep as a reported negative result,
+  # since it degrades monotonically as k grows.
+  mode: per_gram
+  # Selected on the Corpus A DEV partition — see min_pair_completeness below.
+  min_overlap: 8
+  single_key_k_sweep: [4, 8, 12, 16, 24, 32]
+  overlap_sweep: [1, 2, 3, 4, 5, 6, 8, 10, 12]
+
+# The operating point is the highest reduction ratio holding pair completeness at or
+# above this floor on dev. Completeness lost here is unrecoverable downstream, so the
+# floor is deliberately high and is stated in the paper rather than tuned per result.
+min_pair_completeness: 0.98
 
 max_block_size: 500
 
 # Corpus B has no labelled duplicate pairs, so pair completeness there needs a truth set.
-# Until the degradation model exists (C4) the Corpus B run reports block structure only —
-# reduction ratio, block sizes, unblocked records — and pair completeness is left
-# unmeasured rather than estimated.
+# Until the degradation model exists (C4) the Corpus B run reports reduction ratio and
+# block structure only, and pair completeness is left unmeasured rather than estimated.
 corpus_b_truth: null
+
+# These figures are measured on undegraded records. Once C4 exists, blocking is re-run
+# across the severity range; the two must not be compared silently.
+severity: null

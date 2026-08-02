@@ -1,0 +1,37 @@
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: data/processed/corpus_a_abtbuy_pairs.parquet
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+corpus_b_truth: null
+divisions:
+- '30'
+- '31'
+- '32'
+- '33'
+- '38'
+- '42'
+- '43'
+- '44'
+max_block_size: 500
+min_pair_completeness: 0.98
+severity: null
+sorted_ngrams:
+  min_overlap: 8
+  mode: per_gram
+  n: 3
+  overlap_sweep:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 8
+  - 10
+  - 12
+  single_key_k_sweep:
+  - 4
+  - 8
+  - 12
+  - 16
+  - 24
+  - 32

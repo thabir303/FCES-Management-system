@@ -271,7 +271,9 @@ Abt-Buy benchmark is used, because at least one of its attributes
 contains long free text, and that is the property distinguishing
 equipment descriptions from purely structured records. The corpus
 comprises \[TBC\] labelled pairs at a positive rate of \[TBC\], divided
-into the training, validation and test splits supplied with it.
+into the training, validation and test splits supplied with it; the
+figures quoted are for the full labelled set, and results are reported
+on the test split of \[TBC\] pairs.
 
 Two considerations justify this choice. Product catalogue entries share
 the structural characteristics of equipment records: a short designation
@@ -389,13 +391,17 @@ performance.
 Four approaches are compared. A lexical baseline represents each record
 as character level n-gram features and classifies with a linear support
 vector machine. An embedding baseline encodes the record with a sentence
-embedding model and classifies with a logistic regression head. A zero
-shot approach presents the record and the candidate taxonomy to a large
-language model without labelled examples. A retrieval augmented approach
-retrieves the nearest labelled examples from the development partition
-by embedding similarity and supplies them as in context examples,
-testing whether the labels already available in Corpus B can be reused
-without model training.
+embedding model and classifies with a logistic regression head. Two
+language model conditions follow. Both are given a candidate label set
+shortlisted by embedding similarity rather than the full vocabulary,
+since presenting a taxonomy of this size in a prompt is neither
+affordable nor necessary. They differ in one respect only: the zero shot
+condition supplies the shortlist alone, while the retrieval augmented
+condition additionally supplies the nearest labelled examples from the
+development partition as in context examples. Holding the shortlist
+fixed isolates the contribution of the labelled examples, and so tests
+whether the labels already available in Corpus B can be reused without
+model training.
 
 The two levels present different difficulties. At division level the
 label set is small and its distribution only moderately skewed, so the
@@ -459,13 +465,17 @@ every subsequent result, so this comparison is a precondition for
 interpreting the rest.
 
 Second, the pipeline is tuned on Corpus A and then evaluated, without
-further tuning, on degraded records from Corpus B. Corpus A carries
-human labels but a commercial domain; Corpus B carries a domain closer
-to institutional equipment but synthetic duplicate labels. Neither is a
-substitute for a real asset register, and the difference between the two
-figures is the best available estimate of how far the reported
-performance would transfer. That difference is reported whatever its
-size, and it is the first item in the threats to validity discussion.
+further tuning, on degraded records from Corpus B. The thresholds
+selected on the Corpus A development partition are carried across
+unchanged; no parameter is refitted on Corpus B, and the transfer is
+reported as a single paired comparison rather than as two independent
+results. Corpus A carries human labels but a commercial domain; Corpus B
+carries a domain closer to institutional equipment but synthetic
+duplicate labels. Neither is a substitute for a real asset register, and
+the difference between the two figures is the best available estimate of
+how far the reported performance would transfer. That difference is
+reported whatever its size, and it is the first item in the threats to
+validity discussion.
 
 ## Integration into the Delivered System
 
@@ -491,15 +501,69 @@ perform rather than to an abstract count of uncertain records.
 ## Reproducibility
 
 Collection scripts, schema mappings, the degradation model, the
-annotation protocol, experimental code and analysis notebooks are
-released in a public repository. Corpora derived from third party
-sources are distributed as record identifiers and reconstruction scripts
-rather than as redistributed data, in accordance with each licence.
-Model versions, prompt texts, embedding checkpoints and random seeds are
-recorded with every run. The repository is available at \[TBC\].
+annotation protocol and experimental code are released in a public
+repository. Corpora derived from third party sources are distributed as
+record identifiers and reconstruction scripts rather than as
+redistributed data, in accordance with each licence. Model versions,
+prompt texts, embedding checkpoints and random seeds are recorded with
+every run. The repository is available at \[TBC\].
 
 # Results
 
 # Discussion
 
 # Conclusion
+
+::: thebibliography
+99
+
+I. P. Fellegi and A. B. Sunter, "A theory for record linkage," *J. Amer.
+Statist. Assoc.*, vol. 64, no. 328, pp. 1183--1210, 1969.
+
+P. Christen, *Data Matching: Concepts and Techniques for Record Linkage,
+Entity Resolution, and Duplicate Detection*. Berlin, Germany: Springer,
+2012.
+
+G. Papadakis, D. Skoutas, E. Thanos, and T. Palpanas, "Blocking and
+filtering techniques for entity resolution: A survey," *ACM Comput.
+Surv.*, vol. 53, no. 2, 2020.
+
+E. Rahm and H. H. Do, "Data cleaning: Problems and current approaches,"
+*IEEE Data Eng. Bull.*, vol. 23, no. 4, pp. 3--13, 2000.
+
+S. Mudgal *et al.*, "Deep learning for entity matching: A design space
+exploration," in *Proc. ACM SIGMOD Int. Conf. Manage. Data*, 2018, pp.
+19--34.
+
+H. Köpcke, A. Thor, and E. Rahm, "Evaluation of entity resolution
+approaches on real-world match problems," *Proc. VLDB Endowment*,
+vol. 3, no. 1, pp. 484--493, 2010.
+
+Y. Li, J. Li, Y. Suhara, A. Doan, and W.-C. Tan, "Deep entity matching
+with pre-trained language models," *Proc. VLDB Endowment*, vol. 14,
+no. 1, pp. 50--60, 2020.
+
+A. Narayan, I. Chami, L. Orr, and C. Ré, "Can foundation models wrangle
+your data?" *Proc. VLDB Endowment*, vol. 16, no. 4, pp. 738--746, 2022.
+
+N. Reimers and I. Gurevych, "Sentence-BERT: Sentence embeddings using
+Siamese BERT-networks," in *Proc. Conf. Empirical Methods Natural Lang.
+Process.*, 2019, pp. 3982--3992.
+
+*Asset Management --- Overview, Principles and Terminology*, ISO
+Standard 55000:2014, 2014.
+
+Health and Safety Executive, "Health and safety statistics for Great
+Britain, 2024/25," 2025. \[Online\]. Available:
+https://www.hse.gov.uk/statistics/
+
+Jisc, "Equipment data service." \[Online\]. Available:
+https://equipment.data.ac.uk/
+
+Cabinet Office, "Contracts Finder: Open Contracting Data Standard
+release packages," Open Government Licence v3.0. \[Online\]. Available:
+https://www.gov.uk/contracts-finder
+
+Loughborough University, "Kit-Catalogue: Open source equipment
+cataloguing software," licensed under GPLv3.
+:::

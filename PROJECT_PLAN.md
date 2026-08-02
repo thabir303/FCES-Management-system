@@ -48,7 +48,7 @@ Requirement → implementation mapping:
 | Photos, data, PDFs per item | `attachments` table, `kind` enum. §5.6 |
 | Floor plans showing machine location | `floorplans` + `locations.x_pct/y_pct`. §5.3, §8 `/floorplans/[id]` |
 | Link to H&S / risk assessments | `attachments.kind = 'risk_assessment'`, surfaced first on the asset page and the QR landing page. §8.3 |
-| Service-due reminders | `assets.next_due_at` (generated column) + `/service` view + `GET /service/due`. §5.5, §7.6 |
+| Service-due reminders | `assets.next_due_at` (generated column) + **a daily scheduled job writing `notifications` rows** + `/service` view + `GET /service/due`. §5.5, §5.8, §7.6 |
 | Levelled access (read-only tier) | `users.role` enum `admin` / `technician` / `readonly`. §7.2 |
 | Audit log of changes | `audit_log` table, written by the service layer. §5.6 |
 | Bulk import of the legacy spreadsheet | §9, the two queues (auto / review) |
@@ -568,6 +568,34 @@ CREATE INDEX audit_entity_idx ON audit_log (entity_type, entity_id, at DESC);
 Inserting a `service_events` row must update `assets.last_serviced_at` to `MAX(performed_at)` —
 do this in the service layer, not a trigger, so it is testable.
 
+### 5.8 Notifications — what makes "scheduled reminders" true
+
+```sql
+CREATE TABLE notifications (
+  id         BIGSERIAL PRIMARY KEY,
+  asset_id   BIGINT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+  kind       TEXT NOT NULL CHECK (kind IN ('due_soon','overdue')),
+  due_at     DATE NOT NULL,
+  generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  acknowledged_at TIMESTAMPTZ,
+  acknowledged_by BIGINT REFERENCES users(id),
+  UNIQUE (asset_id, kind, due_at)
+);
+CREATE INDEX notifications_open_idx ON notifications (kind, due_at)
+  WHERE acknowledged_at IS NULL;
+```
+
+A view a user has to visit is not a reminder, and the client asked for reminders explicitly. The
+paper's word is *scheduled*, so a scheduled job satisfies it honestly:
+
+- **A daily job** computes due-soon and overdue items and inserts `notifications` rows. The unique
+  constraint makes it idempotent — running twice in one day produces no duplicates.
+- Rows surface **on the service view and on login**. Nothing else.
+- **No email delivery, no external service, no preferences UI.** Those are out of scope and stay
+  out; the claim is a scheduled reminder, not a notification platform.
+- The scheduler is a plain job (APScheduler in-process, or a container-level cron), configured once
+  and covered by a test that advances the clock rather than waiting.
+
 ### 5.7 Import tables
 
 ```sql
@@ -850,8 +878,17 @@ on it yields either one enormous block or none at all.
 ```python
 SCHEMES = ("sorted_ngrams", "leading_token", "buyer")
 
-def block_by_sorted_ngrams(df, n: int = 3, k: int = 4) -> dict[str, list[str]]
-    """Key = first k sorted char n-grams of the normalised title. Applies to BOTH corpora."""
+def block_by_sorted_ngrams(df, n: int = 3, k: int = 4,
+                           mode: str = "per_gram") -> dict[str, list[str]]
+    """Character n-grams of the normalised title, per token. Applies to BOTH corpora.
+    mode="per_gram" is q-gram indexing and is what the study adopts.
+    mode="single_key" is the original formulation, retained only for the sweep."""
+
+def ngram_overlap_candidates(df, n: int = 3, min_overlap: int = 8,
+                             max_block_size: int = 500, chunk_rows: int = 2000
+                             ) -> tuple[pd.DataFrame, BlockingReport]
+    """Per-gram indexing requiring >= min_overlap shared n-grams. Overlap counts come
+    from a sparse incidence matrix times its transpose, in row chunks."""
 
 def block_by_leading_token(df, stopwords: frozenset[str] = LEADING_STOPWORDS
                            ) -> dict[str, list[str]]
@@ -880,6 +917,19 @@ def evaluate_blocking(candidates: pd.DataFrame, truth: pd.DataFrame) -> dict
         'n_candidates': int, 'n_possible': int, 'blocks_dropped': int,
         'n_unblocked_records': int}"""
 ```
+
+**The operating point, settled on the Corpus A dev partition (G3).** Per-gram q-gram indexing with
+`n=3` and `min_overlap=8`, giving **pair completeness 0.988 at reduction ratio 0.9796** — 48,194
+candidates on Corpus A and 71,248 on Corpus B. The rule is *the highest reduction ratio holding pair
+completeness at or above a floor of 0.98*; the floor is stated in the paper rather than tuned per
+result, and the 1.2% of true pairs forgone is unrecoverable downstream and reported as such.
+
+The threshold sweep is itself a reported result — the pair-completeness against reduction-ratio
+curve is more informative than any single point. The original single-key formulation is retained in
+the sweep as a **negative result**: it degrades monotonically from PC 0.254 at `k=4` to 0.028 at
+`k=32`, because agreement on the `k` alphabetically-earliest n-grams is an exact-match key over a
+derived string. Three lines of the paper showing empirically why the standard formulation is
+standard.
 
 `run_blocking.py` reports, **per corpus**, which schemes apply and how each performs individually
 and in union. The paper states that scheme availability differs between the two corpora and that
@@ -1361,6 +1411,7 @@ from those directories.
 | `run_classify.py` | macro/weighted F1 × 4 classifiers × 2 levels | `T6_classification.tex` |
 | `run_classify.py --per-class` | confusion matrix for hazard-carrying divisions 33, 38, 42 | `T7_perclass.tex` |
 | `run_label_noise.py` | disagreement rate vs published CPV + 95% CI + intra-annotator κ; **mean handling time from the timed annotation (§6.15)** | inline figure |
+| `run_transfer.py` | **the External Validation comparison.** Thresholds selected on the Corpus A dev partition, carried across **unchanged**, evaluated on degraded Corpus B. Reports both figures and their difference as one paired comparison | `T9_transfer.tex` |
 | `run_costs.py` | ms/record, USD/1000 records, measured cascade band fraction (reads the global ledger, grouped by `run_id`) | `T8_cost.tex` |
 | `run_operating_point.py` | full precision–automation curve; automated share at 0.95 and 0.99; residual hours | `F2_operating_point.pdf` |
 
@@ -1440,7 +1491,7 @@ rewriting it would invalidate every result already computed against it.
 | C1 | `embed.py` with disk cache | A2 | second call on identical input is >50× faster and hits zero network |
 | C2 | `blocking.py` | B5 | all three §6.8 schemes implemented, no `block_by_manufacturer`; `applicable_schemes` returns `buyer` for CF and not for Abt-Buy; `evaluate_blocking` recovers known pair-completeness and reduction-ratio values on a hand-built fixture, and on the real corpora returns metrics in [0,1] with `n_candidates ≤ n_possible`. **Measured values are recorded, not gated** |
 | C3 | `dedup.py` — Exact + Tfidf | C2 | both matchers run end to end on the Abt-Buy test split and emit P/R/F1 with `tp+fp+fn` consistent with the pair count. **Bug detector only: F1 below 0.40 indicates a pair-construction fault — stop and fix.** The actual F1 is recorded as an observation, not a pass mark |
-| C4 | `degrade.py` + tests | A2 | same seed ⇒ byte-identical output; each of the 8 classes has its own test; `make_distractors` returns a non-empty label-0 set for both corpora under their respective mining rules and touches none of the three null columns |
+| C4 | `degrade.py` + tests | A2 | same seed ⇒ byte-identical output; each of the **7** error classes has its own test (abbreviation, character noise, casing, whitespace, units, field omission, and Mudgal's field merge — matching the seven knobs in §6.6 and the six classes plus merge the paper lists); `make_distractors` returns a non-empty label-0 set for both corpora under their respective mining rules and touches none of the three null columns |
 | C5 | `llm.py` — cache, ledger, hard cap | A3 | a $0.20 pilot runs; re-running the identical set costs **exactly $0.00** and every row logs `cache_hit=true`; ledger rows land in the single `results/ledger.jsonl` carrying `run_id` |
 | C6 | `dedup.py` — Embedding + Cascade | C1, C3, C5 | `CascadeMatcher.stats` is populated with all three keys; the counts are mutually consistent (`n_adjudicated ≤ n_pairs`, `band_fraction == n_adjudicated / n_pairs`); and **every pair sent to the adjudicator has a base score strictly inside `(lower, upper)`, with no pair outside the band adjudicated**. The measured band fraction is recorded as a finding — a fraction of 0.30 is a fact about the method, not a build failure |
 | C7 | `classify.py` — all four | C1, C5, B3 | every classifier returns non-empty `alternatives`; LLM ones never receive the full taxonomy |
@@ -1457,6 +1508,7 @@ rewriting it would invalidate every result already computed against it.
 | D5 | Attachments + storage | D3 | photo, PDF and `risk_assessment` link all upload; `is_primary` is exclusive per kind |
 | D6 | Label service — QR + Code128 | D3 | `GET /labels/asset/{id}.svg` renders; scanning the QR opens `/a/{public_id}`; the barcode reads back `asset_tag` |
 | D7 | Service events + due view | D3 | `next_due_at` recomputes on service log; `/service/due` splits overdue from due-soon |
+| D7b | **Notification scheduler** (§5.8) | D7 | the daily job writes `notifications` rows for due-soon and overdue items; running it twice in one day inserts no duplicates; rows surface on `/service` and on login |
 | D8 | Floor plans + pins | D3 | pin placed at 25%/75% renders in the same relative spot after the image is re-uploaded at a different resolution |
 | D9 | Audit log writes | D3 | every write records before/after JSON. Log only — no viewer |
 
@@ -1482,7 +1534,7 @@ No dashboard, no label sheet builder, no admin or audit screens (scope fence, §
 G1 `run_profile` (incl. the 39/48 comparison and leaf sparsity) · G2 `audit_real_errors` +
 `run_degrade_check` · G3 `run_blocking` · **G4 annotation exercise (§13.3) — 300 items, timed** ·
 G5 `run_label_noise` (labels + handling time) · G6 `run_dedup` (abtbuy, sweep) ·
-G7 `run_classify` (+per-class) · G8 `run_costs` · **G9 `run_operating_point`** · G10 `make tables`.
+G7 `run_classify` (+per-class) · G8 `run_costs` · **G9 `run_operating_point`** · **G10 `run_transfer`** · G11 `make tables`.
 
 The annotation exercise moves **early**: it produces both the label-noise estimate and the
 `mean_seconds_per_item` figure that G9 consumes, so everything downstream waits on it. G9 depends on

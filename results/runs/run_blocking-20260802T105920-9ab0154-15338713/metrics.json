@@ -1,0 +1,314 @@
+{
+  "corpus_a_abtbuy": {
+    "corpus": "corpus_a_abtbuy",
+    "n_records": 2173,
+    "per_scheme": {
+      "leading_token": {
+        "blocks_dropped": 0,
+        "largest_block": 343,
+        "mean_block_size": 14.202614379084967,
+        "n_blocks": 153,
+        "n_candidates": 122021,
+        "n_possible": 2359878,
+        "n_true_positives": 1028,
+        "n_true_positives_lost": 70,
+        "n_true_positives_retained": 958,
+        "n_unblocked_records": 0,
+        "pair_completeness": 0.9319066147859922,
+        "records_in_dropped_blocks": 0,
+        "reduction_ratio": 0.9482935134782391,
+        "scheme": "leading_token",
+        "unblocked_share": 0.0
+      },
+      "sorted_ngrams": {
+        "blocks_dropped": 3,
+        "largest_block": 490,
+        "mean_block_size": 0.4045048399106478,
+        "n_blocks": 5372,
+        "n_candidates": 48194,
+        "n_possible": 2359878,
+        "n_true_positives": 1028,
+        "n_true_positives_lost": 13,
+        "n_true_positives_retained": 1015,
+        "n_unblocked_records": 0,
+        "pair_completeness": 0.9873540856031129,
+        "records_in_dropped_blocks": 1600,
+        "reduction_ratio": 0.979577757833244,
+        "scheme": "sorted_ngrams",
+        "unblocked_share": 0.0
+      }
+    },
+    "schemes_available": [
+      "sorted_ngrams",
+      "leading_token"
+    ],
+    "schemes_unavailable": [
+      "buyer"
+    ],
+    "truth_available": true,
+    "unavailable_reason": {
+      "buyer": "keying column absent or wholly null on this corpus"
+    },
+    "union": {
+      "blocks_dropped_total": 3,
+      "n_candidates": 146689,
+      "n_possible": 2359878,
+      "n_true_positives": 1028,
+      "n_true_positives_lost": 2,
+      "n_true_positives_retained": 1026,
+      "pair_completeness": 0.9980544747081712,
+      "reduction_ratio": 0.9378404307341311,
+      "schemes": [
+        "sorted_ngrams",
+        "leading_token"
+      ]
+    }
+  },
+  "corpus_b_contractsfinder": {
+    "corpus": "corpus_b_contractsfinder",
+    "n_records": 26413,
+    "per_scheme": {
+      "buyer": {
+        "blocks_dropped": 1,
+        "largest_block": 1601,
+        "mean_block_size": 4.828702010968922,
+        "n_blocks": 5470,
+        "n_candidates": 447927,
+        "n_possible": 348810078,
+        "n_unblocked_records": 0,
+        "pair_completeness": null,
+        "pair_completeness_note": "no labelled duplicate pairs for this corpus",
+        "records_in_dropped_blocks": 1601,
+        "reduction_ratio": 0.99871584272287,
+        "scheme": "buyer",
+        "unblocked_share": 0.0
+      },
+      "leading_token": {
+        "blocks_dropped": 2,
+        "largest_block": 1734,
+        "mean_block_size": 3.0897390897390897,
+        "n_blocks": 8547,
+        "n_candidates": 312551,
+        "n_possible": 348810078,
+        "n_unblocked_records": 5,
+        "pair_completeness": null,
+        "pair_completeness_note": "no labelled duplicate pairs for this corpus",
+        "records_in_dropped_blocks": 2560,
+        "reduction_ratio": 0.9991039507751838,
+        "scheme": "leading_token",
+        "unblocked_share": 0.00018930072312876235
+      },
+      "sorted_ngrams": {
+        "blocks_dropped": 355,
+        "largest_block": 500,
+        "mean_block_size": 2.5988521670294875,
+        "n_blocks": 10106,
+        "n_candidates": 71248,
+        "n_possible": 348810078,
+        "n_unblocked_records": 149,
+        "pair_completeness": null,
+        "pair_completeness_note": "no labelled duplicate pairs for this corpus",
+        "records_in_dropped_blocks": 442750,
+        "reduction_ratio": 0.999795739846714,
+        "scheme": "sorted_ngrams",
+        "unblocked_share": 0.005641161549237118
+      }
+    },
+    "schemes_available": [
+      "sorted_ngrams",
+      "leading_token",
+      "buyer"
+    ],
+    "schemes_unavailable": [],
+    "truth_available": false,
+    "unavailable_reason": {},
+    "union": {
+      "blocks_dropped_total": 358,
+      "n_candidates": 774451,
+      "n_possible": 348810078,
+      "pair_completeness": null,
+      "pair_completeness_note": "no labelled duplicate pairs for this corpus",
+      "reduction_ratio": 0.9977797344490718,
+      "schemes": [
+        "sorted_ngrams",
+        "leading_token",
+        "buyer"
+      ]
+    }
+  },
+  "selection": {
+    "operating_point": {
+      "completeness_forgone": 0.012165450121654486,
+      "floor": 0.98,
+      "note": "completeness lost in blocking is unrecoverable downstream; the floor is stated rather than tuned per result",
+      "selected": {
+        "min_overlap": 8,
+        "n_candidates": 48194,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 10,
+        "n_true_positives_retained": 812,
+        "pair_completeness": 0.9878345498783455,
+        "reduction_ratio": 0.979577757833244
+      }
+    },
+    "overlap_curve": [
+      {
+        "min_overlap": 1,
+        "n_candidates": 972207,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 0,
+        "n_true_positives_retained": 822,
+        "pair_completeness": 1.0,
+        "reduction_ratio": 0.5880265844251271
+      },
+      {
+        "min_overlap": 2,
+        "n_candidates": 445907,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 0,
+        "n_true_positives_retained": 822,
+        "pair_completeness": 1.0,
+        "reduction_ratio": 0.8110465880015831
+      },
+      {
+        "min_overlap": 3,
+        "n_candidates": 266851,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 0,
+        "n_true_positives_retained": 822,
+        "pair_completeness": 1.0,
+        "reduction_ratio": 0.8869216967995803
+      },
+      {
+        "min_overlap": 4,
+        "n_candidates": 190036,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 0,
+        "n_true_positives_retained": 822,
+        "pair_completeness": 1.0,
+        "reduction_ratio": 0.9194721083039038
+      },
+      {
+        "min_overlap": 5,
+        "n_candidates": 140889,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 0,
+        "n_true_positives_retained": 822,
+        "pair_completeness": 1.0,
+        "reduction_ratio": 0.9402981849061689
+      },
+      {
+        "min_overlap": 6,
+        "n_candidates": 100127,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 2,
+        "n_true_positives_retained": 820,
+        "pair_completeness": 0.9975669099756691,
+        "reduction_ratio": 0.9575711117269622
+      },
+      {
+        "min_overlap": 8,
+        "n_candidates": 48194,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 10,
+        "n_true_positives_retained": 812,
+        "pair_completeness": 0.9878345498783455,
+        "reduction_ratio": 0.979577757833244
+      },
+      {
+        "min_overlap": 10,
+        "n_candidates": 28201,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 28,
+        "n_true_positives_retained": 794,
+        "pair_completeness": 0.9659367396593674,
+        "reduction_ratio": 0.9880498059645456
+      },
+      {
+        "min_overlap": 12,
+        "n_candidates": 17020,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 73,
+        "n_true_positives_retained": 749,
+        "pair_completeness": 0.9111922141119222,
+        "reduction_ratio": 0.9927877627572272
+      }
+    ],
+    "selected_on": "corpus A dev partition",
+    "single_key_curve": [
+      {
+        "k": 4,
+        "n_candidates": 390,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 677,
+        "n_true_positives_retained": 145,
+        "pair_completeness": 0.17639902676399027,
+        "reduction_ratio": 0.9998347372194665
+      },
+      {
+        "k": 8,
+        "n_candidates": 128,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 775,
+        "n_true_positives_retained": 47,
+        "pair_completeness": 0.057177615571776155,
+        "reduction_ratio": 0.9999457599079274
+      },
+      {
+        "k": 12,
+        "n_candidates": 89,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 786,
+        "n_true_positives_retained": 36,
+        "pair_completeness": 0.043795620437956206,
+        "reduction_ratio": 0.9999622861859808
+      },
+      {
+        "k": 16,
+        "n_candidates": 67,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 795,
+        "n_true_positives_retained": 27,
+        "pair_completeness": 0.032846715328467155,
+        "reduction_ratio": 0.9999716087018058
+      },
+      {
+        "k": 24,
+        "n_candidates": 51,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 799,
+        "n_true_positives_retained": 23,
+        "pair_completeness": 0.027980535279805353,
+        "reduction_ratio": 0.9999783887133148
+      },
+      {
+        "k": 32,
+        "n_candidates": 47,
+        "n_possible": 2359878,
+        "n_true_positives": 822,
+        "n_true_positives_lost": 799,
+        "n_true_positives_retained": 23,
+        "pair_completeness": 0.027980535279805353,
+        "reduction_ratio": 0.9999800837161921
+      }
+    ],
+    "single_key_note": "retained as a negative result: the formulation degrades monotonically as k grows and is not a usable blocking scheme"
+  },
+  "severity": null,
+  "severity_note": "these figures are measured on UNDEGRADED records; blocking is re-run across the severity range once the degradation model exists (C4), and the two sets must not be compared silently"
+}

@@ -1,0 +1,20 @@
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: data/processed/corpus_a_abtbuy_pairs.parquet
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+corpus_b_truth: null
+divisions:
+- '30'
+- '31'
+- '32'
+- '33'
+- '38'
+- '42'
+- '43'
+- '44'
+max_block_size: 500
+sorted_ngrams:
+  k: 4
+  modes:
+  - single_key
+  - per_gram
+  n: 3
