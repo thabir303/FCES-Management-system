@@ -2,8 +2,9 @@ PY      := .venv/bin/python
 PIP     := .venv/bin/pip
 PYTEST  := .venv/bin/pytest
 PYENV   := $(HOME)/.pyenv/versions/3.12.8/bin/python3
+TEXBIN  := /Library/TeX/texbin
 
-.PHONY: bootstrap venv deps db migrate seed data annotate experiments tables dev test smoke clean-db
+.PHONY: bootstrap venv deps db migrate seed data annotate experiments tables paper dev test smoke clean-db
 
 bootstrap: venv deps db migrate seed
 	@echo "bootstrap: done"
@@ -67,6 +68,15 @@ experiments:
 
 tables:
 	$(PY) research/scripts/make_tables.py
+
+# A clean two-pass build is a precondition for every paper commit, in the same way
+# make_tables refuses a dirty git tree. No bibtex: the bibliography is inline.
+paper:
+	@PATH="$(TEXBIN):$$PATH"; \
+	 pdflatex -interaction=nonstopmode -halt-on-error main.tex >/dev/null && \
+	 pdflatex -interaction=nonstopmode -halt-on-error main.tex >/dev/null && \
+	 echo "paper: clean build, $$(pdfinfo main.pdf 2>/dev/null | awk '/^Pages/{print $$2}') pages" || \
+	 { echo "paper: BUILD FAILED — see main.log"; exit 1; }
 
 dev:
 	cd system/api && ../../.venv/bin/uvicorn fcesapi.main:app --reload --port 8000 & \

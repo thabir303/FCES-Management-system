@@ -1451,9 +1451,14 @@ every pair in its band**. Three exact points readable against the other methods'
 more than fifteen estimated ones.
 
 **Corpus B deduplication corpus size.** Sized so the cascade fits *comfortably* inside the budget
-rather than exactly filling it, and reported in the paper as a stated design choice with its reason.
-Corpus B's role in RQ1 is in-domain material for the transfer comparison, not exhaustive coverage.
-The size is fixed in `configs/dedup_cf_sweep.yaml` once C4 makes the band fraction measurable.
+rather than exactly filling it. Corpus B's role in RQ1 is in-domain material for the transfer
+comparison, not exhaustive coverage.
+
+**The size is a measured result, not a config decision.** The paper reserves a `[TBC]` for it in the
+Corpus B subsection, so it must reach the document the way every other number does: `run_dedup.py
+--corpus cf --sweep` emits the sampled record count into its run, `make_tables` writes it into
+`T4_cf_sweep.tex`, and the paper `\input{}`s it. Recording it only in
+`configs/dedup_cf_sweep.yaml` would leave a number in the paper that no run produced.
 
 **Partitioning rule enforced in code:** Contracts Finder splits by `release_date` (train = earlier
 months, test = later months), **never at random** — near-identical repeat notices from the same
@@ -1607,11 +1612,16 @@ make test
 make smoke         # 100 records, 1 severity, 1 seed — must finish <3 min, $0.00 API spend
 ```
 
-### 12.6 Result provenance
+### 12.6 Result provenance and the paper build
 1. Run ID = `<script>-<UTC ts>-<git sha>-<config sha>`.
 2. A dirty git tree marks the run; `make_tables.py` refuses it.
 3. Every generated table caption carries its source `run_id`.
-4. **No number is ever typed into a paper or report by hand** — everything is `\input{}` from
+4. **`make paper` must build clean before any commit touching `main.tex`.** Two `pdflatex` passes,
+   no `bibtex` — the bibliography is inline as `thebibliography`. TeX lives at `/Library/TeX/texbin`,
+   which is not on the default PATH. A paper that is correct in content and refuses to build is
+   discovered at the worst possible moment, so this is a precondition in the same way a clean git
+   tree is a precondition for `make tables`.
+5. **No number is ever typed into a paper or report by hand** — everything is `\input{}` from
    `results/tables/`. Re-run `make tables` as the final act before any submission.
 5. **Commit at the granularity of the §11 build-order table — one commit per task.** The run id
    embeds a git SHA so that a result can be traced to the code that produced it, and that is worth
