@@ -918,6 +918,14 @@ def evaluate_blocking(candidates: pd.DataFrame, truth: pd.DataFrame) -> dict
         'n_unblocked_records': int}"""
 ```
 
+**The `t=8` threshold is selected on Corpus A and carried to Corpus B unchanged**, which is what
+the transfer design requires. Corpus B pair completeness is unmeasurable until C4 supplies labels,
+and procurement titles have a different length distribution from product names, so what transfers is
+currently unknown. Measure it the moment C4 lands. **If it falls below the floor that is the
+transfer finding, not a tuning problem:** report it as measured, and additionally report what a
+Corpus-B-selected threshold would have recovered as a secondary figure showing the size of the gap.
+Do not refit and carry on.
+
 **The operating point, settled on the Corpus A dev partition (G3).** Per-gram q-gram indexing with
 `n=3` and `min_overlap=8`, giving **pair completeness 0.988 at reduction ratio 0.9796** — 48,194
 candidates on Corpus A and 71,248 on Corpus B. The rule is *the highest reduction ratio holding pair
@@ -976,7 +984,6 @@ class ClassificationResult:
 
 class TfidfSvmClassifier         # char_wb (2,5) + LinearSVC + CalibratedClassifierCV
 class EmbeddingLogRegClassifier  # embed() + LogisticRegression
-class ZeroShotLLMClassifier      # shortlist by embedding, then ask
 class RagFewShotLLMClassifier    # shortlist + k nearest labelled dev examples, then ask
 
 def shortlist_codes(record_text: str, taxonomy: pd.DataFrame, k: int = 12) -> list[tuple[str,str]]
@@ -1064,7 +1071,6 @@ standard rates). The `cap_usd=6.00` guard is headroom, not a target.
 def prf1(y_true, y_pred) -> dict                    # precision, recall, f1, tp, fp, fn
 def macro_weighted_f1(y_true, y_pred, labels) -> dict
 def confusion(y_true, y_pred, labels) -> pd.DataFrame
-def bootstrap_ci(y_true, y_pred, fn, n: int = 1000, seed: int = 0) -> tuple[float,float]
 ```
 
 ### 6.13 `operating_point.py`
@@ -1407,8 +1413,8 @@ from those directories.
 | `run_degrade_check.py` | injected vs observed rates per class | `T2_degradation.tex` |
 | `run_blocking.py` | pair completeness, reduction ratio per scheme × severity, **per corpus, plus which schemes apply to which corpus (§6.8)** | `T3_blocking.tex` |
 | `run_dedup.py --corpus abtbuy` | P/R/F1 × 4 matchers on the given test split | `T4_abtbuy.tex` |
-| `run_dedup.py --corpus cf --sweep` | P/R/F1 × 4 matchers × 5 severities × 3 seeds | `F1_severity.pdf` |
-| `run_classify.py` | macro/weighted F1 × 4 classifiers × 2 levels | `T6_classification.tex` |
+| `run_dedup.py --corpus cf --sweep` | P/R/F1 for the three zero-marginal-cost matchers × 5 severities × 3 seeds; **the cascade at 3 severities spanning the same range × 1 seed, adjudicating every pair in its band** | `F1_severity.pdf` |
+| `run_classify.py` | macro/weighted F1 × **3** classifiers × 2 levels. The two classical approaches on the **full** test partition; the language model condition on a **stratified sample** of it, with the classical figures reported on that same sample alongside their full ones | `T6_classification.tex` |
 | `run_classify.py --per-class` | confusion matrix for hazard-carrying divisions 33, 38, 42 | `T7_perclass.tex` |
 | `run_label_noise.py` | disagreement rate vs published CPV + 95% CI + intra-annotator κ; **mean handling time from the timed annotation (§6.15)** | inline figure |
 | `run_transfer.py` | **the External Validation comparison.** Thresholds selected on the Corpus A dev partition, carried across **unchanged**, evaluated on degraded Corpus B. Reports both figures and their difference as one paired comparison | `T9_transfer.tex` |
@@ -1426,14 +1432,38 @@ review queue is not on its critical path (§5.7, §9.3). Because the annotation 
 handling-time figure, it must be run before the operating-point analysis, which is why it sits early
 in Phase G rather than late.
 
+### 10.1 Scope reductions and the budget they buy
+
+This project answers three research questions inside a few dollars and the time remaining. A method
+earns its place only if removing it would leave one of RQ1–RQ3 without an answer, or remove the
+comparison that gives the answer meaning. The following were removed on that test, and are removed
+rather than deferred.
+
+| Removed | Why it fails the test |
+|---|---|
+| The fourth classification condition (zero-shot) | It answered what the in-context examples contribute, which is a narrower question than RQ2 asks. The comparison that matters to someone migrating a register — does a language model given the labels you already have beat a classifier trained on those same labels — survives with three conditions, at half the call volume. Moved to further work |
+| Band subsampling, bootstrap intervals, cascade accuracy by band position | These bought a cheaper cascade by making its accuracy an estimate. Cutting scope was preferred to cutting precision |
+
+**The cascade trades resolution for exactness.** The three matchers with no marginal cost per
+decision keep the full severity × repetition factorial and produce the degradation curve. The
+cascade runs at **3 severity levels spanning that same range, at a single repetition, adjudicating
+every pair in its band**. Three exact points readable against the other methods' curves are worth
+more than fifteen estimated ones.
+
+**Corpus B deduplication corpus size.** Sized so the cascade fits *comfortably* inside the budget
+rather than exactly filling it, and reported in the paper as a stated design choice with its reason.
+Corpus B's role in RQ1 is in-domain material for the transfer comparison, not exhaustive coverage.
+The size is fixed in `configs/dedup_cf_sweep.yaml` once C4 makes the band fraction measurable.
+
 **Partitioning rule enforced in code:** Contracts Finder splits by `release_date` (train = earlier
 months, test = later months), **never at random** — near-identical repeat notices from the same
 buyer would otherwise straddle the split. Abt-Buy uses its supplied splits. Write `splits.json`
 once and load it everywhere; a test asserts no `record_id` appears in both sides.
 
-**Compute budget:** the heaviest run is `run_dedup.py --corpus cf --sweep` (4 matchers × 5
-severities × 3 seeds over ~100k embeddings). Expect 45–75 min on CPU with the embedding cache
-warm. If it exceeds 2 hours, reduce seeds from 3 to 2 before reducing severity levels.
+**Compute budget:** the heaviest run is `run_dedup.py --corpus cf --sweep`. Expect 45–75 min on
+CPU with the embedding cache warm. If it exceeds 2 hours, reduce seeds from 3 to 2 before reducing
+severity levels — for the three free matchers only; the cascade's condition count is fixed by §10.1
+and is a budget decision, not a compute one.
 
 ---
 
@@ -1494,7 +1524,7 @@ rewriting it would invalidate every result already computed against it.
 | C4 | `degrade.py` + tests | A2 | same seed ⇒ byte-identical output; each of the **7** error classes has its own test (abbreviation, character noise, casing, whitespace, units, field omission, and Mudgal's field merge — matching the seven knobs in §6.6 and the six classes plus merge the paper lists); `make_distractors` returns a non-empty label-0 set for both corpora under their respective mining rules and touches none of the three null columns |
 | C5 | `llm.py` — cache, ledger, hard cap | A3 | a $0.20 pilot runs; re-running the identical set costs **exactly $0.00** and every row logs `cache_hit=true`; ledger rows land in the single `results/ledger.jsonl` carrying `run_id` |
 | C6 | `dedup.py` — Embedding + Cascade | C1, C3, C5 | `CascadeMatcher.stats` is populated with all three keys; the counts are mutually consistent (`n_adjudicated ≤ n_pairs`, `band_fraction == n_adjudicated / n_pairs`); and **every pair sent to the adjudicator has a base score strictly inside `(lower, upper)`, with no pair outside the band adjudicated**. The measured band fraction is recorded as a finding — a fraction of 0.30 is a fact about the method, not a build failure |
-| C7 | `classify.py` — all four | C1, C5, B3 | every classifier returns non-empty `alternatives`; LLM ones never receive the full taxonomy |
+| C7 | `classify.py` — all three (§10.1) | C1, C5, B3 | every classifier returns non-empty `alternatives`; the language model condition never receives the full taxonomy, only the shortlist |
 | C8 | `metrics.py`, `operating_point.py` | C3 | `automated_share_at_precision` recovers a known answer on a synthetic fixture |
 
 ### Phase D — System backend

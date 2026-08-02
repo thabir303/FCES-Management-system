@@ -1,0 +1,644 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{url}
+
+\begin{document}
+
+\title{ }
+
+\author{\IEEEauthorblockN{ }
+\IEEEauthorblockA{\textit{ } \\
+\textit{ }\\
+\mbox{ }}
+}
+
+\maketitle
+
+\begin{abstract}
+Equipment registers in higher education are commonly held in spreadsheets
+that impose no constraints on what is recorded, so that the same item is
+entered more than once and in more than one form. Replacing such a
+spreadsheet with a governed register requires those records to be
+reconciled, and it is this migration step, rather than the construction
+of the system itself, that determines whether the resulting register can
+be trusted. This paper studies how far that reconciliation can be
+automated. Two corpora are combined: an established entity resolution
+benchmark supplies human labelled duplicate pairs, and United Kingdom
+Contracts Finder notices supply free text procurement descriptions
+already carrying Common Procurement Vocabulary codes. A parameterised
+degradation model reintroduces the error classes that published data
+lacks, and lexical, embedding based and language model approaches are
+compared for duplicate detection and for taxonomy assignment. Results are
+reported not as headline accuracy but as the share of a register that can
+be migrated without human intervention while precision is held at a fixed
+target, together with the residual manual effort and the monetary cost of
+each approach. [TBC] The resulting pipeline is deployed inside an asset
+management system delivered to the Faculty of Computing, Engineering and
+Science at the University of South Wales.
+\end{abstract}
+
+\begin{IEEEkeywords}
+asset management, entity resolution, record linkage, data quality, text
+classification, open data
+\end{IEEEkeywords}
+
+\section{Introduction}
+
+Higher education institutions hold research and teaching equipment worth
+many millions of pounds, and the records describing that equipment are
+very often kept in spreadsheets that were never designed to act as an
+authoritative register. A spreadsheet offers no access control beyond
+file permissions, no audit trail, no way of attaching a photograph or a
+calibration certificate to a particular item, and no mechanism for
+warning a technician that a pressure vessel is due for inspection. It
+also imposes no constraints on what is typed into it. Two members of
+staff recording the same microscope in the same week will produce two
+rows that differ in spelling, abbreviation, capitalisation and column
+alignment, and the file will accept both without complaint.
+
+The Faculty of Computing, Engineering and Science (FCES) at the
+University of South Wales is currently relocating a large volume of
+equipment into a new building, Calon. The existing record of that
+equipment is a static spreadsheet. The faculty requires a live system in
+which any item can be reached by scanning a QR or barcode label, updated
+in place, and associated with photographs, technical documentation,
+service history, a position on a floor plan and the relevant health and
+safety risk assessment. Access has to be tiered, so that most staff can
+read the register while a smaller group is able to modify it.
+
+Building such a system is a software engineering exercise with a well
+understood solution space. Populating it is not. The migration step, in
+which several thousand free text rows written by different people over
+many years have to be reconciled into a consistent structured register,
+is the point at which asset management projects most often lose
+accuracy, and it is the step that determines whether the finished system
+is trusted by the people who depend on it. Duplicates that survive
+migration cause the register to overstate holdings and distort
+replacement planning. Categories assigned inconsistently make the
+register impossible to search or report on. An item placed in the wrong
+category will inherit whatever hazard classification and servicing rule
+that category carries, so a classification error propagates directly
+into a safety control.
+
+These consequences are not hypothetical. In 2024/25 employers in Great
+Britain reported 59,219 non fatal injuries to employees under the
+Reporting of Injuries, Diseases and Dangerous Occurrences Regulations,
+and the Health and Safety Executive estimates the annual cost of
+injuries and new cases of work related ill health arising from current
+working conditions at \pounds22.9 billion \cite{hse2025}. Handling,
+lifting or carrying accounted for 17 per cent of reported non fatal
+injuries and being struck by a moving object for a further 10 per cent
+\cite{hse2025}. In both categories the correct identification of a
+machine and its associated risk assessment is a practical control rather
+than an administrative formality. A register that cannot reliably say
+which machine is which is a register that cannot support those controls.
+
+This paper therefore treats the migration problem itself as the object
+of study rather than as preparatory work. The question is not whether a
+live asset register can be built, because it plainly can, but how much
+of the transition from an uncontrolled spreadsheet to a governed
+register can be automated, how accurate that automation is, and how much
+human effort remains once it has been applied.
+
+Answering that question empirically requires records for which the
+correct answers are known. Records held by FCES were not available for
+this study, and published institutional catalogues, being curated for
+public display, carry neither duplicate annotations nor a consistent
+category label. The study therefore draws on two corpora with
+complementary ground truth. Established entity resolution benchmarks
+supply human labelled duplicate pairs together with published baselines
+against which the matching results can be positioned. Notices published
+through the United Kingdom Contracts Finder service supply several
+hundred thousand free text procurement descriptions already carrying
+Common Procurement Vocabulary codes, which serve as category labels at a
+scale no manual annotation exercise could reach and which sit in the same
+descriptive register as equipment records. A parameterised degradation
+model then reintroduces the error classes absent from both, so that method performance can be observed as
+record quality falls rather than at a single arbitrary operating point.
+
+The contributions of this paper are as follows.
+
+\begin{itemize}
+\item A two corpus evaluation design that separates duplicate ground
+truth from category ground truth, allowing an asset migration pipeline to
+be measured end to end without access to a proprietary register.
+\item A parameterised degradation model, extending the dirty data
+protocol used in the entity matching literature, that reproduces the
+error classes documented in manually maintained asset and procurement
+data at controllable severity.
+\item A comparative evaluation of lexical, embedding based and language
+model approaches to duplicate detection and to taxonomy assignment,
+reported with accuracy, latency and monetary cost.
+\item A cost aware cascade in which inexpensive similarity measures
+resolve confident matches and non matches while a language model
+adjudicates only the ambiguous band, together with a measurement of how
+much of the workload this removes from the expensive tier.
+\item An operating point analysis reporting the proportion of a register
+that can be migrated without human intervention at a fixed precision
+target, the residual manual effort this implies, and an implementation
+of the pipeline inside an asset management system delivered to FCES.
+\end{itemize}
+
+The remainder of the paper is organised as follows. Section II states
+the research questions and the scope of the study. Section III reviews
+related work. Section IV describes the corpora, the degradation model
+and the experimental design. Section V presents the results. Section VI
+discusses their interpretation, the integration of the pipeline into the
+delivered system and the threats to validity. Section VII concludes.
+
+\section{Research Questions and Scope}
+
+The study is organised around three research questions.
+
+\textbf{RQ1.} How accurately can duplicate and near duplicate equipment
+records be identified, and how does that accuracy degrade as the quality
+of the underlying records falls?
+
+Duplicate detection is treated first because every later stage depends
+on it. A register containing the same item twice will apply the same
+servicing rule twice and count the same asset twice. RQ1 compares
+normalised exact matching, character level lexical similarity, sentence
+embedding similarity and a hybrid cascade, measuring each across a range
+of injected error rates rather than at a single operating point, so that
+the sensitivity of each method to record quality is observed rather than
+assumed.
+
+\textbf{RQ2.} How accurately can free text equipment descriptions be
+assigned to a controlled procurement taxonomy, and what accuracy, cost
+and latency trade offs exist between classical, embedding based and
+language model approaches?
+
+Consistent categorisation is what makes a register searchable,
+reportable and capable of carrying category level hazard and servicing
+rules. RQ2 evaluates assignment to the Common Procurement Vocabulary,
+which every public sector procurement notice in the United Kingdom
+already carries and which is published as linked open data across the
+higher education sector. The vocabulary is hierarchical, and performance
+is reported at the two-digit division level and the four-digit class
+level separately, because the practical value of a coarse but reliable
+assignment differs from that of a finer but less certain one. The
+eight-digit leaf level is not evaluated: the label distribution in the
+available data is too sparse at that depth for the result to carry
+meaning, and the measured sparsity is reported in Section V.
+
+\textbf{RQ3.} What proportion of a legacy register can be migrated
+without human intervention at a fixed precision target, and what
+residual manual effort does the remainder represent?
+
+RQ3 converts the measurements produced by RQ1 and RQ2 into the quantity
+that determines whether the approach is adopted in practice. A method
+that is accurate on average but cannot be operated at high precision is
+of little use to a faculty that has to sign off a register, because
+every error it introduces has to be found again by hand. Reporting the
+automated share at a precision floor, rather than a headline accuracy
+figure, states the result in the terms in which the decision to adopt or
+reject the pipeline is actually made.
+
+Three boundaries are placed on the scope of the work. First, the study
+addresses the migration of an existing register and not the prediction
+of equipment failure. Servicing is treated as a scheduling and
+notification problem driven by category and interval, and predictive
+maintenance is left to further work. Second, the location model is a two
+dimensional pin placed on an uploaded floor plan image rather than a
+spatial or building information model, which matches the granularity at
+which the faculty records location. Third, all corpora consist of
+published open data and no personal or commercially sensitive
+information is processed, so no ethical approval beyond the standard
+faculty declaration was required.
+
+\section{Related Work}
+
+\subsection{Record Linkage and Entity Resolution}
+
+The problem of deciding whether two records describe the same real world
+entity has a formal treatment dating to the probabilistic framework of
+Fellegi and Sunter \cite{fellegi1969}, which models the comparison of
+record pairs as a decision problem with configurable error rates.
+Subsequent work systematised the surrounding pipeline, in particular the
+blocking step that reduces the quadratic comparison space to a tractable
+candidate set, and the similarity measures applied within it
+\cite{christen2012,papadakis2020}. The blocking schemes evaluated here are drawn from this line of work. This literature is largely evaluated on bibliographic and
+commercial product data, and the question of how the methods behave on
+institutional asset records has received little attention.
+
+\subsection{Learned Approaches to Entity Matching}
+
+Mudgal et al. \cite{mudgal2018} explored the design space of deep
+learning architectures for entity matching and established the benchmark
+suite on which most subsequent work reports. Their study also introduced
+a protocol for constructing dirty variants of structured datasets by
+relocating attribute values into a free text field, which is the closest
+published analogue to the column misalignment observed in manually
+maintained spreadsheets. Li et al. \cite{li2020ditto} showed that
+pre-trained language models applied as cross encoders improve on these
+architectures, and Narayan et al. \cite{narayan2022} reported that large
+foundation models perform competitively on data wrangling tasks without
+task specific training. reporting F1 of [TBC] on the benchmark used here. These approaches assume a labelled training set drawn from the
+same distribution as the deployment data, an assumption a faculty
+migrating a single spreadsheet cannot satisfy.
+
+\subsection{Cost and Efficiency of Language Model Pipelines}
+
+Where a large model is invoked per record pair, the cost of a pipeline
+scales with the number of decisions it makes rather than with its
+accuracy. Recent work has therefore examined cascaded and routed
+inference, in which an inexpensive method resolves the majority of
+instances and an expensive model is invoked only where the cheap decision
+is unreliable [TBC]. Cost is rarely reported alongside accuracy in the
+entity matching literature, so what a given level of matching performance
+costs to obtain remains largely open, and it is the question the cascade
+evaluated here is designed to answer.
+
+\subsection{Text Classification against Procurement Taxonomies}
+
+Assigning free text descriptions to a hierarchical controlled vocabulary
+is a long standing text classification problem, addressed classically
+with sparse lexical features and linear classifiers and more recently
+with dense sentence representations \cite{reimers2019}. Assignment to procurement
+vocabularies specifically, and hierarchical classification where a coarse
+decision is more reliable than a fine one, have both been studied in the
+procurement analytics setting [TBC]. Existing work generally targets procurement analytics
+rather than asset register construction, and does not consider the
+precision thresholds required when a category assignment carries a
+safety consequence.
+
+\subsection{Equipment Cataloguing and Asset Management}
+
+Equipment cataloguing in higher education has been addressed
+operationally rather than analytically. Open source catalogue software
+such as Kit-Catalogue \cite{kitcatalogue} and aggregation services such
+as the Equipment Data Service \cite{jisc} provide the means to publish
+and share institutional holdings, and asset management practice is
+codified in ISO 55000 \cite{iso55000}. Data quality in asset and
+maintenance management records has been examined as an operational
+concern [TBC]. None of this work reports how the records
+entering such systems were reconciled, or with what accuracy, which is
+the omission this paper addresses.
+
+\section{Methodology}
+
+\subsection{Study Design}
+
+The study separates two concerns that are usually conflated: whether a
+method works against ground truth a human has verified, and whether it
+continues to work when record quality degrades. Two corpora are used,
+each supplying verified ground truth for one of the two tasks, and a
+degradation model is applied to both so that the second concern can be
+measured on each.
+
+Duplicate ground truth is supplied by established entity resolution
+benchmarks in which candidate pairs have been manually labelled. Category
+ground truth is supplied by public procurement notices, which carry a
+taxonomy code assigned by the purchasing authority at the time of
+publication. Neither corpus is drawn from an institutional asset
+register. That substitution is the principal limitation of the design,
+and its consequences are set out in Section VI rather than left
+implicit.
+
+\subsection{Corpus A: Duplicate Ground Truth}
+
+Matching accuracy is measured on benchmarks from the entity resolution
+literature in which candidate pairs have been manually labelled as
+matching or non matching \cite{mudgal2018,koepcke2010}. The text heavy
+Abt-Buy benchmark is used, because at least one of its attributes
+contains long free text, and that is the property distinguishing
+equipment descriptions from purely structured records. The corpus comprises [TBC] labelled pairs at a positive rate of [TBC],
+divided into the training, validation and test splits supplied with it;
+the figures quoted are for the full labelled set, and results are
+reported on the test split of [TBC] pairs.
+
+Two considerations justify this choice. Product catalogue entries share
+the structural characteristics of equipment records: a short designation
+carrying brand and model information inside a single name string,
+attached to a variable free text description written by another party. More importantly, published
+results exist for these benchmarks, so the methods evaluated here can be
+positioned against the literature rather than reported in isolation.
+The limitation, that the domain is commercial rather than
+institutional, is carried explicitly through to the threats to validity,
+and is the reason the in domain comparison described below is reported
+alongside the benchmark figures rather than in place of them.
+
+\subsection{Corpus B: Category Ground Truth}
+
+Category assignment is evaluated on notices published through the United
+Kingdom Contracts Finder service and released in Open Contracting Data
+Standard format under the Open Government Licence \cite{contractsfinder}.
+Every notice carries at least one Common Procurement Vocabulary code
+assigned by the purchasing authority, alongside a free text title and
+description, which yields a large labelled set for the task of mapping a
+description to a taxonomy code.
+
+The corpus is filtered to the CPV divisions relevant to laboratory,
+engineering and computing equipment, so that the label distribution
+resembles that of a faculty register rather than that of public
+procurement as a whole. The retained divisions are [TBC],
+yielding [TBC] records; the resulting class distribution is reported in
+Section V. The CPV hierarchy itself is
+reconstructed from the code and description pairs carried by the notices,
+with parents derived by truncation, so that division and class level
+evaluation are supported from a single source without an external
+vocabulary file.
+
+This corpus plays a second role. Its records are drawn from the same
+descriptive register as equipment entries, being short procurement
+descriptions written by many different authorities, so degraded variants
+of these records serve as the in domain material for the duplicate
+detection experiments, and a filtered subset populates the delivered
+system with demonstration data.
+
+Labels assigned by purchasing authorities are not error free, and the
+publisher documents known quality issues in the released data
+\cite{contractsfinder}. A stratified sample is therefore manually
+reviewed to estimate label noise, and the estimated noise rate is
+reported alongside the classification results so that measured accuracy
+can be interpreted against the ceiling the labels themselves impose.
+The sample comprises [TBC] records, and the observed rate of
+disagreement with the published code is [TBC].
+
+\subsection{Degradation Model}
+
+Published data is cleaner than a working spreadsheet, so a degradation
+model reintroduces the missing error classes. The model extends the
+dirty data protocol of Mudgal et al. \cite{mudgal2018}, which relocates
+attribute values into a free text field, with six further classes
+drawn from the quality issues the Contracts Finder publisher documents in
+the released data and from a manual audit of a sample of it: abbreviation
+from a domain
+lexicon, character level insertion, deletion, substitution and
+transposition, inconsistent casing, whitespace perturbation, field
+omission, and variation in the notation of units and voltages.
+
+Each class is applied independently with a probability governed by a
+single severity parameter, producing a family of corpora spanning
+lightly to heavily degraded records. Duplicate pairs are generated by
+producing a second degraded copy of a source record under an independent
+draw from the same model, reproducing the case in which two members of
+staff enter the same item without reference to one another. Near duplicate distractors are also generated by degrading records that
+are similar but genuinely distinct. On the procurement corpus these are
+drawn from pairs sharing a taxonomy class and exhibiting high title
+similarity while carrying distinct record identifiers; on the benchmark
+corpus they are drawn from pairs sharing a leading token. Without them a
+detector that cannot separate similar but distinct records will report
+high recall for the wrong reason. The model parameters, the
+abbreviation lexicon and the generation code are released so that every
+corpus used here can be regenerated exactly.
+
+\subsection{Duplicate Detection}
+
+Four methods are compared in increasing order of cost. Normalised exact
+matching, applied after case folding, whitespace collapsing and
+punctuation removal, establishes the floor and quantifies how much of
+the problem is trivially solvable. Lexical similarity uses character
+level n-gram term frequency inverse document frequency vectors compared
+by cosine similarity; character level features are preferred to
+word level features because the dominant error classes operate within
+words. Semantic similarity encodes the concatenated name and description
+with a sentence embedding model \cite{reimers2019}, which is expected to
+tolerate abbreviation and paraphrase better and character noise worse.
+
+The fourth method is a cascade. Pairs above an upper similarity
+threshold are accepted, pairs below a lower threshold are rejected, and
+only the band between them is passed to a large language model for
+pairwise adjudication. Both thresholds are selected on the development
+partition to satisfy the precision target of RQ3 while minimising the
+size of the adjudicated band. The proportion of pairs reaching the language model, and the resulting
+cost per thousand records, are reported alongside accuracy, because a
+cascade that improves accuracy at unbounded cost is not a usable result.
+
+The three methods above are evaluated across the full factorial of
+degradation severities and repetitions, since none of them carries a
+marginal cost per decision. The cascade is not: each adjudication is a
+paid call, so it is evaluated at a reduced set of severity levels and a
+single repetition, with every pair in the band adjudicated at each. This
+trades the resolution of the cascade's degradation curve for exactness at
+the points measured, which is the better trade when the alternative is an
+estimate at every point. The severity levels retained span the range
+measured for the other methods, so the cascade can be read against their
+curves rather than in isolation.
+
+All methods operate over candidate pairs produced by blocking rather
+than the full comparison space. Three keying schemes are evaluated: sorted
+character n-grams of the normalised title, which applies to both corpora;
+a leading token key taking the first substantive token of the title,
+which approximates a brand designation where the title carries one; and
+the identifier of the publishing authority, which is available on the
+procurement corpus only. Blocking is evaluated separately by pair completeness and reduction
+ratio, since recall lost during blocking cannot be recovered downstream,
+and the availability of each scheme differs between the two corpora,
+which is reported alongside its performance. The scheme parameters are
+selected on the benchmark development partition, subject to a stated
+floor on pair completeness, and carried unchanged to the procurement
+corpus in keeping with the transfer design; any loss of completeness that
+transfer incurs is reported rather than recovered by refitting.
+
+\subsection{Category Assignment}
+
+Three approaches are compared, one from each family and in ascending
+order of cost per decision. A lexical baseline represents each record as
+character level n-gram features and classifies with a linear support
+vector machine. An embedding baseline encodes the record with a sentence
+embedding model and classifies with a logistic regression head. A
+retrieval augmented language model condition is given a candidate label
+set shortlisted by embedding similarity, rather than the full vocabulary,
+together with the nearest labelled examples from the development
+partition supplied as in context examples. Shortlisting is a practical
+necessity as well as a design choice, since presenting a taxonomy of this
+size in a prompt is neither affordable nor useful.
+
+The comparison asks whether a language model given the labels already
+available in Corpus B outperforms a classifier trained on the same
+labels, which is the question facing anyone deciding how to categorise a
+register. The narrower question of what the in context examples
+contribute, which would require a second language model condition
+without them, is left to further work. The two classical approaches are
+evaluated on the full test partition; the language model condition is
+evaluated on a stratified sample of it, whose size is stated with the
+results, and the classical figures are reported on that same sample
+alongside their full-partition figures so that the sample can be seen to
+be representative.
+
+The two levels present different difficulties. At division level the
+label set is small and its distribution only moderately skewed, so the
+task is tractable but coarse. At class level the label set is an order of
+magnitude larger and its tail is long: most classes carry too few
+examples to be learned at all. Evaluation at class level is therefore
+restricted to labels holding at least a stated minimum of training
+examples, and the proportion of the corpus that restriction covers is
+reported with the results, so that class level accuracy is read against
+the share of the register it applies to rather than against the whole.
+Records falling outside the supported set are not discarded from the
+migration pipeline; they are routed to review, which is where an
+unlearnable category should go.
+
+Macro averaged scores are the primary measure at both levels, weighted
+averages are reported alongside them, and a per class breakdown is given
+for the divisions carrying hazard or servicing rules in the delivered
+system, because those are the classes in which an error has an
+operational consequence.
+
+\subsection{Partitioning}
+
+Every corpus is partitioned before any tuning. A development partition
+is used for threshold selection, prompt design and model fitting, and a
+held out partition is used only for the final reported results. In
+Corpus A the published train, validation and test splits are used
+unchanged, so that results remain comparable with the literature. In
+Corpus B notices are partitioned by publication period rather than at
+random, so that near identical repeat notices from the same buyer do not
+appear on both sides, and so that the split reflects the way a register
+accumulates over time. Without these constraints the
+reported figures would be optimistic for reasons unrelated to method
+quality.
+
+\subsection{Evaluation Metrics}
+
+Duplicate detection is evaluated by precision, recall and F1, reported
+separately at every severity level rather than summarised, since the two
+components behave differently as records degrade. Blocking is evaluated
+by pair completeness and reduction ratio. Category assignment is
+evaluated by macro and weighted F1 at both taxonomy levels, with
+confusion matrices for the operationally significant classes.
+
+Operational measures are reported for every method: mean processing
+latency per record, monetary cost per thousand records for any method
+invoking a paid model, and the automated share, defined as the
+proportion of records the pipeline resolves without human intervention
+while holding precision at or above the target specified in RQ3.
+Residual manual effort is derived from the automated share and a mean
+handling time measured by timing manual curation during the annotation
+exercise. The precision target is [TBC], the timing
+sample comprises [TBC] records, and the observed mean handling time is
+[TBC].
+
+\subsection{External Validation}
+
+Results are checked in two ways. First, the error distribution produced
+by the degradation model is compared against the manual audit of the
+Contracts Finder sample, and agreement or divergence in the relative
+frequency of each error class is reported. A degradation model that
+overrepresents an error class the methods handle easily would flatter
+every subsequent result, so this comparison is a precondition for
+interpreting the rest.
+
+Second, the pipeline is tuned on Corpus A and then evaluated, without
+further tuning, on degraded records from Corpus B. The thresholds
+selected on the Corpus A development partition are carried across
+unchanged; no parameter is refitted on Corpus B, and the transfer is
+reported as a single paired comparison rather than as two independent
+results. Corpus A carries human
+labels but a commercial domain; Corpus B carries a domain closer to
+institutional equipment but synthetic duplicate labels. Neither is a
+substitute for a real asset register, and the difference between the two
+figures is the best available estimate of how far the reported
+performance would transfer. That difference is reported whatever its
+size, and it is the first item in the threats to validity discussion.
+
+\subsection{Integration into the Delivered System}
+
+The pipeline is deployed inside the asset management system built for
+FCES so that its behaviour can be observed under realistic use, with a
+filtered subset of Corpus B standing in for the faculty register until
+the real records become available. The
+system provides item records with attached photographs and documents, a
+QR label per item resolving to a persistent item URL, pin placement on
+an uploaded floor plan image, service interval tracking with scheduled
+reminders, tiered access comprising administrator, technician and read
+only roles, and an audit log of changes.
+
+Migration is exposed as a bulk import in which an uploaded spreadsheet
+passes through the deduplication and classification stages and the
+outcome is routed to one of two destinations. Records resolved above the
+precision threshold are written directly to the register. Records below
+it enter a review queue presenting the candidate decision, the competing
+alternatives and the similarity evidence, so that the human effort
+measured in the evaluation corresponds to a task a curator can actually
+perform rather than to an abstract count of uncertain records.
+
+\subsection{Reproducibility}
+
+Collection scripts, schema mappings, the degradation model, the
+annotation protocol and experimental code are released in a public
+repository. Corpora derived from third party
+sources are distributed as record identifiers and reconstruction scripts
+rather than as redistributed data, in accordance with each licence.
+Model versions, prompt texts, embedding checkpoints and random seeds are
+recorded with every run. The repository is available at [TBC].
+
+\section{Results}
+
+\section{Discussion}
+
+\section{Conclusion}
+
+\begin{thebibliography}{99}
+
+\bibitem{fellegi1969}
+I.~P. Fellegi and A.~B. Sunter, ``A theory for record linkage,'' \emph{J. Amer.
+  Statist. Assoc.}, vol.~64, no.~328, pp. 1183--1210, 1969.
+
+\bibitem{christen2012}
+P.~Christen, \emph{Data Matching: Concepts and Techniques for Record Linkage,
+  Entity Resolution, and Duplicate Detection}. Berlin, Germany: Springer, 2012.
+
+\bibitem{papadakis2020}
+G.~Papadakis, D.~Skoutas, E.~Thanos, and T.~Palpanas, ``Blocking and filtering
+  techniques for entity resolution: A survey,'' \emph{ACM Comput. Surv.},
+  vol.~53, no.~2, 2020.
+
+\bibitem{rahm2000}
+E.~Rahm and H.~H. Do, ``Data cleaning: Problems and current approaches,''
+  \emph{IEEE Data Eng. Bull.}, vol.~23, no.~4, pp. 3--13, 2000.
+
+\bibitem{mudgal2018}
+S.~Mudgal \emph{et~al.}, ``Deep learning for entity matching: A design space
+  exploration,'' in \emph{Proc. ACM SIGMOD Int. Conf. Manage. Data}, 2018, pp.
+  19--34.
+
+\bibitem{koepcke2010}
+H.~K\"{o}pcke, A.~Thor, and E.~Rahm, ``Evaluation of entity resolution
+  approaches on real-world match problems,'' \emph{Proc. VLDB Endowment},
+  vol.~3, no.~1, pp. 484--493, 2010.
+
+\bibitem{li2020ditto}
+Y.~Li, J.~Li, Y.~Suhara, A.~Doan, and W.-C. Tan, ``Deep entity matching with
+  pre-trained language models,'' \emph{Proc. VLDB Endowment}, vol.~14, no.~1,
+  pp. 50--60, 2020.
+
+\bibitem{narayan2022}
+A.~Narayan, I.~Chami, L.~Orr, and C.~R\'{e}, ``Can foundation models wrangle
+  your data?'' \emph{Proc. VLDB Endowment}, vol.~16, no.~4, pp. 738--746, 2022.
+
+\bibitem{reimers2019}
+N.~Reimers and I.~Gurevych, ``Sentence-BERT: Sentence embeddings using Siamese
+  BERT-networks,'' in \emph{Proc. Conf. Empirical Methods Natural Lang.
+  Process.}, 2019, pp. 3982--3992.
+
+\bibitem{iso55000}
+\emph{Asset Management --- Overview, Principles and Terminology}, ISO Standard
+  55000:2014, 2014.
+
+\bibitem{hse2025}
+Health and Safety Executive, ``Health and safety statistics for Great Britain,
+  2024/25,'' 2025. [Online]. Available: https://www.hse.gov.uk/statistics/
+
+\bibitem{jisc}
+Jisc, ``Equipment data service.'' [Online]. Available:
+  https://equipment.data.ac.uk/
+
+\bibitem{contractsfinder}
+Cabinet Office, ``Contracts Finder: Open Contracting Data Standard release
+  packages,'' Open Government Licence v3.0. [Online]. Available:
+  https://www.gov.uk/contracts-finder
+
+\bibitem{kitcatalogue}
+Loughborough University, ``Kit-Catalogue: Open source equipment cataloguing
+  software,'' licensed under GPLv3.
+
+\end{thebibliography}
+
+\end{document}
