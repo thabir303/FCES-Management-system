@@ -146,12 +146,69 @@ def table_leaf_sparsity(run: dict) -> str:
     return _wrap("".join(rows), caption, "tab:leaf_sparsity", run["run_id"], "lrrrrr")
 
 
+def table_label_support(run: dict) -> str:
+    """Imbalance and coverage at both taxonomy levels.
+
+    The paper's Category Assignment section distinguishes the two levels: division is
+    moderately skewed and fully covered, class is long-tailed and covered only in part.
+    Both statements are numbers here, and the uncovered share is the fraction routed to
+    review rather than discarded.
+    """
+    m = run["metrics"]["corpus_b_contractsfinder"]
+    d = m["division_sets"][m["adopted_division_set"]]
+    rows = [
+        "Level & Labels & Supported & Smallest & Largest & Imbalance & Coverage \\\\\n\\hline\n"
+    ]
+    for level in ("division", "class"):
+        lv = d["levels"][level]
+        rows.append(
+            f"{level} & {lv['n_labels_observed']} & {lv['n_labels_supported']} & "
+            f"{lv['smallest_label_n']:,} & {lv['largest_label_n']:,} & "
+            f"{lv['imbalance_ratio']:.1f}:1 & "
+            f"{100 * lv['coverage_of_dev']:.1f}\\% \\\\\n"
+        )
+    lv = d["levels"]["class"]
+    caption = (
+        f"Label support on the adopted {len(d['divisions'])}-division set. Class-level "
+        f"evaluation is restricted to labels with at least {lv['min_examples']} training "
+        f"examples; the {100 * lv['uncovered_share_of_dev']:.1f}\\% of records outside "
+        f"that set are routed to review, not discarded."
+    )
+    return _wrap("".join(rows), caption, "tab:label_support", run["run_id"], "lrrrrrr")
+
+
+def table_division_choice(run: dict) -> str:
+    """The measured basis for excluding divisions 39 and 48."""
+    m = run["metrics"]["corpus_b_contractsfinder"]
+    excl = m["excluded_divisions"]
+    names = {"39": "Furniture", "48": "Software packages"}
+    rows = ["Division & Contents & Records & Share of candidate corpus \\\\\n\\hline\n"]
+    for code in sorted(excl):
+        e = excl[code]
+        rows.append(
+            f"{code} & {names.get(code, '')} & {e['n_records']:,} & "
+            f"{100 * e['share_of_widest_set']:.1f}\\% \\\\\n"
+        )
+    rows.append("\\hline\n")
+    total = sum(e["n_records"] for e in excl.values())
+    total_share = sum(e["share_of_widest_set"] for e in excl.values())
+    rows.append(f"combined & & {total:,} & {100 * total_share:.1f}\\% \\\\\n")
+    caption = (
+        "Divisions excluded from the adopted set, and what each contributed to the "
+        "candidate corpus. Neither describes a serviceable physical item bearing an "
+        "asset tag."
+    )
+    return _wrap("".join(rows), caption, "tab:division_choice", run["run_id"], "llrr")
+
+
 BUILDERS = {
     "run_profile": {
         "T1_corpus_a.tex": table_corpus_a,
         "T1_corpus_b.tex": table_corpus_b,
         "T1_discard.tex": table_discard,
         "T1_leaf_sparsity.tex": table_leaf_sparsity,
+        "T1_label_support.tex": table_label_support,
+        "T1_division_choice.tex": table_division_choice,
     },
 }
 

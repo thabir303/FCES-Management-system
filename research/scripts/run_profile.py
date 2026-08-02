@@ -74,11 +74,18 @@ def profile_corpus_b(
         for level in LEVELS:
             labels, coverage = supported_labels(dev, level, min_examples=min_examples)
             counts = label_series(sub, level).value_counts()
+            # Imbalance is reported per level because it differs sharply between them,
+            # and the paper's Category Assignment section distinguishes the two.
             levels[level] = {
                 "n_labels_observed": int(len(counts)),
                 "n_labels_supported": int(len(labels)),
                 "coverage_of_dev": coverage,
+                "uncovered_share_of_dev": 1.0 - coverage,
                 "min_examples": min_examples,
+                "smallest_label_n": int(counts.min()),
+                "largest_label_n": int(counts.max()),
+                "imbalance_ratio": float(counts.max() / counts.min()),
+                "n_singleton_labels": int((counts == 1).sum()),
             }
 
         out["division_sets"][name] = {
@@ -99,6 +106,24 @@ def profile_corpus_b(
         "cutoff": splits.cutoff.isoformat(),
         "n_dev": len(splits.cf_dev),
         "n_test": len(splits.cf_test),
+        "defined_over": "all candidate divisions, before the eight-division restriction",
+        "note": (
+            "Filtering by division after a temporal split preserves the temporal "
+            "guarantee, so no re-freeze is needed."
+        ),
+    }
+
+    # What each excluded division contributes, so the exclusion is argued from measured
+    # numbers rather than asserted.
+    widest = max(division_sets, key=lambda k: len(division_sets[k]))
+    widest_n = len(corpus[corpus["cpv_code"].str[:2].isin(set(division_sets[widest]))])
+    excluded = sorted(set(division_sets[widest]) - set(division_sets[adopted]))
+    out["excluded_divisions"] = {
+        d: {
+            "n_records": int((corpus["cpv_code"].str[:2] == d).sum()),
+            "share_of_widest_set": float((corpus["cpv_code"].str[:2] == d).sum() / widest_n),
+        }
+        for d in excluded
     }
     return out
 
