@@ -1,0 +1,58 @@
+# Abbreviation lexicon for the degradation model (§6.6).
+#
+# Expansions on the left, the abbreviation a person would actually type on the right.
+# Drawn from forms observed in Contracts Finder titles and descriptions and from ordinary
+# laboratory and engineering usage. Released with the code so every degraded corpus can be
+# regenerated exactly.
+#
+# Each entry is applied whole-word only, so "temperature" does not corrupt "temperatures".
+
+laboratory: lab
+laboratories: labs
+equipment: equip
+temperature: temp
+maintenance: maint
+manufacturer: mfr
+manufacturing: mfg
+specification: spec
+specifications: specs
+approximately: approx
+instrument: instr
+instrumentation: instr
+microscope: scope
+refrigerator: fridge
+centrifuge: centri
+spectrometer: spec
+oscilloscope: cro
+department: dept
+university: uni
+building: bldg
+number: "no"
+quantity: qty
+maximum: max
+minimum: min
+standard: std
+electrical: elec
+electronic: electr
+mechanical: mech
+automatic: auto
+digital: dig
+portable: port
+stainless: stainl
+aluminium: alu
+kilogram: kg
+kilowatt: kw
+millimetre: mm
+centimetre: cm
+metre: m
+litre: l
+volt: v
+ampere: amp
+hertz: hz
+including: incl
+accessories: acc
+replacement: repl
+installation: instal
+inspection: insp
+calibration: calib
+certificate: cert
