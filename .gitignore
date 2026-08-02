@@ -22,3 +22,7 @@ results/tables/*
 
 # Run artefacts are committed; the LLM ledger is too (it is the cost evidence).
 PROJECT_PLAN.amendments.diff
+*.aux
+*.log
+*.out
+*.pdf

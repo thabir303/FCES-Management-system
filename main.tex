@@ -351,6 +351,16 @@ of these records serve as the in domain material for the duplicate
 detection experiments, and a filtered subset populates the delivered
 system with demonstration data.
 
+The deduplication experiments draw on a stratified sample of [TBC]
+records rather than on the corpus in full. The bound is imposed by the
+cost of adjudicating the cascade's band, which scales with the number of
+candidate pairs, and it is set so that every pair in the band can be
+adjudicated exactly at the severity levels reported rather than estimated
+across more of them. Sampling reduces the number of records available for
+duplicate detection; it does not alter their character, since the sample
+is drawn from the same distribution and the classification experiments
+continue to use the corpus in full.
+
 Labels assigned by purchasing authorities are not error free, and the
 publisher documents known quality issues in the released data
 \cite{contractsfinder}. A stratified sample is therefore manually
