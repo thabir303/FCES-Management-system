@@ -201,7 +201,39 @@ def table_division_choice(run: dict) -> str:
     return _wrap("".join(rows), caption, "tab:division_choice", run["run_id"], "llrr")
 
 
+def table_blocking(run: dict) -> str:
+    """Pair completeness and reduction ratio, per scheme and per corpus.
+
+    Deliberately not averaged across corpora: ``buyer_id`` exists on Corpus B and not on
+    Corpus A, and which schemes are available where is part of what the result says.
+    Pair completeness on Corpus B is left blank rather than estimated — that corpus has no
+    labelled duplicate pairs until the degradation model supplies them.
+    """
+    rows = ["Corpus & Scheme & PC & RR & Candidates & Largest block \\\\\n\\hline\n"]
+    for key, m in run["metrics"].items():
+        corpus, _, mode = key.partition("::")
+        short = "A (Abt-Buy)" if "abtbuy" in corpus else "B (Contracts Finder)"
+        for scheme, e in m["per_scheme"].items():
+            name = f"{scheme} [{mode}]" if scheme == "sorted_ngrams" else scheme
+            pc = e.get("pair_completeness")
+            rr = e.get("reduction_ratio")
+            rows.append(
+                f"{short} & {_esc(name)} & "
+                f"{f'{pc:.3f}' if pc is not None else '---'} & "
+                f"{f'{rr:.4f}' if rr is not None else '---'} & "
+                f"{e['n_candidates']:,} & {e['largest_block']:,} \\\\\n"
+            )
+    caption = (
+        "Blocking by scheme and corpus. PC is pair completeness, the recall ceiling "
+        "everything downstream inherits; RR is reduction ratio. The buyer scheme is "
+        "unavailable on Corpus A, which has no publishing authority. PC is unmeasured on "
+        "Corpus B, which carries no labelled duplicate pairs."
+    )
+    return _wrap("".join(rows), caption, "tab:blocking", run["run_id"], "llrrrr")
+
+
 BUILDERS = {
+    "run_blocking": {"T3_blocking.tex": table_blocking},
     "run_profile": {
         "T1_corpus_a.tex": table_corpus_a,
         "T1_corpus_b.tex": table_corpus_b,

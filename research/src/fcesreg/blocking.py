@@ -82,20 +82,52 @@ def _norm_titles(df: pd.DataFrame) -> pd.Series:
 
 
 def block_by_sorted_ngrams(
-    df: pd.DataFrame, n: int = 3, k: int = 4
+    df: pd.DataFrame, n: int = 3, k: int = 4, mode: str = "single_key"
 ) -> dict[str, list[str]]:
-    """Key = the first ``k`` sorted character ``n``-grams of the normalised title.
+    """Character n-gram blocking over the normalised title. Applies to both corpora.
 
-    Sorting makes the key insensitive to where in the title the characters fall, so two
-    records that disagree on word order still collide. Applies to both corpora.
+    Two formulations, because they behave very differently and the choice between them is
+    a measured decision rather than an assumption:
+
+    ``single_key`` (as §6.8 specifies)
+        One composite key per record: the first ``k`` sorted n-grams joined together. Two
+        records collide only if they agree exactly on their ``k`` alphabetically-earliest
+        n-grams. This is an exact-match key over a derived string, and it is brittle by
+        construction — a single differing character early in the alphabet separates two
+        records that are otherwise identical.
+
+    ``per_gram`` (q-gram indexing, after Christen)
+        One key per n-gram: a record joins a block for every n-gram its title contains, so
+        records collide if they share *any* n-gram. This is the standard formulation in
+        the blocking literature the paper cites, and it trades reduction ratio for
+        completeness.
+
+    Sorting is what makes either key insensitive to where in the title the characters
+    fall, so records disagreeing on word order still collide.
     """
     blocks: dict[str, list[str]] = {}
     for record_id, title in zip(df["record_id"], _norm_titles(df), strict=True):
-        key = _ngram_key(title, n, k)
-        if key is None:
-            continue
-        blocks.setdefault(key, []).append(record_id)
+        if mode == "single_key":
+            key = _ngram_key(title, n, k)
+            if key is not None:
+                blocks.setdefault(key, []).append(record_id)
+        elif mode == "per_gram":
+            for gram in _grams(title, n):
+                blocks.setdefault(gram, []).append(record_id)
+        else:
+            raise ValueError(f"mode must be 'single_key' or 'per_gram', got {mode!r}")
     return blocks
+
+
+def _grams(title: str, n: int) -> set[str]:
+    """Character n-grams generated per token, never across word boundaries."""
+    grams: set[str] = set()
+    for token in title.split():
+        if len(token) < n:
+            grams.add(token)
+        else:
+            grams.update(token[i : i + n] for i in range(len(token) - n + 1))
+    return grams
 
 
 def _ngram_key(title: str, n: int, k: int) -> str | None:
@@ -110,12 +142,7 @@ def _ngram_key(title: str, n: int, k: int) -> str | None:
     Tokens shorter than ``n`` contribute themselves, so a short but distinctive token
     ("a4", "ph") is not silently dropped.
     """
-    grams: set[str] = set()
-    for token in title.split():
-        if len(token) < n:
-            grams.add(token)
-            continue
-        grams.update(token[i : i + n] for i in range(len(token) - n + 1))
+    grams = _grams(title, n)
     if not grams:
         return None
     return "|".join(sorted(grams)[:k])
@@ -194,6 +221,7 @@ def candidate_pairs(
     df: pd.DataFrame,
     schemes: Iterable[str],
     max_block_size: int = 500,
+    scheme_kwargs: dict[str, dict] | None = None,
 ) -> tuple[pd.DataFrame, list[BlockingReport]]:
     """Union of the blocks produced by each scheme.
 
@@ -208,8 +236,9 @@ def candidate_pairs(
     pairs: set[tuple[str, str]] = set()
     reports: list[BlockingReport] = []
 
+    scheme_kwargs = scheme_kwargs or {}
     for scheme in schemes:
-        blocks = build_blocks(df, scheme)
+        blocks = build_blocks(df, scheme, **scheme_kwargs.get(scheme, {}))
 
         kept, dropped, dropped_records = {}, 0, 0
         for key, members in blocks.items():
@@ -244,17 +273,37 @@ def candidate_pairs(
 
 
 def evaluate_blocking(
-    candidates: pd.DataFrame, truth: pd.DataFrame, n_records: int
+    candidates: pd.DataFrame, truth: pd.DataFrame | None, n_records: int
 ) -> dict:
-    """Pair completeness and reduction ratio against a labelled truth set.
+    """Pair completeness and reduction ratio.
 
-    ``pair_completeness`` is the share of true matching pairs the candidate set retains —
-    the recall ceiling everything downstream inherits. ``reduction_ratio`` is the share of
-    the full comparison space avoided.
+    ``reduction_ratio`` is the share of the full comparison space avoided. It needs no
+    labels and is always computed — a corpus without duplicate ground truth can still
+    report what blocking cost.
 
-    ``truth`` must carry ``left_id``, ``right_id`` and ``label``; only positive pairs
-    count towards completeness.
+    ``pair_completeness`` is the share of true matching pairs the candidate set retains,
+    the recall ceiling everything downstream inherits. It requires ``truth`` carrying
+    ``left_id``, ``right_id`` and ``label``; only positive pairs count. Where no truth
+    exists it is reported as ``None`` and left **unmeasured**, never estimated.
     """
+    generated = {
+        tuple(sorted((a, b)))
+        for a, b in zip(candidates["left_id"], candidates["right_id"], strict=True)
+    }
+    n_possible = n_records * (n_records - 1) // 2
+
+    out = {
+        "reduction_ratio": 1 - (len(generated) / n_possible) if n_possible else None,
+        "n_candidates": len(generated),
+        "n_possible": n_possible,
+    }
+
+    if truth is None:
+        return out | {
+            "pair_completeness": None,
+            "pair_completeness_note": "no labelled duplicate pairs for this corpus",
+        }
+
     positives = {
         tuple(sorted((a, b)))
         for a, b, label in zip(
@@ -262,18 +311,9 @@ def evaluate_blocking(
         )
         if label == 1
     }
-    generated = {
-        tuple(sorted((a, b)))
-        for a, b in zip(candidates["left_id"], candidates["right_id"], strict=True)
-    }
-
-    n_possible = n_records * (n_records - 1) // 2
     retained = len(positives & generated)
-    return {
-        "pair_completeness": retained / len(positives) if positives else float("nan"),
-        "reduction_ratio": 1 - (len(generated) / n_possible) if n_possible else float("nan"),
-        "n_candidates": len(generated),
-        "n_possible": n_possible,
+    return out | {
+        "pair_completeness": retained / len(positives) if positives else None,
         "n_true_positives": len(positives),
         "n_true_positives_retained": retained,
         "n_true_positives_lost": len(positives) - retained,

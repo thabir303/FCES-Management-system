@@ -51,6 +51,7 @@ def evaluate_corpus(
     records: pd.DataFrame,
     truth: pd.DataFrame | None,
     max_block_size: int,
+    scheme_kwargs: dict[str, dict] | None = None,
 ) -> dict:
     available = applicable_schemes(records)
     unavailable = [s for s in ("sorted_ngrams", "leading_token", "buyer") if s not in available]
@@ -70,31 +71,23 @@ def evaluate_corpus(
 
     for scheme in available:
         try:
-            pairs, reports = candidate_pairs(records, [scheme], max_block_size)
+            pairs, reports = candidate_pairs(
+                records, [scheme], max_block_size, scheme_kwargs
+            )
         except SchemeUnavailable as e:
             out["per_scheme"][scheme] = {"unavailable": str(e)}
             continue
 
         entry = _report_dict(reports[0])
-        if truth is not None:
-            entry |= evaluate_blocking(pairs, truth, n_records=len(records))
-        else:
-            entry["pair_completeness"] = None
-            entry["pair_completeness_note"] = (
-                "not measured: this corpus has no labelled duplicate pairs yet"
-            )
+        entry |= evaluate_blocking(pairs, truth, n_records=len(records))
         out["per_scheme"][scheme] = entry
 
-    pairs, reports = candidate_pairs(records, available, max_block_size)
+    pairs, reports = candidate_pairs(records, available, max_block_size, scheme_kwargs)
     union = {
         "schemes": available,
-        "n_candidates": int(len(pairs)),
         "blocks_dropped_total": sum(r.blocks_dropped for r in reports),
     }
-    if truth is not None:
-        union |= evaluate_blocking(pairs, truth, n_records=len(records))
-    else:
-        union["pair_completeness"] = None
+    union |= evaluate_blocking(pairs, truth, n_records=len(records))
     out["union"] = union
     return out
 
@@ -114,14 +107,19 @@ def main(argv: list[str] | None = None) -> int:
     corpus_b = pd.read_parquet(cfg["corpus_b"])
     corpus_b = corpus_b[corpus_b["cpv_code"].str[:2].isin(set(cfg["divisions"]))]
 
-    metrics = {
-        "corpus_a_abtbuy": evaluate_corpus(
-            "corpus_a_abtbuy", records_a, truth_a, cfg["max_block_size"]
-        ),
-        "corpus_b_contractsfinder": evaluate_corpus(
-            "corpus_b_contractsfinder", corpus_b, None, cfg["max_block_size"]
-        ),
-    }
+    # Both n-gram formulations are measured. §6.8 specifies single_key; per_gram is the
+    # standard q-gram indexing of the blocking literature the paper cites. Which one the
+    # study adopts is a decision to be made against these numbers, not assumed.
+    metrics = {}
+    for mode in cfg["sorted_ngrams"]["modes"]:
+        kw = {"sorted_ngrams": {"n": cfg["sorted_ngrams"]["n"],
+                                "k": cfg["sorted_ngrams"]["k"], "mode": mode}}
+        metrics[f"corpus_a_abtbuy::{mode}"] = evaluate_corpus(
+            "corpus_a_abtbuy", records_a, truth_a, cfg["max_block_size"], kw
+        )
+        metrics[f"corpus_b_contractsfinder::{mode}"] = evaluate_corpus(
+            "corpus_b_contractsfinder", corpus_b, None, cfg["max_block_size"], kw
+        )
 
     out = write_run(run_id, params=cfg, metrics=metrics, env=env)
     print(f"wrote {out}")
@@ -134,11 +132,17 @@ def main(argv: list[str] | None = None) -> int:
         for scheme, e in m["per_scheme"].items():
             pc = e.get("pair_completeness")
             pc_s = f"{pc:.3f}" if pc is not None else "  n/a"
+            rr = e.get("reduction_ratio")
+            rr_s = f"{rr:.4f}" if rr is not None else "   n/a"
             print(
-                f"    {scheme:<14} PC {pc_s}  RR {e.get('reduction_ratio', float('nan')):.4f}  "
+                f"    {scheme:<14} PC {pc_s}  RR {rr_s}  "
                 f"cands {e['n_candidates']:>9,}  unblocked {e['unblocked_share']:.1%}  "
                 f"largest {e['largest_block']:,}"
             )
+        u = m["union"]
+        upc = u.get("pair_completeness")
+        print(f"    {'UNION':<14} PC {f'{upc:.3f}' if upc is not None else '  n/a'}  "
+              f"RR {u['reduction_ratio']:.4f}  cands {u['n_candidates']:>9,}")
     return 0
 
 
