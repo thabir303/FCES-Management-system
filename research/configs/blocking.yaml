@@ -1,0 +1,24 @@
+# run_blocking.py — blocking evaluated per scheme, per corpus (G3).
+#
+# Availability differs between the corpora: buyer_id exists on Corpus B and not on
+# Corpus A. That asymmetry is part of the result and must not be averaged away.
+
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: data/processed/corpus_a_abtbuy_pairs.parquet
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+
+# The adopted division set (§4.2). Corpus B blocking is measured on the same subset the
+# classification experiments use.
+divisions: ["30", "31", "32", "33", "38", "42", "43", "44"]
+
+sorted_ngrams:
+  n: 3
+  k: 4
+
+max_block_size: 500
+
+# Corpus B has no labelled duplicate pairs, so pair completeness there needs a truth set.
+# Until the degradation model exists (C4) the Corpus B run reports block structure only —
+# reduction ratio, block sizes, unblocked records — and pair completeness is left
+# unmeasured rather than estimated.
+corpus_b_truth: null

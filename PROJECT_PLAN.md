@@ -936,6 +936,23 @@ def shortlist_codes(record_text: str, taxonomy: pd.DataFrame, k: int = 12) -> li
 
 `alternatives` is not optional. The import review queue renders it and the paper reports it.
 
+**Unsupported labels are routed to review, never discarded.** Class-level evaluation is restricted
+to labels meeting `min_examples`, and on the adopted division set that leaves **11.7% of dev records
+in classes too sparse to learn** (`T1_label_support.tex`). Those records are not dropped from the
+migration pipeline:
+
+- `run_classify.py` reports macro/weighted F1 over the supported label set **and** reports the
+  uncovered share alongside it, so class-level accuracy is read against the share of the register it
+  applies to rather than against the whole. A record whose true label is unsupported counts as
+  routed-to-review, not as an error and not as absent.
+- `services/importer.py` routes such a record to `route='review'` regardless of `class_score`
+  (§9.2 step 6). An unlearnable category is exactly where human judgement belongs.
+- The coverage figure reaches the paper through `results/tables/`, not as prose.
+
+This is why the restriction is a *reported* number rather than an internal threshold: it is the
+share of the migration the classifier declines to automate, and RQ3's automated share has to account
+for it.
+
 ### 6.11 `llm.py`
 
 ```python
@@ -1287,8 +1304,11 @@ Runs in a background task. For each row:
    (top 5)
 5. **Evidence:** matched n-grams for TF-IDF, nearest labelled neighbours for embedding, band
    position for cascade → `evidence` JSONB
-6. **Route:** `route='auto'` only if `dedup_decision='new'` **and** `class_score ≥` the
-   classifier threshold at `precision_target`. Anything else → `route='review'`
+6. **Route:** `route='auto'` only if all three hold — `dedup_decision='new'`, `class_score ≥` the
+   classifier threshold at `precision_target`, **and the predicted code is in the supported label
+   set**. Anything else → `route='review'`. A record whose best category is a class the classifier
+   was never able to learn goes to a human even if the score looks confident, because that score is
+   measured over a label set the record's true category is not in (§6.10).
 
 Update `auto_count` / `review_count`; set status `ready_for_review`.
 
