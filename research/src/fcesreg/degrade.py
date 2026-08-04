@@ -17,6 +17,7 @@ same seed must reproduce byte-identical output; there is a test for it.
 from __future__ import annotations
 
 import re
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -43,6 +44,7 @@ __all__ = [
     "degrade_frame",
     "make_duplicate_pairs",
     "make_distractors",
+    "procurement_ref",
 ]
 
 #: The seven classes, in the order the paper lists them. `merge` is Mudgal's.
@@ -326,20 +328,23 @@ def make_distractors(
     """Near-duplicate NEGATIVES, mined from fields that actually exist.
 
     ``corpus="cf"``
-        Pairs sharing a CPV class with title cosine at or above ``sim_threshold`` and
-        distinct ``record_id``.
+        Pairs sharing a CPV class with title cosine at or above ``sim_threshold`` and a
+        **distinct procurement reference** — not merely a distinct ``record_id``, which
+        the publisher mints per notice rather than per process. Pairs sharing a buyer and
+        an otherwise identical title are excluded as well.
     ``corpus="abtbuy"``
         Pairs sharing a leading token, with distinct ``record_id``.
 
     Without these, a detector that cannot separate similar-but-distinct records reports
     high recall for the wrong reason.
 
-    **These are mined, not verified.** Two notices sharing a class and a near-identical
-    title may be the same procurement published twice rather than two distinct items, in
-    which case the pair is a false negative in the ground truth. The mining rule cannot
-    tell the difference and neither can any automatic check, so a sample is audited by
-    hand — see ``research/scripts/audit_distractors.py``, whose findings are reported with
-    the results.
+    **These are mined, not verified.** A pair that is one procurement published twice is a
+    positive wearing a negative's label, and the error is invisible in aggregate because
+    it looks like a matcher performing well. The first rule, keyed on ``record_id``,
+    admitted 48% such pairs — measured by hand audit of 40, not inferred. The rule above
+    is the correction, and it is re-audited rather than assumed: see
+    ``research/scripts/audit_distractors.py``, whose findings are reported with the
+    results.
     """
     if corpus not in ("cf", "abtbuy"):
         raise ValueError(f"corpus must be 'cf' or 'abtbuy', got {corpus!r}")
@@ -356,6 +361,32 @@ def make_distractors(
     return pairs
 
 
+_AWARD_SUFFIX_RE = re.compile(
+    r"\s*[-–—]\s*(award(ed)?|contract award notice|cancellation|cancelled|amendment)\s*$",
+    re.IGNORECASE,
+)
+
+
+def procurement_ref(tender_ref: str | None) -> str:
+    """The procurement reference, stripped to a comparable root.
+
+    Two notices of one procurement — a tender and its award — carry the same reference
+    with a stage suffix appended: ``IT-368-17809-IBC/17809`` and
+    ``IT-368-17809-IBC/17809 - AWARD``. Stripping the suffix and the punctuation makes
+    them compare equal.
+
+    This is what establishes distinctness, **not** ``record_id`` and **not** ``ocid``: the
+    publisher mints both of those per notice rather than per contracting process, so an
+    award notice and its tender notice differ in each while describing one procurement.
+    A rule keyed on the record identifier admitted 48% genuine duplicates into the
+    negative set, measured by hand audit.
+    """
+    if not tender_ref:
+        return ""
+    root = _AWARD_SUFFIX_RE.sub("", str(tender_ref).strip())
+    return re.sub(r"[^a-z0-9]", "", root.lower())
+
+
 def _mine_cf_distractors(
     records: pd.DataFrame,
     sim_threshold: float,
@@ -366,12 +397,27 @@ def _mine_cf_distractors(
 
     work = records[records["cpv_code"].notna()].copy()
     work["_class"] = work["cpv_code"].map(cpv_class)
+    # A frame without these columns cannot support the exclusions; say so rather than
+    # silently mining a contaminated set.
+    if "tender_ref" not in work.columns:
+        warnings.warn(
+            "tender_ref absent: distractor mining cannot exclude pairs that are one "
+            "procurement published twice, which contaminated 48% of the negative set "
+            "when it was last measured without it",
+            stacklevel=3,
+        )
+    work["_ref"] = (
+        work["tender_ref"].map(procurement_ref) if "tender_ref" in work.columns else ""
+    )
+    if "buyer_id" not in work.columns:
+        work["buyer_id"] = None
+    work["_title_norm"] = work["title"].fillna("").map(normalise_text)
 
     left, right = [], []
     for _, group in work.groupby("_class"):
         if len(group) < 2:
             continue
-        titles = group["title"].fillna("").map(normalise_text).tolist()
+        titles = group["_title_norm"].tolist()
         if not any(titles):
             continue
         try:
@@ -381,11 +427,25 @@ def _mine_cf_distractors(
 
         similarity = (matrix @ matrix.T).toarray()
         np.fill_diagonal(similarity, 0.0)
+
         ids = group["record_id"].to_numpy()
+        refs = group["_ref"].to_numpy()
+        buyers = group["buyer_id"].fillna("").to_numpy()
+        norm_titles = group["_title_norm"].to_numpy()
 
         rows, cols = np.where(similarity >= sim_threshold)
         keep = rows < cols
         rows, cols = rows[keep], cols[keep]
+
+        # Two exclusions, both aimed at the same failure: a pair that is one procurement
+        # published twice is a positive wearing a negative's label.
+        shares_ref = (refs[rows] == refs[cols]) & (refs[rows] != "")
+        same_buyer_same_title = (buyers[rows] == buyers[cols]) & (
+            norm_titles[rows] == norm_titles[cols]
+        )
+        admissible = ~(shares_ref | same_buyer_same_title)
+        rows, cols = rows[admissible], cols[admissible]
+
         if len(rows) > max_per_group:
             pick = rng.choice(len(rows), size=max_per_group, replace=False)
             rows, cols = rows[pick], cols[pick]

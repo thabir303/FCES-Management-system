@@ -29,6 +29,7 @@ from fcesreg.schema import RECORD_COLUMNS, validate_frame
 
 __all__ = [
     "FIELD_MAP",
+    "EXTRA_FIELDS",
     "EXPECTED_COLUMNS",
     "CANDIDATE_DIVISIONS",
     "BOILERPLATE_BLOCKLIST",
@@ -50,6 +51,14 @@ FIELD_MAP = {
     "cpv_code": "tender_classification_id",
     "release_date": "date",  # NOT tender_datePublished — see §4.1
 }
+
+#: Carried alongside RECORD_COLUMNS, not inside them: it is Contracts Finder specific.
+#: `tender_id` is the procurement reference, and it is what establishes that two notices
+#: describe *different* procurements. The record identifier does not serve, because the
+#: publisher mints one per notice rather than per contracting process — an award notice
+#: and its tender notice carry different `id` values and different `ocid` values while
+#: describing one procurement. See `degrade.procurement_ref`.
+EXTRA_FIELDS = {"tender_ref": "tender_id"}
 
 #: The full main.csv header, verified identical across the 2022–2025 bundles. The bundles
 #: differ in column *order* only, which is immaterial because every read is by name.
@@ -196,12 +205,12 @@ def to_records(df: pd.DataFrame, year: int) -> pd.DataFrame:
     ``schema.NULL_IN_BOTH_CORPORA``).
     """
     out = pd.DataFrame(index=df.index)
-    for target, source in FIELD_MAP.items():
+    for target, source in {**FIELD_MAP, **EXTRA_FIELDS}.items():
         out[target] = df[source]
 
     out["release_date"] = out["release_date"].map(_parse_date)
     out["record_id"] = out["record_id"].astype(str)
-    for col in ("title", "description", "buyer_id", "cpv_code"):
+    for col in ("title", "description", "buyer_id", "cpv_code", "tender_ref"):
         out[col] = out[col].replace("", None)
 
     out["manufacturer"] = None
@@ -211,7 +220,7 @@ def to_records(df: pd.DataFrame, year: int) -> pd.DataFrame:
     out["bundle_year"] = year
 
     out = out.dropna(subset=["title"])
-    return out[[*RECORD_COLUMNS, "bundle_year"]]
+    return out[[*RECORD_COLUMNS, "tender_ref", "bundle_year"]]
 
 
 def apply_filters(

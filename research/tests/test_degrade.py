@@ -8,6 +8,7 @@ import pytest
 
 from fcesreg.degrade import (
     ERROR_CLASSES,
+    procurement_ref,
     DegradationConfig,
     abbreviate,
     char_noise,
@@ -244,6 +245,8 @@ class TestDistractors:
                     "office chair",
                 ],
                 "cpv_code": ["38510000", "38510000", "39110000"],
+                "buyer_id": ["GB-1", "GB-2", "GB-3"],
+                "tender_ref": ["REF-1", "REF-2", "REF-3"],
             }
         )
         out = make_distractors(df, DegradationConfig(0.3), seed=0, corpus="cf", sim_threshold=0.6)
@@ -282,6 +285,54 @@ class TestDistractors:
         source = inspect.getsource(d)
         for column in ("manufacturer", "model", "serial_number"):
             assert f'"{column}"' not in source
+
+    def test_pairs_sharing_a_procurement_reference_are_excluded(self):
+        # An award notice and its tender notice are one procurement, and labelling that
+        # pair 0 puts a positive in the negative set.
+        df = pd.DataFrame(
+            {
+                "record_id": ["a", "b"],
+                "title": ["rotary vane vacuum pump", "rotary vane vacuum pump"],
+                "cpv_code": ["38510000", "38510000"],
+                "buyer_id": ["GB-1", "GB-2"],
+                "tender_ref": ["IT-368-17809", "IT-368-17809 - AWARD"],
+            }
+        )
+        out = make_distractors(df, DegradationConfig(0.0), seed=0, corpus="cf",
+                               sim_threshold=0.5)
+        assert out.empty
+
+    def test_same_buyer_with_an_identical_title_is_excluded(self):
+        df = pd.DataFrame(
+            {
+                "record_id": ["a", "b"],
+                "title": ["Grounds Maintenance Equipment", "grounds  maintenance equipment"],
+                "cpv_code": ["38510000", "38510000"],
+                "buyer_id": ["GB-1", "GB-1"],
+                "tender_ref": ["REF-1", "REF-2"],
+            }
+        )
+        out = make_distractors(df, DegradationConfig(0.0), seed=0, corpus="cf",
+                               sim_threshold=0.5)
+        assert out.empty
+
+    def test_missing_tender_ref_warns_rather_than_mining_silently(self):
+        df = pd.DataFrame(
+            {
+                "record_id": ["a", "b"],
+                "title": ["rotary vane pump", "rotary vane pumps"],
+                "cpv_code": ["38510000", "38510000"],
+                "buyer_id": ["GB-1", "GB-2"],
+            }
+        )
+        with pytest.warns(UserWarning, match="48%"):
+            make_distractors(df, DegradationConfig(0.0), seed=0, corpus="cf",
+                             sim_threshold=0.5)
+
+    def test_procurement_ref_strips_stage_suffixes(self):
+        assert procurement_ref("IT-368-17809 - AWARD") == procurement_ref("IT-368-17809")
+        assert procurement_ref("ABC/1 — Cancellation") == procurement_ref("ABC/1")
+        assert procurement_ref(None) == ""
 
     def test_unknown_corpus_raises(self):
         with pytest.raises(ValueError, match="corpus must be"):
