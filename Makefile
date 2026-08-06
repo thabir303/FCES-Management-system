@@ -4,7 +4,7 @@ PYTEST  := .venv/bin/pytest
 PYENV   := $(HOME)/.pyenv/versions/3.12.8/bin/python3
 TEXBIN  := /Library/TeX/texbin
 
-.PHONY: bootstrap venv deps db migrate seed data annotate experiments tables paper dev test smoke clean-db
+.PHONY: bootstrap venv deps db migrate seed data annotate judge-distractors experiments tables paper dev test smoke clean-db
 
 bootstrap: venv deps db migrate seed
 	@echo "bootstrap: done"
@@ -53,6 +53,11 @@ data:
 # Run this before `make experiments`.
 annotate:
 	$(PY) annotation/annotate.py
+
+# Every mined distractor judged by hand. C6 and the transfer runner consume this set,
+# so they wait on it being complete.
+judge-distractors:
+	$(PY) annotation/judge_distractors.py
 
 experiments:
 	$(PY) research/scripts/run_profile.py         --config research/configs/profile.yaml

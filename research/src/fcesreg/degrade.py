@@ -46,6 +46,7 @@ __all__ = [
     "make_duplicate_pairs",
     "make_distractors",
     "procurement_ref",
+    "title_refs",
 ]
 
 #: The seven classes, in the order the paper lists them. `merge` is Mudgal's.
@@ -324,6 +325,7 @@ def make_distractors(
     corpus: str,
     sim_threshold: float = 0.75,
     max_per_group: int = 5,
+    max_pairs: int | None = None,
     lexicon: dict[str, str] | None = None,
 ) -> pd.DataFrame:
     """Near-duplicate NEGATIVES, mined from fields that actually exist.
@@ -358,6 +360,12 @@ def make_distractors(
     else:
         pairs = _mine_leading_token_distractors(records, max_per_group, rng)
 
+    # Bounded so the surviving set admits complete manual verification. A negative set of
+    # unknown purity is worse than a smaller one of known purity.
+    if max_pairs is not None and len(pairs) > max_pairs:
+        take = rng.choice(len(pairs), size=max_pairs, replace=False)
+        pairs = pairs.iloc[np.sort(take)].reset_index(drop=True)
+
     pairs["label"] = 0
     return pairs
 
@@ -366,6 +374,33 @@ _AWARD_SUFFIX_RE = re.compile(
     r"\s*[-–—]\s*(award(ed)?|contract award notice|cancellation|cancelled|amendment)\s*$",
     re.IGNORECASE,
 )
+
+
+#: References embedded in the title itself. ``UKRI-3547`` appearing in both titles is
+#: direct evidence of one procurement rather than a heuristic: the number names the
+#: process, and two notices carrying it describe the same one.
+_TITLE_REF_RE = re.compile(
+    r"\b("
+    r"UKRI[-\s]?\d{3,6}"
+    r"|PAPI[-\s]?\d+\.\d+"
+    r"|CEFAS\d{2}[-\s]?\d+"
+    r"|[A-Z]{2,6}\d{4,8}"
+    r"|[A-Z]{2,5}[-/]\d{2,4}[-/][A-Z0-9]{2,8}"
+    r")\b"
+)
+
+
+def title_refs(title: str | None) -> frozenset[str]:
+    """Procurement references appearing inside a title.
+
+    Contracts Finder's ``tender_id`` frequently encodes the *issuing organisation* rather
+    than the process — two notices from one body share only a trailing org code — so the
+    reference field alone does not resolve identity. Where the buying team has written the
+    procurement number into the title, that number does resolve it.
+    """
+    if not title:
+        return frozenset()
+    return frozenset(re.sub(r"[^A-Z0-9]", "", m.upper()) for m in _TITLE_REF_RE.findall(title))
 
 
 def procurement_ref(tender_ref: str | None) -> str:
@@ -413,6 +448,7 @@ def _mine_cf_distractors(
     if "buyer_id" not in work.columns:
         work["buyer_id"] = None
     work["_title_norm"] = work["title"].fillna("").map(normalise_text)
+    work["_title_refs"] = work["title"].map(title_refs)
 
     left, right = [], []
     for _, group in work.groupby("_class"):
@@ -444,7 +480,13 @@ def _mine_cf_distractors(
         same_buyer_same_title = (buyers[rows] == buyers[cols]) & (
             norm_titles[rows] == norm_titles[cols]
         )
-        admissible = ~(shares_ref | same_buyer_same_title)
+        # A reference written into both titles names the process directly.
+        t_refs = group["_title_refs"].to_numpy()
+        shares_title_ref = np.array(
+            [bool(t_refs[i] & t_refs[j]) for i, j in zip(rows, cols, strict=True)],
+            dtype=bool,
+        )
+        admissible = ~(shares_ref | same_buyer_same_title | shares_title_ref)
         rows, cols = rows[admissible], cols[admissible]
 
         if len(rows) > max_per_group:

@@ -1,0 +1,402 @@
+[
+  {
+    "left_id": "ocds-b5fd17-f569ea3c-5f08-4b97-a27f-2a3601d7f51d-2022-04-13T10:50:16+01:00",
+    "right_id": "ocds-b5fd17-95f22b17-1966-4d62-ad51-007c680ef28d-2023-01-10T10:05:03Z",
+    "left_title": "GB-Swindon: UKRI-2049 Cryogenic Vacuum System for the NQCC",
+    "right_title": "GB-Swindon: UKRI-2767 Cryogenic Vacuum System for the NQCC",
+    "same_buyer": true,
+    "same_cpv": true,
+    "left_date": "2022-04-13",
+    "right_date": "2023-01-10"
+  },
+  {
+    "left_id": "ocds-b5fd17-6b8a4021-c10e-4124-99a8-8e3097d9e2dc-2024-03-01T14:36:26Z",
+    "right_id": "ocds-b5fd17-cf8d347e-a0f9-4ab2-a103-1e19bc08499b-2024-06-24T15:37:53+01:00",
+    "left_title": "The Sunshine Centre - Boiler and Lighting Replacement Works",
+    "right_title": "The Sunshine Centre - Boiler and Lighting Replacement Works",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2024-03-01",
+    "right_date": "2024-06-24"
+  },
+  {
+    "left_id": "ocds-b5fd17-606ce4a4-366f-43bb-99e0-cd2902f5742f-2023-07-03T17:14:32+01:00",
+    "right_id": "ocds-b5fd17-90286320-495e-45c1-b6d1-f498a39f0285-2023-04-17T16:43:30+01:00",
+    "left_title": "MEERSBROOK BANK PRIMARY & NURSERY - HEATING DISTRIBUTION PIPEWORK AND RADIATOR REPLACEMENT",
+    "right_title": "MEERSBROOK BANK PRIMARY & NURSERY - HEATING DISTRIBUTION PIPEWORK AND RADIATOR REPLACEMENT",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2023-07-03",
+    "right_date": "2023-04-17"
+  },
+  {
+    "left_id": "ocds-b5fd17-1935184e-4412-455f-9b4e-4f39da08b145-2024-08-02T15:38:18+01:00",
+    "right_id": "ocds-b5fd17-878478db-4f3c-4b7b-a896-a7a217040ab6-2024-05-22T16:02:19+01:00",
+    "left_title": "ESS Machining Station Floor Plates",
+    "right_title": "ESS Machining Station Floor Plates",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2024-08-02",
+    "right_date": "2024-05-22"
+  },
+  {
+    "left_id": "ocds-b5fd17-123b3517-b654-4839-b27e-96f88b40a6a4-2023-10-03T10:29:32+01:00",
+    "right_id": "ocds-b5fd17-11f97343-7e83-4988-98d5-f62fff081cac-2024-04-08T13:30:31+01:00",
+    "left_title": "Mechanical Consumables",
+    "right_title": "Mechanical Consumables",
+    "same_buyer": false,
+    "same_cpv": false,
+    "left_date": "2023-10-03",
+    "right_date": "2024-04-08"
+  },
+  {
+    "left_id": "ocds-b5fd17-ae33df59-ad3b-4719-9cb1-ab0f65afefbb-2022-10-07T15:10:09+01:00",
+    "right_id": "ocds-b5fd17-ba626056-9332-48f7-a4d3-74b1671267f3-2023-02-22T15:06:37Z",
+    "left_title": "701579456 - Provision of Vertical Milling Machines",
+    "right_title": "Provision of Vertical Milling Machines",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2022-10-07",
+    "right_date": "2023-02-22"
+  },
+  {
+    "left_id": "ocds-b5fd17-c5af5e6b-bb5f-4741-b1eb-7a00b67c71f5-2024-03-07T16:09:54Z",
+    "right_id": "ocds-b5fd17-f543a6a1-96a2-43b0-8a87-77fd98270e1b-2025-04-07T11:45:54+01:00",
+    "left_title": "Tools and Equipment",
+    "right_title": "Tools and Equipment",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2024-03-07",
+    "right_date": "2025-04-07"
+  },
+  {
+    "left_id": "ocds-b5fd17-9d6e61ec-a7b2-43d3-b768-b521bd3dc9ac-2023-07-27T17:45:09+01:00",
+    "right_id": "ocds-b5fd17-851eac8d-d9ee-469c-971f-0491adb42a7d-2024-07-26T16:40:16+01:00",
+    "left_title": "Supply of Fastenings for the Conservation of HMS Victory",
+    "right_title": "Supply of Fastenings for the Conservation of HMS Victory",
+    "same_buyer": false,
+    "same_cpv": false,
+    "left_date": "2023-07-27",
+    "right_date": "2024-07-26"
+  },
+  {
+    "left_id": "ocds-b5fd17-9b571099-0925-49df-a8c9-e77c4259771e-2024-11-15T14:13:04Z",
+    "right_id": "ocds-b5fd17-ef6841b7-c5bf-4272-a58e-e86163514fc0-2025-03-24T14:41:39Z",
+    "left_title": "The supply of Lenovo Laptops",
+    "right_title": "The supply of Lenovo Laptops",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2024-11-15",
+    "right_date": "2025-03-24"
+  },
+  {
+    "left_id": "ocds-b5fd17-ab804d2f-690e-48d9-8f62-0e1b7122bb74-2022-01-19T15:48:16Z",
+    "right_id": "ocds-b5fd17-98492c9e-669c-49ae-8ed2-4d84b5218901-2023-11-29T13:27:33Z",
+    "left_title": "Telecommunications - Satellite Services",
+    "right_title": "Telecommunications - Satellite Services",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2022-01-19",
+    "right_date": "2023-11-29"
+  },
+  {
+    "left_id": "ocds-b5fd17-87a9b32a-fee5-4801-afd4-58e8d41c9939-2024-04-12T13:39:47+01:00",
+    "right_id": "ocds-b5fd17-f8bd0a60-4551-4f9e-b891-743e0bb2919c-2024-09-02T14:50:04+01:00",
+    "left_title": "UKRI-3292 EPAC Spectrometer Dipole Magnets",
+    "right_title": "UKRI-4149 EPAC Spectrometer Dipole Magnets",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2024-04-12",
+    "right_date": "2024-09-02"
+  },
+  {
+    "left_id": "ocds-b5fd17-c5041bab-88d2-41aa-96d0-da8d45ed1bf9-2023-04-13T13:23:07+01:00",
+    "right_id": "ocds-b5fd17-03e1f727-6da6-4bdb-8b9d-9c53192506a2-2023-08-10T14:30:06+01:00",
+    "left_title": "657 Speed Gates",
+    "right_title": "Speed Gates",
+    "same_buyer": false,
+    "same_cpv": false,
+    "left_date": "2023-04-13",
+    "right_date": "2023-08-10"
+  },
+  {
+    "left_id": "ocds-b5fd17-e2559dea-4015-43bc-ae8b-fb8cd22be699-2022-08-26T12:45:49+01:00",
+    "right_id": "ocds-b5fd17-cfb6548d-c8b9-4599-84d1-4184b680b7c4-2023-01-25T17:11:36Z",
+    "left_title": "Transmission Lines Components",
+    "right_title": "Transmission Lines Components",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2022-08-26",
+    "right_date": "2023-01-25"
+  },
+  {
+    "left_id": "ocds-b5fd17-4cd65ae9-c65d-4565-a9f4-31162dc4fe93-2024-02-26T16:41:34Z",
+    "right_id": "ocds-b5fd17-7ff22da8-713e-4b10-b446-f72153f28037-2024-02-28T15:57:11Z",
+    "left_title": "Supply of Decothane and Sika Paint (\u00c2\u00a355k)",
+    "right_title": "Supply of Decothane and Sika Paint",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2024-02-26",
+    "right_date": "2024-02-28"
+  },
+  {
+    "left_id": "ocds-b5fd17-1d86763e-fb41-4242-b3d0-1c90f380b6e3-2023-06-05T17:20:03+01:00",
+    "right_id": "ocds-b5fd17-37817d0d-f338-4af6-a490-823f974b45e2-2025-01-22T14:16:53Z",
+    "left_title": "Supply of Materials and Associated Services",
+    "right_title": "MATERIAL SUPPLY & ASSOCIATED SERVICES",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2023-06-05",
+    "right_date": "2025-01-22"
+  },
+  {
+    "left_id": "ocds-b5fd17-cd9eab5d-7454-4d4e-8668-4b38850167db-2024-07-30T16:38:23+01:00",
+    "right_id": "ocds-b5fd17-d117f72a-8280-457a-a837-a948556fd081-2024-02-28T12:40:03Z",
+    "left_title": "Welding Equipment for Newcastle College",
+    "right_title": "Welding Equipment for Newcastle College",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2024-07-30",
+    "right_date": "2024-02-28"
+  },
+  {
+    "left_id": "ocds-b5fd17-0e470e95-7815-4dbd-a4ff-4c62987225de-2023-11-13T16:21:56Z",
+    "right_id": "ocds-b5fd17-40737d7a-e28e-4c54-bb1b-7c8406e3bd1d-2024-10-14T15:40:01+01:00",
+    "left_title": "DHSC: GOps: HR Flu Vouchers 2023-2024",
+    "right_title": "DHSC: GOps: HR Flu Vouchers 2024-2025",
+    "same_buyer": false,
+    "same_cpv": false,
+    "left_date": "2023-11-13",
+    "right_date": "2024-10-14"
+  },
+  {
+    "left_id": "ocds-b5fd17-805fa1f1-6fb8-482f-a041-18513aa9a45f-2023-09-27T10:48:06+01:00",
+    "right_id": "ocds-b5fd17-65f289c1-1f3f-4621-81c0-48adfdb4a8b2-2024-03-01T10:43:16Z",
+    "left_title": "Friction Weld Joint",
+    "right_title": "Friction Weld Joint",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2023-09-27",
+    "right_date": "2024-03-01"
+  },
+  {
+    "left_id": "ocds-b5fd17-d6f3d5d0-d6ec-48be-a869-5891ba5c554c-2022-07-01T16:03:10+01:00",
+    "right_id": "ocds-b5fd17-fc786945-a393-41f8-83f5-edc8cf913b73-2022-09-26T10:03:09+01:00",
+    "left_title": "ICT Audio Visual Tender",
+    "right_title": "ICT Audio Visual",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2022-07-01",
+    "right_date": "2022-09-26"
+  },
+  {
+    "left_id": "ocds-b5fd17-35ca71b0-6105-4416-8f15-6b3a9977c2c7-2022-02-02T14:52:21Z",
+    "right_id": "ocds-b5fd17-4aebcdf7-92f2-4987-893a-8d36a0876ed0-2022-11-14T10:50:58Z",
+    "left_title": "The Provision of a Mains Cold Water Storage Tank & Booster Set at Haynes House, Staple Hill.",
+    "right_title": "The Provision of a Mains Cold Water Storage Tank & Booster Set at Haynes House, Staple Hill",
+    "same_buyer": false,
+    "same_cpv": false,
+    "left_date": "2022-02-02",
+    "right_date": "2022-11-14"
+  },
+  {
+    "left_id": "ocds-b5fd17-c53b52cb-abd1-413c-86f9-82523d17aa75-2023-10-11T08:05:43+01:00",
+    "right_id": "ocds-b5fd17-2c1e0773-63c0-4cd5-8e51-c9e993f5215c-2025-02-21T15:28:06Z",
+    "left_title": "Audio and Multimedia Guides - AWARD",
+    "right_title": "Multimedia Guides",
+    "same_buyer": false,
+    "same_cpv": false,
+    "left_date": "2023-10-11",
+    "right_date": "2025-02-21"
+  },
+  {
+    "left_id": "ocds-b5fd17-9a8e75d4-d546-4975-aa30-2b7370935671-2025-01-29T16:25:09Z",
+    "right_id": "ocds-b5fd17-d1a2db3e-4efd-4b87-aab5-bac3a38055b3-2025-03-24T09:56:24Z",
+    "left_title": "Production, filming and editing a suite of learning and development films for Met/LET copy",
+    "right_title": "Production, filming and editing a suite of learning and development films for Met/LET",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2025-01-29",
+    "right_date": "2025-03-24"
+  },
+  {
+    "left_id": "ocds-b5fd17-ebf446fd-ffe6-49d9-a320-fba0c29627dd-2022-10-05T09:46:18+01:00",
+    "right_id": "ocds-b5fd17-841fb75e-849f-4bfc-89a4-6df28891c55c-2022-10-05T09:48:29+01:00",
+    "left_title": "Powered and Non-Powered Wheelchairs Services",
+    "right_title": "Powered and Non-Powered Wheelchair Services",
+    "same_buyer": true,
+    "same_cpv": false,
+    "left_date": "2022-10-05",
+    "right_date": "2022-10-05"
+  },
+  {
+    "left_id": "ocds-b5fd17-41c16493-c91b-4b38-bffd-a1ec3fe99ef0-2023-02-28T14:45:26Z",
+    "right_id": "ocds-b5fd17-e0f17d26-8aa6-4ce5-a9a3-3a820f824dbc-2023-02-28T14:49:42Z",
+    "left_title": "Rapid Manufacture Ventilator System-Design agreement for the Covent model",
+    "right_title": "Rapid Manufacture Ventilator System-Design agreement for the Sagentia Ventilator model",
+    "same_buyer": true,
+    "same_cpv": true,
+    "left_date": "2023-02-28",
+    "right_date": "2023-02-28"
+  },
+  {
+    "left_id": "ocds-b5fd17-fd694eea-b96a-4573-9f2b-037563c6dca3-2023-03-02T11:50:03Z",
+    "right_id": "ocds-b5fd17-4f778909-91b9-44d7-a625-85896d1678f6-2023-07-21T09:22:59+01:00",
+    "left_title": "Vehicle Telematics and Associated Services",
+    "right_title": "NUN - Vehicle Telematics Equipment and Associated Services",
+    "same_buyer": false,
+    "same_cpv": false,
+    "left_date": "2023-03-02",
+    "right_date": "2023-07-21"
+  },
+  {
+    "left_id": "ocds-b5fd17-c0c59588-ae8c-4cec-8c5b-09991a17c70e-2022-07-18T12:44:21+01:00",
+    "right_id": "ocds-b5fd17-d7b9a32f-05fd-4576-878c-9fe79ececc99-2024-11-14T13:16:16Z",
+    "left_title": "CPU4278 Catering Ventilation Cleaning",
+    "right_title": "CPU 4278 Catering Ventilation Cleaning",
+    "same_buyer": true,
+    "same_cpv": true,
+    "left_date": "2022-07-18",
+    "right_date": "2024-11-14"
+  },
+  {
+    "left_id": "ocds-b5fd17-92564ccd-dfa4-4f7b-b773-94c1e94ad45b-2024-05-08T16:40:04+01:00",
+    "right_id": "ocds-b5fd17-0c1706f9-aa78-492e-a1b4-2c12ee40953f-2025-09-05T13:50:08+01:00",
+    "left_title": "GB-Derby: TPPL Derby City Council NEPO GM & P Lot 3 - 49 x Stihl Handheld Items (New) (19527)",
+    "right_title": "GB-Derby: TPPL Derby City Council NEPO GM & P Lot 3 - 113 x Stihl Items (New) (24930)",
+    "same_buyer": true,
+    "same_cpv": true,
+    "left_date": "2024-05-08",
+    "right_date": "2025-09-05"
+  },
+  {
+    "left_id": "ocds-b5fd17-27ef0e53-0e53-4450-bb9a-991d76af88bf-2023-10-30T16:08:11Z",
+    "right_id": "ocds-b5fd17-468f796a-82f1-4337-8add-bec537b4dae5-2024-09-13T16:08:17+01:00",
+    "left_title": "Airway Management",
+    "right_title": "Airways Management",
+    "same_buyer": true,
+    "same_cpv": true,
+    "left_date": "2023-10-30",
+    "right_date": "2024-09-13"
+  },
+  {
+    "left_id": "ocds-b5fd17-bfc5ef1d-7218-4204-9116-ffb16149e854-2022-08-19T08:56:56+01:00",
+    "right_id": "ocds-b5fd17-c5e73314-02d8-47e1-993a-a437789bd866-2025-02-13T15:50:36Z",
+    "left_title": "29518 - Provision of Liquid Handling Robot(s)",
+    "right_title": "29518 - Provision of Liquid Handling Robot(s) and Servicing",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2022-08-19",
+    "right_date": "2025-02-13"
+  },
+  {
+    "left_id": "ocds-b5fd17-97ea41ca-ad36-40e6-aca1-a45af38fe90d-2022-07-15T11:30:03+01:00",
+    "right_id": "ocds-b5fd17-ce6500b1-2f8c-4893-8a78-784d9e8c9309-2022-09-28T16:26:21+01:00",
+    "left_title": "RFQ - HPGe Gamma-Ray Spectrometer",
+    "right_title": "RFQ - HPGe Gamma-Ray Spectrometer",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2022-07-15",
+    "right_date": "2022-09-28"
+  },
+  {
+    "left_id": "ocds-b5fd17-19c911d3-f676-4eb4-84c8-8e012733c87a-2024-05-23T16:11:04+01:00",
+    "right_id": "ocds-b5fd17-583a7fa5-1ccc-40f2-9951-2ce6e61ce4bb-2024-08-02T10:35:45+01:00",
+    "left_title": "Future Ground Search-CF",
+    "right_title": "Future Ground Search PIN 2- CF",
+    "same_buyer": true,
+    "same_cpv": true,
+    "left_date": "2024-05-23",
+    "right_date": "2024-08-02"
+  },
+  {
+    "left_id": "ocds-b5fd17-75a4729f-f7aa-4678-a211-845f31df9bd4-2022-09-23T15:55:03+01:00",
+    "right_id": "ocds-b5fd17-9a77eff1-de9e-4e91-9613-3cf1cd874bb6-2023-03-15T09:04:42Z",
+    "left_title": "NHS Framework for Midlands and East Branded Medicines - Tranche B and Annual Tranche.",
+    "right_title": "NHS Midland & East Branded Medicines, Tranche B & Annual Tranche",
+    "same_buyer": true,
+    "same_cpv": true,
+    "left_date": "2022-09-23",
+    "right_date": "2023-03-15"
+  },
+  {
+    "left_id": "ocds-b5fd17-7905dab8-6e86-469d-bdb9-9750c03a33bc-2023-12-11T21:49:33Z",
+    "right_id": "ocds-b5fd17-87d41016-98aa-4614-bfa9-fa12630bcfa3-2024-03-28T11:36:33Z",
+    "left_title": "Provision of an Oxidation Flow Reactor",
+    "right_title": "Provision of an Oxidation Flow Reactor",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2023-12-11",
+    "right_date": "2024-03-28"
+  },
+  {
+    "left_id": "ocds-b5fd17-0b4a379e-e55b-4e87-a553-51e4145930bd-2025-01-22T14:46:33Z",
+    "right_id": "ocds-b5fd17-a4d7c82f-88fc-4e38-ae46-179fa13833fa-2025-03-21T12:53:28Z",
+    "left_title": "Additive Manufacturing Machine",
+    "right_title": "Additive Manufacturing Machine",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2025-01-22",
+    "right_date": "2025-03-21"
+  },
+  {
+    "left_id": "ocds-b5fd17-01716426-9b2d-4adb-aa37-c69a316ecc7e-2024-03-21T10:43:37Z",
+    "right_id": "ocds-b5fd17-5f55c4ae-5179-4d6c-ab68-3f7fb7d644c0-2025-06-18T15:23:33+01:00",
+    "left_title": "Provision of Personal Radio Equipment & Support",
+    "right_title": "Provision of Personal Mobile Radio Equipment and Support",
+    "same_buyer": true,
+    "same_cpv": true,
+    "left_date": "2024-03-21",
+    "right_date": "2025-06-18"
+  },
+  {
+    "left_id": "ocds-b5fd17-628ac68b-09e2-447e-8e54-8f991dfe2968-2024-09-02T19:49:23+01:00",
+    "right_id": "ocds-b5fd17-6b236923-6a71-447f-88bc-a8c58f8af4a8-2024-11-08T15:36:23Z",
+    "left_title": "Vehicle Based Detection System (VBS) for General Aviation/General Maritime",
+    "right_title": "Vehicle Based Detection System (VBS) for General Aviation/General Maritime",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2024-09-02",
+    "right_date": "2024-11-08"
+  },
+  {
+    "left_id": "ocds-b5fd17-569ca145-0175-4773-a4d0-d5d9f082c0d6-2024-05-24T10:10:56+01:00",
+    "right_id": "ocds-b5fd17-28281ec7-b146-445d-8b5a-9fc8f39e4da9-2025-01-29T17:45:05Z",
+    "left_title": "Lift Consultancy Services",
+    "right_title": "Passenger Lift Consultancy Services",
+    "same_buyer": false,
+    "same_cpv": false,
+    "left_date": "2024-05-24",
+    "right_date": "2025-01-29"
+  },
+  {
+    "left_id": "ocds-b5fd17-eea38167-162e-4239-8913-a3fd1e71cace-2024-05-03T15:43:13+01:00",
+    "right_id": "ocds-b5fd17-046edec5-fb23-45a4-bd5f-e8de3e2463be-2025-12-02T21:00:04Z",
+    "left_title": "Cerament Bone Void Filler",
+    "right_title": "Bone Void Filler",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2024-05-03",
+    "right_date": "2025-12-02"
+  },
+  {
+    "left_id": "ocds-b5fd17-f7287171-9055-4207-a647-52d21c32b9d3-2023-03-02T09:44:04Z",
+    "right_id": "ocds-b5fd17-ed68b463-35de-45bd-90b5-9c8876f29a5e-2025-10-29T13:06:09Z",
+    "left_title": "Provision of Stationery Supplies",
+    "right_title": "Provision of Stationery",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2023-03-02",
+    "right_date": "2025-10-29"
+  },
+  {
+    "left_id": "ocds-b5fd17-8234a5f1-39f1-44dd-9789-73b7c16af5e6-2023-10-23T11:05:04+01:00",
+    "right_id": "ocds-b5fd17-fde11d77-8d2b-40e9-b989-20a4a9eda5b3-2023-08-03T11:05:04+01:00",
+    "left_title": "HE Framework for Supply, Installation and management of Data Centre Management equipment and Infrastructure (2024)",
+    "right_title": "HE Framework for Supply, Installation and management of Data Centre Management equipment and Infrastructure (2024)",
+    "same_buyer": false,
+    "same_cpv": true,
+    "left_date": "2023-10-23",
+    "right_date": "2023-08-03"
+  }
+]
