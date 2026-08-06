@@ -33,6 +33,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from fcesreg.paths import data_path
+
 __all__ = [
     "SPLITS_PATH",
     "CF_CUTOFF",
@@ -42,7 +44,7 @@ __all__ = [
     "load",
 ]
 
-SPLITS_PATH = Path("data/processed/splits.json")
+SPLITS_PATH = data_path("processed", "splits.json")
 
 #: Dev is every notice published before this date, test is everything from it onwards.
 #: This puts the 2022–2024 bundles in dev and the 2025 bundle in test, which is both a

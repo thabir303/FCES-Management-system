@@ -105,6 +105,19 @@ of the transition from an uncontrolled spreadsheet to a governed
 register can be automated, how accurate that automation is, and how much
 human effort remains once it has been applied.
 
+This study is carried out alongside the delivery of that system, and the
+two are related rather than parallel. The system provides item records
+with attached photographs and documents, a QR label per item resolving to
+a persistent item URL, pin placement on an uploaded floor plan, links to
+the governing risk assessment, service interval tracking with scheduled
+reminders, and tiered access across administrator, technician and read
+only roles. The migration pipeline studied here runs inside it, as a bulk
+import in which records the pipeline resolves confidently enter the
+register directly and the remainder enter a review queue. The system is
+therefore both the destination of the migration and the setting in which
+its residual human cost is observed, which is what allows that cost to be
+reported as a measured quantity rather than an estimate.
+
 Answering that question empirically requires records for which the
 correct answers are known. Records held by FCES were not available for
 this study, and published institutional catalogues, being curated for
@@ -238,34 +251,36 @@ maintained spreadsheets. Li et al. \cite{li2020ditto} showed that
 pre-trained language models applied as cross encoders improve on these
 architectures, and Narayan et al. \cite{narayan2022} reported that large
 foundation models perform competitively on data wrangling tasks without
-task specific training. reporting F1 of [TBC] on the benchmark used here. These approaches assume a labelled training set drawn from the
-same distribution as the deployment data, an assumption a faculty
+task specific training. These approaches assume a labelled training set
+drawn from the same distribution as the deployment data, an assumption a faculty
 migrating a single spreadsheet cannot satisfy.
 
 \subsection{Cost and Efficiency of Language Model Pipelines}
 
 Where a large model is invoked per record pair, the cost of a pipeline
 scales with the number of decisions it makes rather than with its
-accuracy. Recent work has therefore examined cascaded and routed
-inference, in which an inexpensive method resolves the majority of
-instances and an expensive model is invoked only where the cheap decision
-is unreliable [TBC]. Cost is rarely reported alongside accuracy in the
-entity matching literature, so what a given level of matching performance
-costs to obtain remains largely open, and it is the question the cascade
-evaluated here is designed to answer.
+accuracy. The cascade evaluated here follows from that
+observation: an inexpensive similarity measure resolves the instances on
+which it is confident, and the expensive model is invoked only within the
+band where the cheap decision is unreliable. Cost is rarely reported
+alongside accuracy in the entity matching literature, so what a given
+level of matching performance costs to obtain remains largely open, and
+that is the question this design is intended to answer.
 
 \subsection{Text Classification against Procurement Taxonomies}
 
 Assigning free text descriptions to a hierarchical controlled vocabulary
 is a long standing text classification problem, addressed classically
 with sparse lexical features and linear classifiers and more recently
-with dense sentence representations \cite{reimers2019}. Assignment to procurement
-vocabularies specifically, and hierarchical classification where a coarse
-decision is more reliable than a fine one, have both been studied in the
-procurement analytics setting [TBC]. Existing work generally targets procurement analytics
-rather than asset register construction, and does not consider the
-precision thresholds required when a category assignment carries a
-safety consequence.
+with dense sentence representations \cite{reimers2019}. Two properties of
+the present task are less commonly addressed. The vocabulary is
+hierarchical, so a coarse assignment may be reliable where a fine one is
+not, and the two levels carry different practical value. And the
+assignment carries a safety consequence, since a category determines
+which servicing and hazard rules an item inherits, so the precision at
+which an assignment can be made matters more than its average accuracy.
+Neither consideration arises when the same classification is performed
+for procurement analytics, which is where most existing work sits.
 
 \subsection{Equipment Cataloguing and Asset Management}
 
@@ -274,11 +289,16 @@ operationally rather than analytically. Open source catalogue software
 such as Kit-Catalogue \cite{kitcatalogue} and aggregation services such
 as the Equipment Data Service \cite{jisc} provide the means to publish
 and share institutional holdings, and asset management practice is
-codified in ISO 55000 \cite{iso55000}. Data quality in asset and
-maintenance management records has been examined as an operational
-concern [TBC]. None of this work reports how the records
-entering such systems were reconciled, or with what accuracy, which is
-the omission this paper addresses.
+codified in ISO 55000 \cite{iso55000}. The data quality problems that
+arise when records are entered without constraint are themselves long
+studied \cite{rahm2000}, but that literature addresses cleaning as a
+general activity rather than the construction of a register. Existing work addresses entity matching, duplicate detection,
+data cleaning and equipment cataloguing as separate concerns. What is
+absent is an account of the transition itself: how accurately the records
+leaving an uncontrolled spreadsheet can be reconciled into a governed
+register, at what cost, and with how much human effort left over. That
+transition is where an asset management deployment succeeds or fails, and
+it is the omission this study addresses.
 
 \section{Methodology}
 
@@ -391,13 +411,18 @@ draw from the same model, reproducing the case in which two members of
 staff enter the same item without reference to one another. Near duplicate distractors are also generated by degrading records that
 are similar but genuinely distinct. On the procurement corpus these are drawn from pairs
 sharing a taxonomy class and exhibiting high title similarity while
-arising from distinct procurement processes. Distinctness is established
-by the procurement reference rather than by the record identifier: the
-publisher mints an identifier per notice rather than per process, so two
-notices describing one procurement carry different identifiers, and a
-rule keyed on them admits genuine duplicates into the negative set. Pairs
-sharing a buyer and an otherwise identical title are excluded on the same
-grounds. On the benchmark corpus distractors are drawn from pairs sharing
+arising from distinct procurement processes. Establishing distinctness is harder than it appears. The publisher mints
+an identifier per notice and not per process, so two notices describing
+one procurement carry different identifiers, and a rule keyed on them
+admits genuine duplicates into the negative set. The published
+procurement reference is a better signal but not a sufficient one, since
+it frequently encodes the issuing organisation instead of the process,
+and the buyer identifier does not reliably resolve to a single body.
+Candidates are therefore filtered by reference and by buyer, and the
+surviving set is then verified by hand, with the contamination rate
+measured at each stage and reported. The distractor set is bounded at a
+size that admits complete manual verification, since a negative set of
+unknown purity is worse than a smaller one of known purity. On the benchmark corpus distractors are drawn from pairs sharing
 a leading token. Without them a
 detector that cannot separate similar but distinct records will report
 high recall for the wrong reason. The model parameters, the

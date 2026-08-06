@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from fcesreg.paths import data_path
 from fcesreg.schema import RECORD_COLUMNS, validate_frame
 
 __all__ = ["BASE", "MIRROR", "FILES", "SPLITS", "download", "load", "build"]
@@ -130,8 +131,11 @@ def build(dest: Path, out_path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Ingest the Abt-Buy benchmark.")
-    p.add_argument("--dest", type=Path, default=Path("data/raw/abtbuy"))
-    p.add_argument("--out", type=Path, default=Path("data/processed/corpus_a_abtbuy.parquet"))
+    p.add_argument("--dest", type=Path, default=data_path("raw", "abtbuy"))
+    p.add_argument(
+        "--out", type=Path,
+        default=data_path("processed", "corpus_a_abtbuy.parquet"),
+    )
     args = p.parse_args(argv)
 
     records, pairs = build(args.dest, args.out)

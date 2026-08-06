@@ -28,6 +28,7 @@ from fcesreg.blocking import (
     ngram_overlap_candidates,
 )
 from fcesreg.splits import load as load_splits
+from fcesreg.paths import repo_root
 from fcesreg.runs import capture_env, new_run_id, write_run
 
 SCRIPT = "run_blocking"
@@ -168,7 +169,7 @@ def evaluate_corpus(
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--config", type=Path, default=Path("research/configs/blocking.yaml"))
+    p.add_argument("--config", type=Path, default=repo_root() / "research/configs/blocking.yaml")
     args = p.parse_args(argv)
 
     cfg = yaml.safe_load(args.config.read_text(encoding="utf-8"))

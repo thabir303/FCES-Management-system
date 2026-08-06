@@ -22,19 +22,20 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from fcesreg.paths import annotation_path, data_path
 from fcesreg.degrade import DegradationConfig, make_distractors
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--corpus", type=Path,
-                   default=Path("data/processed/corpus_b_contractsfinder.parquet"))
+                   default=data_path("processed", "corpus_b_contractsfinder.parquet"))
     p.add_argument("--divisions", nargs="+",
                    default=["30", "31", "32", "33", "38", "42", "43", "44"])
     p.add_argument("--sample", type=int, default=40)
     p.add_argument("--sim-threshold", type=float, default=0.75)
     p.add_argument("--seed", type=int, default=0)
-    p.add_argument("--out", type=Path, default=Path("annotation/samples/distractor_audit.json"))
+    p.add_argument("--out", type=Path, default=annotation_path("samples", "distractor_audit.json"))
     args = p.parse_args(argv)
 
     corpus = pd.read_parquet(args.corpus)

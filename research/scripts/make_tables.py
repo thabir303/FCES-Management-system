@@ -17,9 +17,10 @@ import argparse
 import sys
 from pathlib import Path
 
+from fcesreg.paths import results_path
 from fcesreg.runs import RESULTS_ROOT, load_run
 
-TABLES_ROOT = Path("results/tables")
+TABLES_ROOT = results_path("tables")
 
 
 class DirtyRun(RuntimeError):

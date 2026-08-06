@@ -25,6 +25,7 @@ from pathlib import Path
 import pandas as pd
 
 from fcesreg.normalise import normalise_text
+from fcesreg.paths import data_path
 from fcesreg.schema import RECORD_COLUMNS, validate_frame
 
 __all__ = [
@@ -325,9 +326,12 @@ def build(
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Ingest Contracts Finder bundles.")
-    p.add_argument("--raw", type=Path, default=Path("data/raw"))
+    p.add_argument("--raw", type=Path, default=data_path("raw"))
     p.add_argument("--years", type=int, nargs="+", default=[2022, 2023, 2024, 2025])
-    p.add_argument("--out", type=Path, default=Path("data/processed/corpus_b_contractsfinder.parquet"))
+    p.add_argument(
+        "--out", type=Path,
+        default=data_path("processed", "corpus_b_contractsfinder.parquet"),
+    )
     args = p.parse_args(argv)
 
     try:

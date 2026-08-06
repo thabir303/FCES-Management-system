@@ -22,6 +22,8 @@ from typing import Any
 import pandas as pd
 import yaml
 
+from fcesreg.paths import results_path
+
 __all__ = [
     "RESULTS_ROOT",
     "GitInfo",
@@ -33,7 +35,7 @@ __all__ = [
     "load_run",
 ]
 
-RESULTS_ROOT = Path("results/runs")
+RESULTS_ROOT = results_path("runs")
 
 _NO_GIT = "nogit"
 

@@ -27,6 +27,7 @@ import yaml
 
 from fcesreg.cpv import cpv_class
 from fcesreg.normalise import normalise_text
+from fcesreg.paths import data_path
 
 __all__ = [
     "ERROR_CLASSES",
@@ -58,7 +59,7 @@ ERROR_CLASSES = (
     "merge",
 )
 
-DEFAULT_LEXICON_PATH = Path("data/lexicon/abbreviations.yaml")
+DEFAULT_LEXICON_PATH = data_path("lexicon", "abbreviations.yaml")
 
 _TEXT_FIELDS = ("title", "description")
 _OMITTABLE = ("description",)

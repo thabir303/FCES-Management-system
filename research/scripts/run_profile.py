@@ -20,6 +20,7 @@ import yaml
 
 from fcesreg.cpv import LEVELS, label_series, leaf_sparsity, supported_labels
 from fcesreg.normalise import normalise_key
+from fcesreg.paths import repo_root
 from fcesreg.runs import capture_env, new_run_id, write_run
 from fcesreg.splits import load as load_splits
 
@@ -151,7 +152,7 @@ def natural_duplicate_stats(corpus: pd.DataFrame) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--config", type=Path, default=Path("research/configs/profile.yaml"))
+    p.add_argument("--config", type=Path, default=repo_root() / "research/configs/profile.yaml")
     args = p.parse_args(argv)
 
     cfg = yaml.safe_load(args.config.read_text(encoding="utf-8"))

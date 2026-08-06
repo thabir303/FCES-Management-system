@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from fcesreg.paths import data_path
 from fcesreg.splits import SPLITS_PATH, freeze
 
 
@@ -16,13 +17,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--corpus-b",
         type=Path,
-        default=Path("data/processed/corpus_b_contractsfinder.parquet"),
+        default=data_path("processed", "corpus_b_contractsfinder.parquet"),
         help="Corpus B — Contracts Finder, category ground truth",
     )
     p.add_argument(
         "--corpus-a-pairs",
         type=Path,
-        default=Path("data/processed/corpus_a_abtbuy_pairs.parquet"),
+        default=data_path("processed", "corpus_a_abtbuy_pairs.parquet"),
         help="Corpus A — Abt-Buy, duplicate ground truth",
     )
     p.add_argument("--out", type=Path, default=SPLITS_PATH)

@@ -78,7 +78,7 @@ class TestBuiltTaxonomy:
     @pytest.fixture(scope="class")
     @classmethod
     def tax(cls):
-        return pd.read_parquet("data/processed/cpv_taxonomy.parquet")
+        return pd.read_parquet(TAXONOMY)
 
     def test_only_levels_2_4_and_8_exist(self, tax):
         assert set(tax["level"]) == {2, 4, 8}

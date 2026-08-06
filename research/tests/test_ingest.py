@@ -161,7 +161,7 @@ class TestAbtBuy:
     @pytest.fixture(scope="class")
     @classmethod
     def loaded(cls):
-        return load_abtbuy("data/raw/abtbuy")
+        return load_abtbuy(ABTBUY_RAW)
 
     def test_record_ids_are_prefixed_into_one_namespace(self, loaded):
         records, _ = loaded
