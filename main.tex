@@ -552,8 +552,8 @@ evaluated by macro and weighted F1 at both taxonomy levels, with
 confusion matrices for the operationally significant classes.
 
 Operational measures are reported for every method: mean processing
-latency per record, monetary cost per thousand records for any method
-invoking a paid model, and the automated share, defined as the
+latency per record, monetary cost per thousand records for any method invoking a language
+model, costed at the published rate card recorded with the run, and the automated share, defined as the
 proportion of records the pipeline resolves without human intervention
 while holding precision at or above the target specified in RQ3.
 Residual manual effort is derived from the automated share and a mean
@@ -614,7 +614,9 @@ repository. Corpora derived from third party
 sources are distributed as record identifiers and reconstruction scripts
 rather than as redistributed data, in accordance with each licence.
 Model versions, prompt texts, embedding checkpoints and random seeds are
-recorded with every run. The repository is available at [TBC].
+recorded with every run. The language model tier uses an open-weights
+model, so it is reproducible independently of any single provider's
+endpoint remaining available. The repository is available at [TBC].
 
 \section{Results}
 
