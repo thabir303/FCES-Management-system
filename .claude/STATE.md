@@ -4,15 +4,22 @@ Session handoff. Volatile — update at the end of every §11 task. Hard cap 60 
 
 ## Current task
 
-**C5 — `llm.py`: cache, ledger, quota governance.** Built and tested; **criterion not yet
-closed**. Provider moved to `openai/gpt-oss-120b` on Groq's free tier (amendment G1), so
-`llm.py` targets the OpenAI-compatible endpoint over `httpx`, every call is synchronous, and
-rate limits replace money as the binding constraint. 34 tests cover cache, ledger, cap, pacing,
-429 backoff and quota stops against a stub transport.
+**C5 — `llm.py`: cache, ledger, quota governance. Closed.** Provider is `openai/gpt-oss-120b`
+on Groq's free tier (amendment G1); `llm.py` targets the OpenAI-compatible endpoint over
+`httpx`, every call is synchronous, and rate limits replace money as the binding constraint.
+34 stub-transport tests plus a live `make llm-pilot` run: 20 calls, 2580 tokens, $0.000531
+notional; the identical re-run issued zero requests, consumed zero tokens, `usd` summed to
+$0.00, every replayed row `cache_hit=true`. `results/ledger.jsonl` (tagged `c5_pilot`) is the
+evidence, committed per the ledger convention.
 
-**To close C5:** put `GROQ_API_KEY` in `.env`, then `make llm-pilot`. It runs 20 live calls,
-replays them, and prints the criterion checks. I cannot run it — no key, and spending the
-quota is the supervisor's call.
+Bug found and fixed the same session: `run_llm_pilot.py` never loaded `.env`, so a filled-in
+`GROQ_API_KEY` was invisible to the process (`llm.py` deliberately only reads `os.environ`).
+`python-dotenv` — already present transitively via `system/api` — is now loaded in the pilot
+script only, anchored against `repo_root()`.
+
+Both proposed paper edits from last session (cost sentence, open-weights note) were applied —
+turned out already accepted and sitting in the working tree at session start, verified against
+what was proposed, `make paper` confirmed clean (6 pages, unchanged) before committing.
 
 Done in Phase C: C1 `embed.py`, C2 `blocking.py`, C3 `dedup.py` (Exact + Tfidf), C4 `degrade.py`,
 C5 `llm.py`. `metrics.py` has `prf1` only — C8 still owes `macro_weighted_f1`, `confusion` and
@@ -20,10 +27,6 @@ C5 `llm.py`. `metrics.py` has `prf1` only — C8 still owes `macro_weighted_f1`,
 
 ## Blocked or waiting on the supervisor
 
-- **Two paper edits proposed, neither applied.** (1) §Evaluation Metrics says cost is reported
-  "for any method invoking a paid model" — on a free tier no method invokes one, and the figure
-  is now notional. (2) Reproducibility needs the open-weights sentence. Both change what the
-  paper *claims*, so rule 2 says propose and wait. `main.tex` is untouched.
 - **200-pair distractor verification.** `annotation/labels/distractor_judgements.jsonl` does not
   exist. **C6 and `run_transfer.py` must not run until it is complete.**
 - **`make data` is broken**, not merely unbuilt: it calls `research/scripts/build_taxonomy.py`,
@@ -65,5 +68,5 @@ C5 `llm.py`. `metrics.py` has `prf1` only — C8 still owes `macro_weighted_f1`,
 ## Last verified
 
 **2026-08-08** — `make test`: 295 passed, 2 warnings, identical from the repository root, from
-`research/` and from `/tmp`. `main.tex` untouched, so `make paper` not re-run (last clean build
-6 pages, 2026-08-07).
+`research/` and from `/tmp`. `make paper`: clean build, 6 pages. `make llm-pilot`: all 8
+checks pass against the live Groq endpoint.
