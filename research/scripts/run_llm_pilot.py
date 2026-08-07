@@ -19,6 +19,7 @@ import sys
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
 
 from fcesreg.llm import (
     DEFAULT_LEDGER_PATH,
@@ -30,6 +31,7 @@ from fcesreg.llm import (
     RateCard,
     read_ledger,
 )
+from fcesreg.paths import repo_root
 from fcesreg.runs import new_run_id
 
 PROMPTS = [
@@ -76,6 +78,13 @@ def client_from(config: dict, run_id: str) -> LLMClient:
 
 
 def main() -> int:
+    # .env is never committed and nothing else in the stack loads it into the process
+    # environment — llm.py deliberately only reads os.environ, never .env mechanics, so the
+    # bootstrap belongs here, in the one script that is meant to be invoked directly. Anchored
+    # against the repo root rather than the cwd, for the same reason every path in this
+    # package is: `make llm-pilot` and a direct invocation from research/ must behave alike.
+    load_dotenv(repo_root() / ".env")
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=Path("research/configs/llm.yaml"))
     args = parser.parse_args()
