@@ -106,7 +106,7 @@ inside the delivered system" a true statement rather than a claim.
 | Frontend | Next.js App Router + TypeScript + Tailwind | Next 15+, Node 22 LTS |
 | Backend | FastAPI + Pydantic v2 + SQLAlchemy 2.x + Alembic + rapidfuzz | Python 3.12 |
 | DB | PostgreSQL | 16, via Docker |
-| Research | numpy, pandas, pyarrow, scikit-learn, sentence-transformers, anthropic | Python 3.12 |
+| Research | numpy, pandas, pyarrow, scikit-learn, sentence-transformers, httpx | Python 3.12 |
 | Object storage | local filesystem `storage/` behind an interface | — |
 
 **`rapidfuzz` is a system dependency, not a research one.** Its only use is guessing column-header
@@ -1012,58 +1012,108 @@ for it.
 
 ### 6.11 `llm.py`
 
-```python
-MODEL = "claude-haiku-4-5"          # $1.00/M input, $5.00/M output
-CAP_USD = 6.00
+The provider is **Groq's OpenAI-compatible endpoint** and the model is **`openai/gpt-oss-120b`**,
+on the free tier (amendment G1). Three consequences follow, and they shape the whole module.
 
-class BudgetExceeded(RuntimeError): ...
+- **No Batch API on the free tier.** Every call is synchronous. The 50% batch discount is gone.
+- **Actual spend is zero.** Money is no longer the binding constraint; **quota is**. Cost is
+  reported as measured token counts costed at a named rate card, not as a bill.
+- **The disk cache is the checkpoint.** It is written after every call, so a run halted by an
+  exhausted daily quota loses nothing.
+
+The transport speaks the OpenAI-compatible wire format over **`httpx`** rather than through the
+`openai` package. Quota governance is the substance of this module and it needs the
+`x-ratelimit-*` headers on success *and* `retry-after` on a 429; an SDK that turns non-2xx
+responses into exceptions hides exactly those values. `transport`, `sleep` and `monotonic` are
+constructor arguments, so cache, ledger, cap, pacing and the 429 path are all testable without a
+network or a real clock.
+
+```python
+DEFAULT_MODEL    = "openai/gpt-oss-120b"
+DEFAULT_BASE_URL = "https://api.groq.com/openai/v1"
+CAP_USD          = 6.00        # runaway guard on NOTIONAL spend, not a bill
+
+@dataclass(frozen=True)
+class RateCard:                # every costed figure names the rates it used
+    model: str; usd_per_m_input: float; usd_per_m_output: float
+    source: str; checked: str  # URL, and the date the URL was read
+
+class BudgetExceeded(RuntimeError): ...     # notional cap crossed
+class DailyQuotaExhausted(RuntimeError): ...# stop cleanly; cache holds the work done
 
 class LLMClient:
-    def __init__(self, model=MODEL, cache_dir=Path(".cache/llm"),
+    def __init__(self, model=DEFAULT_MODEL, cache_dir=Path(".cache/llm"),
                  ledger_path=Path("results/ledger.jsonl"),   # ONE global ledger
-                 run_id: str | None = None, cap_usd=CAP_USD): ...
+                 run_id: str | None = None, cap_usd=CAP_USD,
+                 rate_card=DEFAULT_RATE_CARD, limits=DEFAULT_LIMITS): ...
 
     def complete(self, system: str, prompt: str, max_tokens: int = 64,
                  json_schema: dict | None = None) -> LLMResponse:
         """1. key = sha256(model + system + prompt + str(json_schema))
-           2. cache hit → return immediately, cost 0, log cache_hit=True
-           3. miss → call API, append ledger row, raise BudgetExceeded if cap crossed"""
+           2. cache hit → return immediately, consumes nothing, log cache_hit=True
+           3. miss → wait for quota, call, cache, append ledger row,
+              raise BudgetExceeded if the notional cap is crossed"""
 
-    def complete_batch(self, requests: list[BatchRequest]) -> list[LLMResponse]:
-        """Message Batches API — 50% cheaper. Use this for every offline evaluation run.
-        Poll until processing_status == 'ended'. Key results by custom_id, NEVER by
-        position — batch results arrive out of order."""
+    def complete_many(self, requests: list[LLMRequest]) -> dict[str, LLMResponse]:
+        """Synchronous, paced, resumable. Returns results keyed by `custom_id`,
+        NEVER by position — a resumed run replays cached items in a different
+        order from the one requested. Raises DailyQuotaExhausted rather than
+        burning the remaining allowance on retries."""
 ```
 
 **One global ledger at `results/ledger.jsonl`**, not one per run. Every row carries `run_id`, and
-`run_costs.py` groups by it. This is deliberate: spend aggregates across runs (the `cap_usd` guard
-is meaningless if each run starts a fresh ledger) and cache hits span them (a run that costs $0.00
-because an earlier run paid for the same prompts is only interpretable against a shared ledger).
+`run_costs.py` groups by it. This is deliberate: consumption aggregates across runs (a guard is
+meaningless if each run starts a fresh ledger) and cache hits span them (a run that consumes
+nothing because an earlier run paid for the same prompts is only interpretable against a shared
+ledger). It is also how the client knows what today's quota has already absorbed.
 `results/runs/<run_id>/` therefore contains `params.yaml`, `metrics.json`, `predictions.parquet` and
 `env.json`, and **no ledger file**.
 
 Ledger row, one JSON object per line:
 ```json
-{"ts":"...","run_id":"...","condition":"rq2_zeroshot","prompt_sha256":"...",
- "model":"claude-haiku-4-5","input_tokens":712,"output_tokens":9,
- "usd":0.000757,"latency_ms":812,"cache_hit":false}
+{"ts":"...","run_id":"...","condition":"rq2_incontext","prompt_sha256":"...",
+ "provider":"groq","model":"openai/gpt-oss-120b","input_tokens":712,"output_tokens":9,
+ "usd":0.000112,"usd_uncached":0.000112,"latency_ms":812,"cache_hit":false,
+ "rate_usd_per_m_input":0.15,"rate_usd_per_m_output":0.60,"rate_card_checked":"2026-08-08"}
 ```
+
+**Four fields, four different questions — do not conflate them.** `input_tokens` / `output_tokens`
+are the real counts for that request and response, whether it was served live or from cache;
+`cache_hit` says whether the call consumed quota; `usd` is the notional cost **consumed**, and is
+`0.0` on a cache hit; `usd_uncached` is the notional cost of those tokens regardless of cache —
+what a fresh run would pay. So the method's cost per thousand records sums `usd_uncached` (caching
+is our development convenience, not a property of the method), quota accounting sums tokens where
+`cache_hit` is false, and the C5 criterion checks that a re-run sums `usd` to exactly zero.
 
 Appends must be atomic (open `"a"`, one `write()` of a single line ending `\n`) — the sweep runs
 several conditions and a torn line loses a cost row.
 
-Three rules that keep this inside budget:
+Four rules that keep this inside quota:
 
-1. **Use `complete_batch` for all accuracy runs.** 50% discount. Measure latency separately on a
-   100-call synchronous subsample — the paper reports per-record latency, and batch calls cannot
-   supply it.
-2. **Do not implement prompt caching.** Haiku 4.5's minimum cacheable prefix is 4,096 tokens;
-   these prompts are 700–1,200. `cache_control` would silently do nothing. The SHA-256 disk cache
-   is the mechanism that matters.
-3. **Build the cache and ledger before the first paid call**, not after.
+1. **Honour the response headers, never a hardcoded limit.** Groq returns `x-ratelimit-limit-*`,
+   `x-ratelimit-remaining-*` and `x-ratelimit-reset-*` on every response and `retry-after` on a
+   429, and treats them as the runtime source of truth. Note the naming trap: per Groq's
+   documentation `x-ratelimit-limit-requests` is requests per **day** and `x-ratelimit-limit-tokens`
+   is tokens per **minute**, so requests-per-minute and tokens-per-day are *not* exposed by headers
+   and remain configured values in `configs/llm.yaml`, verified against the console.
+2. **Back off on 429, never retry blindly.** Sleep for `retry-after`, bounded retries, then raise.
+3. **Do not implement prompt caching.** There is no client-controlled prompt-cache parameter on
+   this endpoint — the published cached-input rate applies automatically or not at all, and is
+   outside our control. The SHA-256 disk cache is the mechanism that matters, and it matters more
+   than it did under a paid tier: a repeated call now costs a share of a **day's quota** rather
+   than a fraction of a cent. Cost is reported at the **uncached** input rate, which errs toward
+   overstating cost — the safe direction for a cost claim.
+4. **Build the cache and ledger before the first call**, not after.
 
-Estimated total spend for the full experiment set: **~$1.66 via the Batches API** (~$3.30 at
-standard rates). The `cap_usd=6.00` guard is headroom, not a target.
+**Expected spend: $0.00.** The figure that reaches `T8_cost.tex` is measured token counts costed at
+the rate card above, naming the model, the rates and the date they were checked. That is a better
+result than a bill: reproducible against a public rate card, and independent of which tier the
+author happened to be on. The `cap_usd=6.00` guard survives as runaway protection on notional
+spend; it is not a budget any more.
+
+**Rate-limit-bound throughput is a separate reported figure.** Adjudications per day is what would
+actually constrain a faculty running this on free infrastructure, so `run_costs.py` reports it
+alongside cost as an operational result (§10).
 
 ### 6.12 `metrics.py`
 
@@ -1418,7 +1468,7 @@ from those directories.
 | `run_classify.py --per-class` | confusion matrix for hazard-carrying divisions 33, 38, 42 | `T7_perclass.tex` |
 | `run_label_noise.py` | disagreement rate vs published CPV + 95% CI + intra-annotator κ; **mean handling time from the timed annotation (§6.15)** | inline figure |
 | `run_transfer.py` | **the External Validation comparison.** Thresholds selected on the Corpus A dev partition, carried across **unchanged**, evaluated on degraded Corpus B. Reports both figures and their difference as one paired comparison | `T9_transfer.tex` |
-| `run_costs.py` | ms/record, USD/1000 records, measured cascade band fraction (reads the global ledger, grouped by `run_id`) | `T8_cost.tex` |
+| `run_costs.py` | ms/record, tokens/1000 records and **notional** USD/1000 records at the named rate card, rate-limit-bound throughput (adjudications/day), measured cascade band fraction (reads the global ledger, grouped by `run_id`) | `T8_cost.tex` |
 | `run_operating_point.py` | full precision–automation curve; automated share at 0.95 and 0.99; residual hours | `F2_operating_point.pdf` |
 
 There is no `run_dedup.py --corpus natural` and no `T5_natural.tex` (§4.5).
@@ -1434,7 +1484,10 @@ in Phase G rather than late.
 
 ### 10.1 Scope reductions and the budget they buy
 
-This project answers three research questions inside a few dollars and the time remaining. A method
+This project answers three research questions inside a free-tier token quota and the time remaining
+— the constraint was a few dollars until amendment G1 moved the model to a free tier, and the scope
+cuts below were all made against the money constraint. **They stand unchanged**, because cutting
+call volume buys elapsed days under a daily quota exactly as it bought dollars before. A method
 earns its place only if removing it would leave one of RQ1–RQ3 without an answer, or remove the
 comparison that gives the answer meaning. The following were removed on that test, and are removed
 rather than deferred.
@@ -1450,7 +1503,7 @@ cascade runs at **3 severity levels spanning that same range, at a single repeti
 every pair in its band**. Three exact points readable against the other methods' curves are worth
 more than fifteen estimated ones.
 
-**Corpus B deduplication corpus size.** Sized so the cascade fits *comfortably* inside the budget
+**Corpus B deduplication corpus size.** Sized so the cascade fits *comfortably* inside the quota
 rather than exactly filling it. Corpus B's role in RQ1 is in-domain material for the transfer
 comparison, not exhaustive coverage.
 
@@ -1527,7 +1580,7 @@ rewriting it would invalidate every result already computed against it.
 | C2 | `blocking.py` | B5 | all three §6.8 schemes implemented, no `block_by_manufacturer`; `applicable_schemes` returns `buyer` for CF and not for Abt-Buy; `evaluate_blocking` recovers known pair-completeness and reduction-ratio values on a hand-built fixture, and on the real corpora returns metrics in [0,1] with `n_candidates ≤ n_possible`. **Measured values are recorded, not gated** |
 | C3 | `dedup.py` — Exact + Tfidf | C2 | both matchers run end to end on the Abt-Buy test split and emit P/R/F1 with `tp+fp+fn` consistent with the pair count. **Bug detector only: F1 below 0.40 indicates a pair-construction fault — stop and fix.** The actual F1 is recorded as an observation, not a pass mark |
 | C4 | `degrade.py` + tests | A2 | same seed ⇒ byte-identical output; each of the **7** error classes has its own test (abbreviation, character noise, casing, whitespace, units, field omission, and Mudgal's field merge — matching the seven knobs in §6.6 and the six classes plus merge the paper lists); `make_distractors` returns a non-empty label-0 set for both corpora under their respective mining rules and touches none of the three null columns |
-| C5 | `llm.py` — cache, ledger, hard cap | A3 | a $0.20 pilot runs; re-running the identical set costs **exactly $0.00** and every row logs `cache_hit=true`; ledger rows land in the single `results/ledger.jsonl` carrying `run_id` |
+| C5 | `llm.py` — cache, ledger, quota governance | A3 | a pilot of at least 20 live calls runs, and its ledger rows carry non-zero token counts with a notional cost at the recorded rate card; re-running the identical set issues **zero HTTP requests**, consumes **zero tokens**, sums `usd` to **exactly $0.00**, and every row logs `cache_hit=true`; ledger rows land in the single `results/ledger.jsonl` carrying `run_id` |
 | C6 | `dedup.py` — Embedding + Cascade | C1, C3, C5 | `CascadeMatcher.stats` is populated with all three keys; the counts are mutually consistent (`n_adjudicated ≤ n_pairs`, `band_fraction == n_adjudicated / n_pairs`); and **every pair sent to the adjudicator has a base score strictly inside `(lower, upper)`, with no pair outside the band adjudicated**. The measured band fraction is recorded as a finding — a fraction of 0.30 is a fact about the method, not a build failure |
 | C7 | `classify.py` — all three (§10.1) | C1, C5, B3 | every classifier returns non-empty `alternatives`; the language model condition never receives the full taxonomy, only the shortlist |
 | C8 | `metrics.py`, `operating_point.py` | C3 | `automated_share_at_precision` recovers a known answer on a synthetic fixture |
@@ -1590,7 +1643,11 @@ trace. 401 unauthenticated, 403 authenticated-but-wrong-role, 404 missing, 409 c
 
 ### 12.3 Config
 All settings from environment through a Pydantic `Settings` class. Never `os.getenv` inline.
-Required: `DATABASE_URL`, `JWT_SECRET`, `ANTHROPIC_API_KEY`, `STORAGE_ROOT`, `BASE_URL`.
+Required: `DATABASE_URL`, `JWT_SECRET`, `GROQ_API_KEY`, `STORAGE_ROOT`, `BASE_URL`.
+
+**This rule governs `system/`.** `fcesreg` cannot use that `Settings` class without importing from
+`system/`, which the boundary forbids. It reads exactly one environment variable, `GROQ_API_KEY`,
+through exactly one accessor in `llm.py`, never at import time and never inline at a call site.
 
 ### 12.4 Tests
 `pytest` for both packages. Minimum: normalisation edge cases, degradation determinism, blocking
@@ -1695,6 +1752,7 @@ Changes applied to this document after the first draft, in the order the supervi
 | R1 | Artefact-dependent tests skip with a reason naming the missing file, so a clean clone reads "waiting on `make data`" rather than showing failures | `research/tests/conftest.py`, §12.4 |
 | R1 | Corpus descriptive statistics reach the paper through `results/tables/` like every other number, not as prose in this document | §10, `run_profile.py`, `make_tables.py` |
 | R1 | `main.tex` is the paper. `main.md` deleted rather than maintained as a second copy that would drift | README, standing rule 1 |
+| G1 | **Provider moved to `openai/gpt-oss-120b` on Groq's OpenAI-compatible endpoint, free tier.** No Batch API, so every call is synchronous and the 50% batch discount is gone; the separate 100-call latency subsample is gone with it, because per-record latency now comes from the same calls that produce the accuracy figures. Actual spend is $0.00, so cost is reported as measured token counts costed at a named rate card ($0.15/M input, $0.60/M output, checked 2026-08-08) rather than as a bill, and **rate limits replace money as the binding constraint** — `run_costs.py` gains adjudications/day as a reported operational figure. `cap_usd` survives as runaway protection on notional spend. C5's criterion was impossible as written (a "$0.20 pilot" cannot occur where spend is zero by construction) and was restated around zero requests, zero tokens and `usd` summing to zero | §2, §6.11, §10, §10.1, §11 C5, §12.3, §14 |
 
 **Two observations returned to the supervisor.** Neither Amazon-Google/Walmart-Amazon nor a
 Jaro-Winkler matcher was present in the draft to remove — the plan already claimed Abt-Buy alone and

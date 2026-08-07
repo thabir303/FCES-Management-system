@@ -20,7 +20,7 @@ the paper disagree, stop and raise it rather than choosing a side.
 
 ```bash
 pyenv install 3.12.8 && pyenv local 3.12.8
-cp .env.example .env        # fill in JWT_SECRET, ANTHROPIC_API_KEY, seed passwords
+cp .env.example .env        # fill in JWT_SECRET, GROQ_API_KEY, seed passwords
 make bootstrap
 ```
 

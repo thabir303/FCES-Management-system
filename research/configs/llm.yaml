@@ -1,0 +1,50 @@
+# Language model tier: provider, rate card and free-tier allowances (§6.11, amendment G1).
+#
+# This file is committed, and it is the provenance for every cost figure in the paper.
+# Actual spend is $0.00, so a cost number only means something if the rates that produced
+# it are recorded with their source and the date the source was read. Runners load this;
+# they never take a tuning flag.
+
+provider: groq
+model: openai/gpt-oss-120b
+base_url: https://api.groq.com/openai/v1
+
+# The model is open-weights, so this tier is reproducible by anyone rather than dependent
+# on one proprietary endpoint remaining available. Recorded here because it is a claim the
+# Reproducibility section rests on.
+open_weights: true
+
+rate_card:
+  usd_per_m_input: 0.15
+  usd_per_m_output: 0.60
+  source: https://console.groq.com/docs/model/openai/gpt-oss-120b
+  checked: "2026-08-08"
+  # The endpoint publishes a lower cached-input rate (0.075/M). Whether it applies is decided
+  # server-side and is not observable from the response, so cost is computed at the uncached
+  # rate. That errs toward overstating cost, which is the safe direction for a cost claim.
+  note_uncached_rate_used: true
+
+# Only two of these four are observable in response headers, and the naming is a trap:
+# x-ratelimit-limit-requests is per DAY, x-ratelimit-limit-tokens is per MINUTE. Headers are
+# authoritative at runtime and overwrite tokens_per_minute and requests_per_day. The other
+# two are not exposed by any header and must be verified against the console.
+limits:
+  requests_per_minute: 30      # not in headers — verify in console
+  tokens_per_minute: 8000      # x-ratelimit-limit-tokens
+  requests_per_day: 1000       # x-ratelimit-limit-requests
+  tokens_per_day: 200000       # not in headers — verify in console
+
+# Runaway protection on notional spend. Not a budget: nothing is billed on the free tier.
+cap_usd: 6.00
+
+# The C5 acceptance pilot. Its ledger rows carry this condition so they are identifiable and
+# excluded from cost tables — an acceptance check is not a measurement of the method.
+pilot:
+  n: 20
+  condition: c5_pilot
+  max_tokens: 16
+
+# No Batch API on the free tier. Every call is synchronous, which is why per-record latency
+# is measured on the same calls that produce the accuracy figures rather than on a separate
+# subsample as §6.11 originally specified.
+batch_available: false

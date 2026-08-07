@@ -4,7 +4,7 @@ PYTEST  := .venv/bin/pytest
 PYENV   := $(HOME)/.pyenv/versions/3.12.8/bin/python3
 TEXBIN  := /Library/TeX/texbin
 
-.PHONY: bootstrap venv deps db migrate seed data annotate judge-distractors experiments tables paper dev test smoke clean-db
+.PHONY: bootstrap venv deps db migrate seed data annotate judge-distractors llm-pilot experiments tables paper dev test smoke clean-db
 
 bootstrap: venv deps db migrate seed
 	@echo "bootstrap: done"
@@ -58,6 +58,11 @@ annotate:
 # so they wait on it being complete.
 judge-distractors:
 	$(PY) annotation/judge_distractors.py
+
+# C5 acceptance: a live pilot, then proof the identical re-run is free. Needs GROQ_API_KEY.
+# Not part of `experiments` — an acceptance check is not a measurement of the method.
+llm-pilot:
+	$(PY) research/scripts/run_llm_pilot.py --config research/configs/llm.yaml
 
 experiments:
 	$(PY) research/scripts/run_profile.py         --config research/configs/profile.yaml

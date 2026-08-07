@@ -36,6 +36,18 @@ unescaped `[TBC]` as the only placeholders. **The paper gets its own commits** �
 change in with code has already left author and supervisor reading different states.
 
 **Verify before overwriting.** Replacements arrive with a fingerprint (line and byte counts, `[TBC]`
-counts, required and forbidden phrases). Check all of it; if a check fails, stop and report. A rule
-waived once when inconvenient is not a rule. `grep -F` misses phrases spanning a line break in this
-hard-wrapped file — collapse whitespace before matching.
+counts, required and forbidden phrases). Check all of it. `grep -F` misses phrases spanning a line
+break in this hard-wrapped file — collapse whitespace before matching.
+
+**Stop on any mismatch you cannot fully explain. You may proceed on one you can prove**, provided
+the fix makes the **file** match the spec rather than making the **spec** match the file, and
+provided you say what you did.
+
+That proviso is the whole safeguard, so read it precisely. A missing terminal newline explaining a
+discrepancy of exactly one line and exactly one byte, with every content check already passing, is
+provably not a wrong file: restoring the newline so the file becomes the specified length is the
+right response. Editing the stated count down to match the file is the same observation and the
+wrong response, because after it nothing checks anything. Directional checks are what tell a newer
+file from an older one — a `[TBC]` count that has fallen is evidence you have the newer file, and a
+count that has *risen* is a mismatch you cannot explain, so it stops you. A fingerprint exists to
+catch a wrong file, not to be satisfied.

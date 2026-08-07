@@ -47,7 +47,7 @@ _TRACKED_PACKAGES = (
     "scikit-learn",
     "sentence-transformers",
     "torch",
-    "anthropic",
+    "httpx",
     "pyarrow",
 )
 

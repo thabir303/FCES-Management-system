@@ -10,8 +10,12 @@ paths:
 deployment claim true rather than decorative.
 
 **Configuration comes from a Pydantic `Settings` class, never `os.getenv` inline** (§12.3):
-`DATABASE_URL`, `JWT_SECRET`, `ANTHROPIC_API_KEY`, `STORAGE_ROOT`, `BASE_URL`. **Postgres is on
+`DATABASE_URL`, `JWT_SECRET`, `GROQ_API_KEY`, `STORAGE_ROOT`, `BASE_URL`. **Postgres is on
 5433**, not 5432, and `pgcrypto` is required for `gen_random_uuid()`.
+
+This rule is `system/`-only. `fcesreg` cannot use that `Settings` class without importing from
+`system/`, which the boundary forbids, so it reads `GROQ_API_KEY` through one accessor in
+`llm.py` — never at import time, never inline at a call site.
 
 **Error envelope** (§12.2): `{"detail": {"code": "asset_not_found", "message": "..."}}`. Never leak
 a stack trace. 401 unauthenticated, **403 authenticated-but-wrong-role** (a `readonly` user issuing
