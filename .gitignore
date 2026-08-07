@@ -26,3 +26,7 @@ PROJECT_PLAN.amendments.diff
 *.log
 *.out
 *.pdf
+
+# Agent-local, never committed
+.claude/settings.local.json
+CLAUDE.local.md
