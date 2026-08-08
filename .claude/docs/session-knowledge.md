@@ -117,6 +117,23 @@ file; the only placeholders are bare `[TBC]` markers.
   a known, quantified impurity in its negative set; Corpus A is unaffected (published labels).
   Paper edit (the "verified by hand" / "bounded... complete manual verification" sentence in
   §Methodology) is the supervisor's to make, not applied here.
+- `[VERIFIED]` **Amendment 7, the sample itself: 42.0% contaminated (Wilson 95% CI
+  29.4%–55.8%), n=50, unsure 4/50 = 8%.** Judged by Claude, not the Groq adjudicator, on the
+  supervisor's explicit instruction: the model under test must never sit on both sides of the
+  comparison it is part of. Judged seed=0, the tool's default, against the live 570-pair v3
+  pool — `annotation/labels/distractor_judgements.jsonl` records a reason per pair naming the
+  signal (shared reference-number roots across a suffix, explicit "AWARD NOTICE"/"previous
+  notice published under..." self-citation, verbatim title+description reuse, lot/phase/group
+  language distinguishing genuinely separate line items). Reproduced via `--summary` against
+  the committed file. **Not comparable to v2's 35%**: different rule (v3 adds title-reference
+  extraction), different sample, and a v3 rate was explicitly declined earlier from an
+  unstructured 40-pair eyeball (the "several calls would have been guesses" bullet above) —
+  this is the first rate v3 has actually earned. Four pairs called `unsure`: two turned on a
+  shared reference suffix that also appears on an unrelated pair elsewhere in the same sample
+  (case 34, "-72814"), disqualifying it as a clean signal for that pair specifically; one on
+  a title-specific framework name with no corroborating structural evidence (case 49); one on
+  two subcontract-package names inside one large scheme that could be the same package
+  renamed or two genuinely separate ones (case 47).
 
 ### CPV division set: eight divisions
 
