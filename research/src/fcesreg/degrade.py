@@ -360,8 +360,11 @@ def make_distractors(
     else:
         pairs = _mine_leading_token_distractors(records, max_per_group, rng)
 
-    # Bounded so the surviving set admits complete manual verification. A negative set of
-    # unknown purity is worse than a smaller one of known purity.
+    # A mining-cost cap, not a verification-completeness bound. Contamination in this rule's
+    # output is a property of the corpus — Contracts Finder publishes one procurement as
+    # several notices — not something exhaustive verification of a small `max_pairs` could
+    # ever certify away. `annotation/judge_distractors.py` estimates the rate from a random
+    # sample instead; the full pool below is what downstream matching actually uses.
     if max_pairs is not None and len(pairs) > max_pairs:
         take = rng.choice(len(pairs), size=max_pairs, replace=False)
         pairs = pairs.iloc[np.sort(take)].reset_index(drop=True)

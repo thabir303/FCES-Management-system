@@ -93,10 +93,30 @@ file; the only placeholders are bare `[TBC]` markers.
   rule buys less than the last while being harder to justify.
 - `[RECALLED]` Therefore: bound the set at 200 and verify every pair by hand. The trajectory
   **48% → 35% → (verification) → 0% by construction** earns ~3 sentences in Discussion.
+  **Superseded (amendment 7, below) — do not act on this bullet.** Full verification of a
+  small bounded pool never certified the unbounded pool actually used downstream; kept here
+  as the record of the reasoning that led to the sampling redesign, not as current practice.
 - `[RECALLED]` I declined to publish a v3 contamination rate from my own eyeballing of 40 fresh
   pairs. The draw was from a different population so it is not comparable with 35%, and several
   calls would have been guesses without reference and date evidence to hand. The supervisor's
-  200-pair verification settles it.
+  200-pair verification settles it — **superseded by amendment 7**: a 50-pair random sample
+  with a Wilson interval settles it now instead.
+- `[VERIFIED]` **Amendment 7 — contamination is measured, not verified away.** The supervisor
+  ruled that Contracts Finder's contamination is a property of the corpus (one procurement,
+  several notices), not a defect the mining rule could be corrected out of — so exhaustively
+  verifying a small bounded pool was never actually certifying the full pool used downstream,
+  only itself. `annotation/judge_distractors.py` rewritten: draws 50 pairs uniformly at random
+  from the mined pool (no longer bounded for verification, only for mining cost), reports the
+  rate with a Wilson score 95% CI, and **the pool is used unfiltered by C6 and the transfer
+  runner** — no pair is dropped on a judgement's strength. Corpus B precision is reported as a
+  lower bound with the rate and interval stated alongside; the rate is never used to correct
+  the precision figure arithmetically. `degrade.py`'s `max_pairs` comment, which stated the
+  old verification rationale, corrected to a mining-cost cap. The 48%→35% mining-rule story is
+  untouched — a measurement of the rule's own correction, not of what full verification left.
+  Discussion cost, stated plainly: Corpus B's in-domain duplicate-detection result now carries
+  a known, quantified impurity in its negative set; Corpus A is unaffected (published labels).
+  Paper edit (the "verified by hand" / "bounded... complete manual verification" sentence in
+  §Methodology) is the supervisor's to make, not applied here.
 
 ### CPV division set: eight divisions
 
@@ -262,11 +282,14 @@ file; the only placeholders are bare `[TBC]` markers.
   global `results/ledger.jsonl` carrying `run_id`, hard `cap_usd` guard, `complete_batch` via the
   Message Batches API, and the C5 criterion: a $0.20 pilot runs, re-running the identical set costs
   **exactly $0.00** with every row logging `cache_hit=true`.
-- `[VERIFIED]` **The 200-pair distractor verification is unstarted.**
-  `annotation/labels/distractor_judgements.jsonl` does not exist; only the v2 audit judgements do.
-  The tool `annotation/judge_distractors.py` is built and smoke-tested. Finished = all 200 judged
-  by the supervisor, contamination reported at each stage, and the retained set used by C6 and the
-  transfer runner. **C6 and `run_transfer.py` are blocked on this.**
+- `[VERIFIED]` **The 50-pair distractor sample is unstarted** (redesigned, amendment 7 —
+  was 200-pair full verification, see §2). `annotation/labels/distractor_judgements.jsonl`
+  does not exist; only the v2 audit judgements do. `annotation/judge_distractors.py` rewritten
+  and unit-tested (`annotation/test_judge_distractors.py`, the sampling math and Wilson
+  interval — not smoke-tested only, as the old tool was). Finished = 50 pairs judged by the
+  supervisor (~12 min), contamination rate + CI reported. **The pool itself is used by C6 and
+  the transfer runner unfiltered** — finishing this no longer means producing a retained set,
+  only a rate. C6 and `run_transfer.py` are still blocked on it.
 - `[VERIFIED]` **`annotation/annotate.py` does not exist** (checked with `ls`), but the Makefile's
   `annotate` target invokes it and §6.15/§13.3 specify it. The 300-item timed annotation exercise
   is unstarted, and it produces *two* results RQ3 needs: the label-noise estimate and
