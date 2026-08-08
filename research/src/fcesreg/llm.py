@@ -81,7 +81,7 @@ API_KEY_ENV = "GROQ_API_KEY"
 #: Runaway protection on notional spend, not a budget. Actual spend on the free tier is $0.00.
 CAP_USD = 6.00
 
-#: Anchored against the repository root. A bare ``Path(".cache/llm")`` would resolve against
+#: Anchored against the repository root. A bare relative ``.cache/llm`` would resolve against
 #: the working directory, so a run started from ``research/`` would silently miss every cache
 #: entry a run from the root had written — the defect ``paths.py`` exists to prevent.
 DEFAULT_CACHE_DIR = repo_root() / ".cache" / "llm"

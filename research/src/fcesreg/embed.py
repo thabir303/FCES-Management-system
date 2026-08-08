@@ -28,10 +28,18 @@ from pathlib import Path
 
 import numpy as np
 
+from fcesreg.paths import repo_root
+
 __all__ = ["DEFAULT_MODEL", "DEFAULT_CACHE_DIR", "cache_key", "embed", "cache_stats"]
 
 DEFAULT_MODEL = "BAAI/bge-small-en-v1.5"
-DEFAULT_CACHE_DIR = Path(".cache/embeddings")
+
+# Anchored against the repository root, not the cwd — the same defect class paths.py exists
+# to prevent. A bare relative .cache/embeddings path meant a run from research/ silently
+# missed every entry a run from the root had written: not a crash, just a cache that quietly
+# stopped working and cost more compute without anyone noticing. llm.py already anchors this
+# way; this brings embed.py in line with it.
+DEFAULT_CACHE_DIR = repo_root() / ".cache" / "embeddings"
 
 _MODELS: dict[str, object] = {}
 

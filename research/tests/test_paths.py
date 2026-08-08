@@ -19,6 +19,8 @@ import pytest
 
 from fcesreg import runs, splits
 from fcesreg.degrade import DEFAULT_LEXICON_PATH, DegradationConfig, degrade_frame, load_lexicon
+from fcesreg.embed import DEFAULT_CACHE_DIR as EMBED_CACHE_DIR
+from fcesreg.llm import DEFAULT_CACHE_DIR as LLM_CACHE_DIR
 from fcesreg.paths import ENV_VAR, ROOT_MARKERS, RootNotFound, data_path, repo_root
 
 
@@ -76,7 +78,13 @@ class TestRepoRoot:
 
 class TestConstantsAreAnchored:
     def test_every_package_constant_is_absolute(self):
-        for constant in (DEFAULT_LEXICON_PATH, runs.RESULTS_ROOT, splits.SPLITS_PATH):
+        for constant in (
+            DEFAULT_LEXICON_PATH,
+            runs.RESULTS_ROOT,
+            splits.SPLITS_PATH,
+            EMBED_CACHE_DIR,
+            LLM_CACHE_DIR,
+        ):
             assert constant.is_absolute(), f"{constant} resolves against the cwd"
 
     def test_lexicon_loads_from_anywhere(self, elsewhere):
@@ -136,13 +144,22 @@ class TestFunctionsWorkFromAnywhere:
 
 
 def test_no_bare_relative_data_paths_in_the_package():
-    """A grep-level guard so the defect cannot be reintroduced by a new module."""
+    """A grep-level guard so the defect cannot be reintroduced by a new module.
+
+    ``.cache/`` joined the list after ``embed.DEFAULT_CACHE_DIR`` was found unanchored: a
+    cache that silently misses every entry written from a different directory is worse than
+    one that fails outright, because the run still completes and just costs more compute.
+    Modules that explain the anti-pattern in prose (as ``embed.py`` and ``llm.py`` now do,
+    the same way ``paths.py`` documents it) must not spell it as ``Path(".cache/...")`` while
+    doing so, or this guard — deliberately a blunt substring match, not an AST walk — flags
+    the explanation along with the bug it is warning against.
+    """
     offenders = []
     for source in (repo_root() / "research/src/fcesreg").glob("*.py"):
         if source.name == "paths.py":  # documents the anti-pattern in its docstring
             continue
         text = source.read_text(encoding="utf-8")
-        for prefix in ('Path("data/', 'Path("results/', 'Path("annotation/'):
+        for prefix in ('Path("data/', 'Path("results/', 'Path("annotation/', 'Path(".cache/'):
             if prefix in text:
                 offenders.append(f"{source.name}: {prefix}")
     assert not offenders, f"bare cwd-relative paths: {offenders}"
