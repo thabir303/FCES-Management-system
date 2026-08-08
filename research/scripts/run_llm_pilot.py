@@ -8,6 +8,13 @@ be closed from the test suite, which necessarily stubs the transport.
 Its ledger rows carry ``condition: c5_pilot`` so `run_costs.py` can exclude them. An acceptance
 check is not a measurement of the method and must not reach `T8_cost.tex`.
 
+**Prompts carry a per-invocation nonce.** The disk cache is content-addressed and persists
+across invocations by design — that is the whole point of it — so a prompt set that read the
+same on every run would, on the second run, replay entirely from a previous invocation's
+cache. The "live" round would then be zero live calls, proving nothing. The nonce forces a
+fresh cache key each time this script runs, while the two rounds within one invocation still
+share it, so the in-run replay still proves what it is meant to prove.
+
     make llm-pilot          # or:
     .venv/bin/python research/scripts/run_llm_pilot.py --config research/configs/llm.yaml
 """
@@ -16,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import uuid
 from pathlib import Path
 
 import yaml
@@ -39,13 +47,20 @@ PROMPTS = [
 ]
 
 
-def build_requests(n: int, condition: str, max_tokens: int) -> list[LLMRequest]:
-    """Deterministic, short and distinct, so the pilot costs as little quota as possible."""
+def build_requests(n: int, condition: str, max_tokens: int, nonce: str) -> list[LLMRequest]:
+    """Short and distinct, so the pilot costs as little quota as possible.
+
+    ``nonce`` is fixed for the whole invocation but new on every one, so this invocation's
+    live round cannot be served from a previous invocation's cache — see the module
+    docstring. ``custom_id`` deliberately excludes it: identity across the live and replay
+    rounds within *this* run is what ``complete_many``'s dict keying is tested against.
+    """
     return [
         LLMRequest(
             custom_id=f"pilot-{i:03d}",
             system="You adjudicate whether two catalogue entries describe the same item.",
-            prompt=PROMPTS[0].format(a=f"widget model {i}", b=f"widget model {i} (boxed)"),
+            prompt=PROMPTS[0].format(a=f"widget model {i}", b=f"widget model {i} (boxed)")
+            + f" [pilot nonce: {nonce}]",
             max_tokens=max_tokens,
             condition=condition,
         )
@@ -91,7 +106,10 @@ def main() -> int:
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     pilot = config["pilot"]
-    requests = build_requests(int(pilot["n"]), pilot["condition"], int(pilot["max_tokens"]))
+    nonce = uuid.uuid4().hex[:8]
+    requests = build_requests(
+        int(pilot["n"]), pilot["condition"], int(pilot["max_tokens"]), nonce
+    )
 
     before = len(read_ledger(DEFAULT_LEDGER_PATH))
 
@@ -112,6 +130,17 @@ def main() -> int:
     rows = read_ledger(DEFAULT_LEDGER_PATH)[before:]
     live_rows = [r for r in rows if not r["cache_hit"]]
     replay_rows = [r for r in rows if r["cache_hit"]]
+
+    if not live_rows:
+        # The nonce above is what should make this impossible — every call in a fresh
+        # invocation must miss the cache. Surfacing this plainly beats an IndexError three
+        # lines down if that guarantee is ever broken.
+        print(
+            f"pilot produced zero live calls (nonce {nonce}); the cache should be incapable "
+            "of a hit here. Something is wrong with cache keying or the nonce — investigate "
+            "before re-running."
+        )
+        return 1
 
     live_tokens = sum(r["input_tokens"] + r["output_tokens"] for r in live_rows)
     replay_usd = sum(r["usd"] for r in replay_rows)
