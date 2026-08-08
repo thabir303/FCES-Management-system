@@ -419,10 +419,41 @@ procurement reference is a better signal but not a sufficient one, since
 it frequently encodes the issuing organisation instead of the process,
 and the buyer identifier does not reliably resolve to a single body.
 Candidates are therefore filtered by reference and by buyer, and the
-surviving set is then verified by hand, with the contamination rate
-measured at each stage and reported. The distractor set is bounded at a
-size that admits complete manual verification, since a negative set of
-unknown purity is worse than a smaller one of known purity. On the benchmark corpus distractors are drawn from pairs sharing
+contamination remaining after each filtering stage is measured and
+reported.
+
+Residual contamination is not eliminated but estimated. A random sample
+of the surviving candidates is adjudicated against a written protocol,
+released with the code, and the rate is reported with a Wilson score
+interval. Adjudication is performed by a language model and not by a
+human annotator, which is a limitation and is treated as one: the
+adjudicating model is not the model used in the matching cascade, so a
+systematic bias would not appear on both sides of one comparison, but the
+estimate carries no external validation and should be read as indicative
+of magnitude rather than as a measured constant.
+
+The measured rate is high enough to determine what this corpus can and
+cannot support, and that determination is itself a result. Contamination
+in a negative set leaves recall untouched, since recall is computed over
+duplicates whose membership is known by construction, but it corrupts
+precision directly: a matcher that correctly identifies a contaminated
+pair as a duplicate is scored as having produced a false positive.
+Precision and F1 are therefore not reported on the procurement corpus.
+Recall, pair completeness and the behaviour of both under increasing
+degradation are, and precision, F1 and the operating point of RQ3 are
+carried by the benchmark corpus, whose labels were produced by other
+parties and published.
+
+This is stated as a finding and not as an omission. Constructing an in
+domain hard negative set from published procurement data failed here, and
+it failed for a reason that generalises: the publication model emits
+several notices per procurement while supplying no identifier that
+distinguishes a process from an organisation, so pairs that are textually
+near identical and genuinely non-matching cannot be separated reliably
+from pairs that are near identical because they describe one purchase.
+Two successive rounds of rule refinement did not resolve it. Anyone
+attempting the same construction on the same class of data should expect
+the same obstacle. On the benchmark corpus distractors are drawn from pairs sharing
 a leading token. Without them a
 detector that cannot separate similar but distinct records will report
 high recall for the wrong reason. The model parameters, the
@@ -544,9 +575,12 @@ quality.
 
 \subsection{Evaluation Metrics}
 
-Duplicate detection is evaluated by precision, recall and F1, reported
-separately at every severity level rather than summarised, since the two
-components behave differently as records degrade. Blocking is evaluated
+Duplicate detection is evaluated by precision, recall and F1 on the
+benchmark corpus, reported separately at every severity level rather than
+summarised, since the components behave differently as records degrade.
+On the procurement corpus only recall is reported, for the reason given
+in Section IV: its negative set carries measured contamination that
+depresses precision independently of any matcher. Blocking is evaluated
 by pair completeness and reduction ratio. Category assignment is
 evaluated by macro and weighted F1 at both taxonomy levels, with
 confusion matrices for the operationally significant classes.
@@ -573,7 +607,9 @@ every subsequent result, so this comparison is a precondition for
 interpreting the rest.
 
 Second, the pipeline is tuned on Corpus A and then evaluated, without
-further tuning, on degraded records from Corpus B. The thresholds
+further tuning, on degraded records from Corpus B. The comparison is made
+on recall and pair completeness, which the contamination in Corpus B's
+negative set does not affect. The thresholds
 selected on the Corpus A development partition are carried across
 unchanged; no parameter is refitted on Corpus B, and the transfer is
 reported as a single paired comparison rather than as two independent
