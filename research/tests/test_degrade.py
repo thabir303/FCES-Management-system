@@ -174,6 +174,45 @@ class TestMergeFields:
         assert rec["description"] == "d"
 
 
+class TestNullDescriptions:
+    """pandas stores a missing string as float nan, which is truthy.
+
+    20% of Abt-Buy records carry a null description, so every path here is the common
+    case on Corpus A rather than an edge case.
+    """
+
+    def test_merge_does_not_plant_the_literal_string_nan(self):
+        # The dangerous failure: it does not raise, it writes "Pump nan" and carries on.
+        # Both copies of a degraded pair would receive the same spurious token, making
+        # duplicates easier to match and flattering every figure downstream.
+        out = merge_fields({"title": "Pump", "description": float("nan")}, rng(), 1.0)
+        assert out["title"] == "Pump"
+        assert "nan" not in out["title"]
+
+    def test_merge_leaves_a_null_description_alone(self):
+        out = merge_fields({"title": "Pump", "description": None}, rng(), 1.0)
+        assert out["title"] == "Pump"
+
+    def test_degrade_record_survives_a_null_description(self):
+        out = degrade_record(
+            {"title": "Pump", "description": float("nan")}, DegradationConfig(0.5), rng()
+        )
+        assert out["title"]
+        assert not isinstance(out["description"], str)
+
+    def test_degrade_frame_survives_a_frame_of_them(self):
+        frame = pd.DataFrame(
+            {
+                "record_id": ["a", "b"],
+                "title": ["Pump", "Valve"],
+                "description": [float("nan"), "brass"],
+            }
+        )
+        out = degrade_frame(frame, DegradationConfig(0.5), seed=0)
+        assert len(out) == 2
+        assert not out["title"].str.contains(r"\bnan\b", na=False).any()
+
+
 class TestOmitField:
     def test_drops_the_description(self):
         assert omit_field({"title": "Pump", "description": "d"}, rng(), 1.0)["description"] is None

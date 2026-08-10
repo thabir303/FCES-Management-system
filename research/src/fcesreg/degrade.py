@@ -209,6 +209,27 @@ def vary_units(s: str, rng: np.random.Generator, rate: float) -> str:
     return _UNIT_RE.sub(repl, s)
 
 
+def _present_text(value) -> str | None:
+    """``value`` as text, or ``None`` where the field is absent.
+
+    pandas stores a missing string as float ``nan``, **which is truthy**. A bare
+    ``if value:`` guard therefore lets it through, and what follows either raises — the
+    string functions here reject a float — or, worse, formats it into the record as the
+    literal ``"nan"``. The second failure is the dangerous one: it does not stop the run,
+    it silently plants a token in the text, and because both copies of a degraded pair
+    receive the same one it makes duplicates *easier* to match.
+
+    20% of Abt-Buy records carry a null description, so this is the common path on Corpus
+    A rather than an edge case. Treating null as absent matches ``schema.text_of``, which
+    reads the same fields through ``fillna("")``.
+    """
+    if value is None:
+        return None
+    if isinstance(value, float) and np.isnan(value):
+        return None
+    return value or None
+
+
 def merge_fields(rec: dict, rng: np.random.Generator, rate: float) -> dict:
     """Mudgal-style column misalignment: move the description into the title.
 
@@ -218,7 +239,7 @@ def merge_fields(rec: dict, rng: np.random.Generator, rate: float) -> dict:
     out = dict(rec)
     if rng.random() >= rate:
         return out
-    description = out.get("description")
+    description = _present_text(out.get("description"))
     if description:
         out["title"] = f"{out.get('title', '')} {description}".strip()
         out["description"] = None
@@ -229,7 +250,7 @@ def omit_field(rec: dict, rng: np.random.Generator, rate: float) -> dict:
     """Drop an optional field entirely — the row where somebody left a cell blank."""
     out = dict(rec)
     for field_name in _OMITTABLE:
-        if out.get(field_name) and rng.random() < rate:
+        if _present_text(out.get(field_name)) and rng.random() < rate:
             out[field_name] = None
     return out
 
@@ -256,7 +277,7 @@ def degrade_record(
     out = omit_field(out, rng, cfg.rate("omit"))
 
     for field_name in _TEXT_FIELDS:
-        value = out.get(field_name)
+        value = _present_text(out.get(field_name))
         if not value:
             continue
         value = abbreviate(value, rng, lexicon, cfg.rate("abbreviate"))
