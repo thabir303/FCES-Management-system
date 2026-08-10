@@ -23,16 +23,15 @@ F1**, measured contamination 42.0% (CI 29.4%–55.8%). Corpus A carries precisio
   **A** (re-fit per severity): 3,914 adjudications, 1.48M tokens, **~7.4 days** of quota.
   **B** (fit once on clean dev): 103 adjudications, but the cascade never fires above
   severity 0 — a null measurement, not a cheap one. 377 tokens/adjudication is **measured**
-  (8 live calls, `condition="cost_probe"`, excluded from cost tables). Detail in
-  `session-knowledge.md` §6. **Supervisor's call — do not pick a side.**
+  (8 live calls, `condition="cost_probe"`). `session-knowledge.md` §6 has the detail.
+  **Supervisor's call — do not pick a side.**
 - **40-item annotation tool not built.** `annotation/annotate.py` absent, `make annotate`
   broken. Author judges it (label noise must not go to a model RQ2 measures); produces
-  `mean_seconds_per_item` + label-noise rate in one pass.
-- **`make data` broken**: calls `research/scripts/build_taxonomy.py`, absent.
+  `mean_seconds_per_item` + label-noise rate in one pass. `make data` is broken too —
+  `research/scripts/build_taxonomy.py` does not exist.
 - **Open:** is separator-blindness at key level intended? `normalise_key` collapses
   `1.5kW`/`1,5 kW`, immunising exact-match to one of seven error classes by construction.
-- **Unresolved:** the agreed page budget (three tables, two figures, `T8_cost` to prose)
-  was never written into PROJECT_PLAN.md; §14 records no such amendment.
+- **Unresolved:** the agreed page budget (3 tables, 2 figures, `T8_cost` to prose) is in no amendment.
 
 ## Next three tasks in §11 order
 
