@@ -204,6 +204,26 @@ file; the only placeholders are bare `[TBC]` markers.
   shorter but silently wrong the moment a module moves. Verified by running the suite from three
   directories.
 
+- `[VERIFIED]` **`select_threshold` could split a tie group and promise a precision it did not
+  deliver.** It swept precision per *item*; a threshold admits every item scoring at or above it,
+  so stopping part-way through a run of equal scores returns a threshold whose real precision is
+  below target. `scores [0.9, 0.9, 0.8]`, `labels [1, 0, 1]`, target 0.95 → returned 0.9,
+  delivered 0.5. **Not a corner case**: `ExactMatcher` emits only 1.0 and 0.0, so on it every pair
+  ties with most others and the per-item sweep is wrong almost everywhere. It sets the cascade's
+  band and RQ3's operating point, so the failure was a silently overstated guarantee on the
+  headline number. Fixed by `metrics.threshold_sweep` (C8), which collapses each tie group to one
+  attainable point; both modules now share it. Found while writing C8, not by an existing test.
+- `[VERIFIED]` **A pandas null is truthy, so `if not value:` does not skip it.** 441 of 2,173
+  Abt-Buy records (20%) carry a null description stored as float `nan`. Two failures from the one
+  root: `degrade_record` raised `TypeError` in `re.sub` (so `degrade_frame` and
+  `make_duplicate_pairs` could not run on Corpus A **at all**), and `merge_fields` silently wrote
+  the literal `"nan"` into the title. The silent one is worse — it does not stop the run, and both
+  copies of a degraded pair receive the same spurious token, making duplicates *easier* to match
+  and flattering every Corpus A figure. Fixed with `_present_text`, matching `schema.text_of`,
+  which reads the same fields through `fillna("")`. Corpus B has no null descriptions, which is
+  why this survived: nothing exercised the degradation model on Corpus A until the Corpus A sweep
+  was ordered.
+
 ### Normalisation subtleties that cost time
 
 - `[RECALLED]` **Mojibake repair must run before NFKC**, contrary to the order §6.2 originally
@@ -342,6 +362,28 @@ file; the only placeholders are bare `[TBC]` markers.
   `T8_cost` collapsed to prose) exists only in conversation. **§10 is stale.** Not resolved here.
 - `[RECALLED]` The paper reserves a `[TBC]` for the Corpus B deduplication sample size, and the
   plan says that number must come from a run rather than a config. **No run produces it yet.**
+- `[VERIFIED]` **OPEN CONFLICT — the paper's cascade specification has no defined behaviour when
+  no threshold meets the precision target, and on degraded Corpus A none does.** §Methodology says
+  "Both thresholds are selected on the development partition to satisfy the precision target of
+  RQ3 while minimising the size of the adjudicated band." Measured on Corpus A dev, best precision
+  at any usable operating point (`tp>=20`): Tfidf 1.000 clean → **0.533** at severity 0.5 → 0.462
+  at 1.0; embeddings 1.000 → **0.352** → 0.190. **Embeddings are worse, so the base matcher does
+  not rescue it.** With no threshold at 0.95 the upper bound is undefined and the two readings
+  diverge by a factor of 38 in cost, measured on the real test split at severities (0.0, 0.5, 1.0):
+  - **A — re-fit on dev at each severity** (the faithful reading; band = everything the base
+    matcher cannot confidently place): 103 + 1916 + 1895 = **3,914 adjudications**, 1.48M tokens,
+    **~7.4 days** of quota, tokens binding.
+  - **B — fit once on clean dev, carry unchanged**: 103 + 0 + 0 = **103 adjudications**, ~0.2 days
+    — but zero at severity 0.5 and 1.0 means every degraded pair falls below the clean *lower*
+    threshold and is auto-rejected. That is not a cheaper measurement of the cascade, it is the
+    cascade never firing at the severities it exists for.
+
+  Token cost is **measured, not assumed**: 377 tokens/adjudication (281 in + 96 out) over 8 live
+  calls on real Abt-Buy test pairs, tagged `condition="cost_probe"` in the ledger so `run_costs.py`
+  excludes them as it excludes `c5_pilot`. Output hit the `max_tokens=96` cap on every call, so
+  that half is set by configuration, not by the model. Quota: 200k tokens/day binds before 1000
+  requests/day, giving ~530 adjudications/day. **Raised, not resolved** — the supervisor's arithmetic
+  ("low hundreds to low thousands, which the daily quota absorbs") holds only under reading B.
 
 ### Page budget as agreed
 
