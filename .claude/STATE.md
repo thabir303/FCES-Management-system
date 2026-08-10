@@ -5,11 +5,11 @@ Session handoff. Volatile — update at the end of every §11 task. Hard cap 60 
 ## Current task
 
 **C8 closed** — `metrics.py` gains `macro_weighted_f1`, `confusion`, `threshold_sweep`;
-`operating_point.py` built (curve, `automated_share_at_precision`, `residual_effort`).
-Criterion met on a synthetic fixture. Two bugs found and fixed in their own commits:
-`select_threshold` split tie groups and promised precision it did not deliver (bites
-`ExactMatcher` hardest — only 1.0/0.0 scores); pandas nulls are truthy, so degradation
-crashed on Corpus A and `merge_fields` silently planted `"nan"` in titles.
+`operating_point.py` built (curve, `automated_share_at_precision`, `residual_effort`),
+criterion met. Two bugs found and fixed in their own commits: `select_threshold` split
+tie groups and promised precision it did not deliver (worst on `ExactMatcher`, which
+scores only 1.0/0.0); pandas nulls are truthy, so degradation crashed on Corpus A and
+`merge_fields` silently planted `"nan"` in titles.
 
 Amendment 8 landed (paper + plan, separate commits): **Corpus B carries no precision or
 F1**, measured contamination 42.0% (CI 29.4%–55.8%). Corpus A carries precision, F1, RQ3.
@@ -46,12 +46,12 @@ F1**, measured contamination 42.0% (CI 29.4%–55.8%). Corpus A carries precisio
   measured 377 tokens each. `limit-requests` is per *day*, `limit-tokens` per *minute*.
 - TeX is installed but `/Library/TeX/texbin` is not on PATH; `make paper` prepends it.
 - `make experiments` names runners that don't exist yet — build order, not a bug, for that
-  target only. Does **not** excuse `make data` or `make annotate`.
+  target only. Does **not** excuse `make data` or `make annotate` being broken.
 - Blocking figures in `results/runs/` are **severity-free** — re-run now C4 exists, don't
   compare the two sets silently.
-- Corpus B pair completeness at `t=8` is far below the 0.98 floor, non-monotonic — both
-  findings, neither refitted.
-- `F1_severity.pdf` has **no Corpus A panel** as specified; Corpus A dedup is `T4_abtbuy`.
+- Corpus B pair completeness at `t=8` is far below the 0.98 floor and non-monotonic —
+  both findings, neither refitted. `F1_severity.pdf` has **no Corpus A panel** as
+  specified; Corpus A dedup is `T4_abtbuy`.
 - Full background, dead ends, rejected alternatives: `.claude/docs/session-knowledge.md`.
 
 ## Last verified
