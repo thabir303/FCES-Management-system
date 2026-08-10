@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from fcesreg.metrics import threshold_sweep
 from fcesreg.normalise import normalise_key
 from fcesreg.schema import text_of
 
@@ -126,23 +127,20 @@ def select_threshold(
     operating point RQ3 asks for: a method that is accurate on average but cannot be run
     at high precision is of little use to a faculty that has to sign off a register.
 
+    The precision this promises is the precision the returned threshold delivers, which
+    requires that tied scores be admitted as a block — see ``metrics.threshold_sweep``. A
+    sweep over individual items instead can stop part-way through a run of equal scores
+    and return a threshold whose real precision is far below the target.
+
     Returns ``inf`` when no threshold reaches the target — a finding, not an error. The
     caller reports it as such rather than falling back to a lower target.
     """
-    scores = np.asarray(scores, dtype=float)
-    labels = np.asarray(labels).astype(int)
+    sweep = threshold_sweep(scores, labels)
 
-    order = np.argsort(-scores, kind="stable")
-    s, y = scores[order], labels[order]
-
-    tp = np.cumsum(y)
-    fp = np.cumsum(1 - y)
-    precision = tp / np.maximum(tp + fp, 1)
-
-    ok = np.flatnonzero((precision >= precision_target) & (tp > 0))
+    ok = np.flatnonzero((sweep.precision >= precision_target) & (sweep.tp > 0))
     if ok.size == 0:
         return float("inf")
-    return float(s[ok[-1]])
+    return float(sweep.threshold[ok[-1]])
 
 
 def score_to_prediction(scores: np.ndarray, threshold: float) -> np.ndarray:

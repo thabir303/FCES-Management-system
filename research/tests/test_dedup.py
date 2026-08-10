@@ -127,6 +127,28 @@ class TestSelectThreshold:
     def test_inf_threshold_predicts_nothing(self):
         assert score_to_prediction(np.array([0.9, 1.0]), float("inf")).sum() == 0
 
+    def test_a_tie_group_cannot_be_split_by_a_threshold(self):
+        # Regression. A sweep over individual items stops after the first 0.9 and reports
+        # precision 1.0, but a threshold of 0.9 admits both 0.9s and delivers 0.5. The
+        # honest answer is that no threshold reaches 0.95 on this data.
+        scores = np.array([0.9, 0.9, 0.8])
+        labels = np.array([1, 0, 1])
+        assert select_threshold(scores, labels, 0.95) == float("inf")
+
+    def test_the_promised_precision_is_the_precision_delivered(self):
+        # ExactMatcher emits only 1.0 and 0.0, so every one of its pairs is tied with most
+        # of the others -- the shape where splitting a tie group is not a corner case but
+        # the normal case.
+        rng = np.random.default_rng(3)
+        for _ in range(30):
+            scores = rng.choice([0.0, 1.0], size=60).astype(float)
+            labels = rng.integers(0, 2, size=60)
+            t = select_threshold(scores, labels, 0.8)
+            if not np.isfinite(t):
+                continue
+            delivered = prf1(labels, score_to_prediction(scores, t))["precision"]
+            assert delivered >= 0.8 - 1e-12
+
 
 class TestPrf1:
     def test_counts_account_for_every_pair(self):
