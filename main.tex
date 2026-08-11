@@ -476,16 +476,30 @@ tolerate abbreviation and paraphrase better and character noise worse.
 The fourth method is a cascade. Pairs above an upper similarity
 threshold are accepted, pairs below a lower threshold are rejected, and
 only the band between them is passed to a large language model for
-pairwise adjudication. Both thresholds are selected on the development
-partition to satisfy the precision target of RQ3 while minimising the
-size of the adjudicated band. The proportion of pairs reaching the language model, and the resulting
+pairwise adjudication. Both thresholds are selected on the development partition, at each
+degradation severity independently, to satisfy the precision target of
+RQ3 while minimising the size of the adjudicated band. Selecting once on
+undegraded records and carrying the result across would not satisfy the
+target on the data it is applied to, and is not done.
+
+The target is not always attainable. Where no threshold on the base
+similarity reaches the required precision, the upper threshold is
+undefined, nothing is accepted without adjudication, and the band extends
+to every pair not confidently rejected. This is reported rather than
+avoided: the severity at which the target ceases to be reachable by a
+base matcher alone is itself a result, and it bounds what any pipeline of
+this shape can offer on records of that quality. The proportion of pairs reaching the language model, and the resulting
 cost per thousand records, are reported alongside accuracy, because a
 cascade that improves accuracy at unbounded cost is not a usable result.
 
 The three methods above are evaluated across the full factorial of
-degradation severities and repetitions, since none of them carries a
-marginal cost per decision. The cascade is not: each adjudication is a
-paid call, so it is evaluated at a reduced set of severity levels and a
+degradation severities and repetitions on both corpora, since none of
+them carries a marginal cost per decision. The cascade is evaluated on
+the benchmark corpus only. Its result is a trade of precision against
+cost, and precision is not reportable on the procurement corpus, so
+adjudicating a band there would consume budget to measure nothing the
+paper states. On the benchmark corpus each adjudication is a paid call,
+so the cascade is evaluated at a reduced set of severity levels and a
 single repetition, with every pair in the band adjudicated at each. This
 trades the resolution of the cascade's degradation curve for exactness at
 the points measured, which is the better trade when the alternative is an
@@ -584,6 +598,10 @@ depresses precision independently of any matcher. Blocking is evaluated
 by pair completeness and reduction ratio. Category assignment is
 evaluated by macro and weighted F1 at both taxonomy levels, with
 confusion matrices for the operationally significant classes.
+
+The operating point of RQ3 is computed from the benchmark corpus
+severity sweep, since it is defined at a precision target and precision
+is measured there.
 
 Operational measures are reported for every method: mean processing
 latency per record, monetary cost per thousand records for any method invoking a language
