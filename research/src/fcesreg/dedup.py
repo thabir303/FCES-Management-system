@@ -1,7 +1,8 @@
 """Duplicate detection matchers (§6.9).
 
-Four methods are compared in increasing order of cost. This module carries the two
-cheapest; the embedding matcher and the cascade arrive at C6.
+Four methods are compared in increasing order of cost: normalised exact match, character
+n-gram TF-IDF, sentence embeddings, and a cascade that spends a language model call only
+where the cheap signal is inconclusive.
 
 Every matcher shares one interface, ``score_pairs(pairs, records) -> np.ndarray``, so the
 cascade can wrap any of them and the runners can treat them uniformly.
@@ -12,20 +13,28 @@ that no caller is tempted to pick one by looking at test scores.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from fcesreg.embed import DEFAULT_CACHE_DIR as EMBED_CACHE_DIR
+from fcesreg.embed import DEFAULT_MODEL as EMBED_MODEL
+from fcesreg.embed import embed
 from fcesreg.metrics import threshold_sweep
 from fcesreg.normalise import normalise_key
 from fcesreg.schema import text_of
 
 __all__ = [
     "Matcher",
+    "Adjudicator",
     "ExactMatcher",
     "TfidfMatcher",
+    "EmbeddingMatcher",
+    "CascadeMatcher",
+    "AdjudicationBudgetExceeded",
     "select_threshold",
     "score_to_prediction",
 ]
@@ -38,6 +47,38 @@ class Matcher(Protocol):
     def score_pairs(
         self, pairs: pd.DataFrame, records: pd.DataFrame
     ) -> np.ndarray: ...
+
+
+@runtime_checkable
+class Adjudicator(Protocol):
+    """Decides the pairs the base matcher could not place. Returns 1.0 or 0.0 per pair.
+
+    Kept as a protocol so the cascade's band logic is testable without a network call, and
+    so the expensive tier can be swapped without touching the cascade.
+    """
+
+    def adjudicate(
+        self, pairs: pd.DataFrame, records: pd.DataFrame
+    ) -> np.ndarray: ...
+
+
+class AdjudicationBudgetExceeded(RuntimeError):
+    """The band is larger than ``max_adjudications``.
+
+    Raised rather than silently adjudicating a prefix and deciding the remainder by some
+    fallback. A partial cascade is a different method from the one the paper describes, and
+    one that reported itself under the same name would make the cost figure and the accuracy
+    figure describe different things.
+    """
+
+    def __init__(self, n_band: int, cap: int):
+        self.n_band = n_band
+        self.cap = cap
+        super().__init__(
+            f"{n_band} pairs fall in the adjudication band, above the cap of {cap}. "
+            f"Raise max_adjudications deliberately or narrow the band; the cascade will "
+            f"not adjudicate part of a band and report the result as whole."
+        )
 
 
 def _aligned_texts(records: pd.DataFrame) -> tuple[dict[str, int], pd.Series]:
@@ -116,6 +157,116 @@ class TfidfMatcher:
         # TfidfVectorizer L2-normalises rows, so the cosine is a plain dot product.
         left, right = _pair_positions(pairs, index)
         return np.asarray(matrix[left].multiply(matrix[right]).sum(axis=1)).ravel()
+
+
+class EmbeddingMatcher:
+    """Sentence-embedding cosine similarity.
+
+    Expected to tolerate abbreviation and paraphrase better than character features and
+    character noise worse, since a typo moves a token off its learned representation
+    whereas a synonym does not. Whether that expectation holds is measured, not assumed.
+
+    CPU only (§12.7), and the encoder is the small one — the embedding tier has to be
+    affordable to be a fair comparison against TF-IDF. Vectors come back L2-normalised, so
+    the cosine is a dot product.
+    """
+
+    name = "embedding"
+
+    def __init__(
+        self,
+        model_id: str = EMBED_MODEL,
+        cache_dir: Path = EMBED_CACHE_DIR,
+        batch_size: int = 64,
+    ):
+        self.model_id = model_id
+        self.cache_dir = cache_dir
+        self.batch_size = batch_size
+
+    def score_pairs(self, pairs: pd.DataFrame, records: pd.DataFrame) -> np.ndarray:
+        index, texts = _aligned_texts(records)
+        vectors = embed(
+            texts.tolist(),
+            model_id=self.model_id,
+            cache_dir=self.cache_dir,
+            batch_size=self.batch_size,
+        )
+        left, right = _pair_positions(pairs, index)
+        return (vectors[left] * vectors[right]).sum(axis=1).astype(np.float64)
+
+
+class CascadeMatcher:
+    """Cheap similarity first; a language model only where it is inconclusive.
+
+    At or above ``upper`` a pair is accepted, at or below ``lower`` it is rejected, and
+    strictly between them it goes to the adjudicator. The band is where the cost lives, so
+    ``band_fraction`` is a reported result rather than an implementation detail.
+
+    **``upper`` may be infinite, and that is a result rather than a misconfiguration.**
+    Thresholds are chosen on dev to meet RQ3's precision target; where no threshold on the
+    base similarity reaches it, nothing can be accepted without adjudication and the band
+    extends to every pair not confidently rejected. The severity at which that happens
+    bounds what a pipeline of this shape can offer on records of that quality.
+
+    Output is 1.0 or 0.0 with nothing in between: the cascade emits decisions, not a
+    ranking, so it reads as points against the other matchers' curves rather than a curve
+    of its own.
+    """
+
+    name = "cascade"
+
+    def __init__(
+        self,
+        base: Matcher,
+        lower: float,
+        upper: float,
+        adjudicator: Adjudicator,
+        max_adjudications: int = 5000,
+    ):
+        if lower > upper:
+            raise ValueError(
+                f"lower ({lower}) is above upper ({upper}); the band would be empty and "
+                f"every pair decided by whichever bound is tested first"
+            )
+        self.base = base
+        self.lower = lower
+        self.upper = upper
+        self.adjudicator = adjudicator
+        self.max_adjudications = max_adjudications
+        self.stats: dict = {}
+
+    def score_pairs(self, pairs: pd.DataFrame, records: pd.DataFrame) -> np.ndarray:
+        base_scores = np.asarray(self.base.score_pairs(pairs, records), dtype=float)
+
+        # Strictly inside the band. A pair exactly on either bound is decided by the cheap
+        # tier, which is what makes `>= upper` and `<= lower` exhaustive of the remainder.
+        in_band = (base_scores > self.lower) & (base_scores < self.upper)
+        n_band = int(in_band.sum())
+
+        if n_band > self.max_adjudications:
+            raise AdjudicationBudgetExceeded(n_band, self.max_adjudications)
+
+        out = (base_scores >= self.upper).astype(np.float64)
+        if n_band:
+            verdicts = np.asarray(
+                self.adjudicator.adjudicate(pairs.loc[in_band].copy(), records),
+                dtype=float,
+            )
+            if verdicts.shape != (n_band,):
+                raise ValueError(
+                    f"adjudicator returned {verdicts.shape} for {n_band} banded pairs"
+                )
+            out[in_band] = verdicts
+
+        self.stats = {
+            "n_pairs": int(len(pairs)),
+            "n_adjudicated": n_band,
+            "band_fraction": (n_band / len(pairs)) if len(pairs) else 0.0,
+            "lower": float(self.lower),
+            "upper": float(self.upper),
+            "upper_undefined": bool(np.isinf(self.upper)),
+        }
+        return out
 
 
 def select_threshold(
