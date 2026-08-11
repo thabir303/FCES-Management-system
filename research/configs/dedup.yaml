@@ -1,0 +1,42 @@
+# Duplicate detection: severity sweeps on both corpora (§10, amendments 8 and 9).
+#
+# Committed, and the only place the sweep's shape is set. Runners take no tuning flags.
+#
+# The two corpora carry different measures and the difference is deliberate:
+#   Corpus A (benchmark) — precision, F1, recall. Labels were made and published by others.
+#   Corpus B (procurement) — recall and pair completeness only. Its negative set carries
+#   42.0% measured contamination (Wilson 95% CI 29.4%–55.8%, amendment 8), which corrupts
+#   precision directly while leaving recall untouched. Precision and F1 are still computed
+#   and stored in the run record so the decision stays auditable; make_tables declines to
+#   surface them.
+
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: data/processed/corpus_a_abtbuy_pairs.parquet
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+divisions: ["30", "31", "32", "33", "38", "42", "43", "44"]
+
+# The three zero-marginal-cost matchers carry the full factorial on both corpora.
+severities: [0.0, 0.25, 0.5, 0.75, 1.0]
+seeds: [0, 1, 2]
+
+# The precision floor RQ3 headlines (§13.1). Thresholds are selected on the DEV partition
+# at each severity independently (protocol A). Selecting once on undegraded records and
+# carrying the result across does not satisfy the target on the data it is applied to.
+precision_target: 0.95
+
+cascade:
+  # Corpus A only. The cascade's result is a trade of precision against cost, and precision
+  # is not reportable on Corpus B, so adjudicating a band there would spend quota to measure
+  # nothing the paper states.
+  corpus: abtbuy
+  base: tfidf
+  # Three severities spanning the range the free matchers cover, at a single repetition,
+  # adjudicating every pair in the band. Chosen to bracket the point where the base matcher
+  # can no longer reach `precision_target` alone -- that is where the cascade either earns
+  # its cost or fails to, so a level at or near it is the one that must not be missed.
+  severities: [0.0, 0.15, 0.5]
+  seed: 0
+  # Runaway guard, not a budget. A band above this raises rather than adjudicating a prefix.
+  max_adjudications: 5000
+  condition: cascade
+  max_tokens: 96

@@ -224,6 +224,34 @@ file; the only placeholders are bare `[TBC]` markers.
   why this survived: nothing exercised the degradation model on Corpus A until the Corpus A sweep
   was ordered.
 
+- `[VERIFIED]` **`select_threshold`'s `tp > 0` guard admits degenerate operating points, and
+  they do not generalise.** Measured on Corpus A dev with Tfidf, the thresholds it returns at
+  severity 0.25, 0.3 and 0.75 admit **2, 14 and 1 pairs** respectively (recall 0.002, 0.017,
+  0.001). Precision estimated from one pair is not a precision estimate, and the consequence
+  on test is concrete, not theoretical:
+
+  | severity | dev picks `upper` claiming ≥0.95 | delivered on test |
+  |---|---|---|
+  | 0.30 | 0.2184 | auto-accepts 10/1916 at precision **0.800** |
+  | 0.75 | 0.1362 | auto-accepts **0**/1916 at precision **0.000** |
+
+  This is live, not cosmetic: `select_threshold` sets the cascade's `upper`, so a degenerate
+  pick auto-accepts on a threshold supported by a single pair. **The apparent
+  non-monotonicity of the "cliff" was entirely this artefact.** Under a support floor the
+  picture is monotone and the cliff moves:
+
+  | rule | reachable at 0.95 (Tfidf, dev) |
+  |---|---|
+  | `tp > 0` (current) | 0.0, 0.05, 0.1, **0.25, 0.3, 0.75** (last three degenerate) |
+  | `tp >= 20` | 0.0, 0.05, 0.1 — **unreachable from 0.25 up** |
+  | Wilson lower bound ≥ 0.95 | **0.0 only**, and recall there falls 0.259 → 0.146 |
+
+  So the target becomes unreachable **between severity 0.1 and 0.25**, not at 0.5 as the
+  first pass suggested. **Raised, not fixed** — every candidate rule changes a number the
+  paper reports (Wilson lowers the severity-0 automated share; `tp >= 20` carries an
+  arbitrary constant), so the choice is the supervisor's. `tp >= 20` and Wilson agree that
+  nothing above 0.25 is reachable, which is the part that does not depend on the rule.
+
 ### Normalisation subtleties that cost time
 
 - `[RECALLED]` **Mojibake repair must run before NFKC**, contrary to the order §6.2 originally

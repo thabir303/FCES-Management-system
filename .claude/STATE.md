@@ -16,15 +16,15 @@ F1**, measured contamination 42.0% (CI 29.4%–55.8%). Corpus A carries precisio
 
 ## Blocked or waiting on the supervisor
 
-- **STOP before `run_dedup.py`. The Corpus A sweep is costed and it does not fit under the
-  reading the paper implies.** No matcher reaches 0.95 precision on degraded Corpus A dev
-  (Tfidf 0.533 at sev 0.5, embeddings 0.352 — embeddings are *worse*), so the cascade's
-  upper threshold is undefined and the paper's spec has no defined behaviour there.
-  **A** (re-fit per severity): 3,914 adjudications, 1.48M tokens, **~7.4 days** of quota.
-  **B** (fit once on clean dev): 103 adjudications, but the cascade never fires above
-  severity 0 — a null measurement, not a cheap one. 377 tokens/adjudication is **measured**
-  (8 live calls, `condition="cost_probe"`). `session-knowledge.md` §6 has the detail.
-  **Supervisor's call — do not pick a side.**
+- **STOP before starting the sweep. `select_threshold` can pick a threshold supported by
+  one pair.** Its `tp > 0` guard let dev claim ≥0.95 at severity 0.75 on a 1-pair
+  threshold that delivers **precision 0.000 on test**; at 0.3, 14 pairs → 0.800. It sets
+  the cascade's `upper`, so a sweep started now burns quota on a degenerate bound. The
+  apparent non-monotone cliff was this artefact: under any support floor the target is
+  unreachable **between severity 0.1 and 0.25**, not 0.5. Candidate rules and what each
+  costs are in `session-knowledge.md` §3 — each changes a reported number, so the choice
+  is the supervisor's. Protocol A confirmed; cost stands at ~7.4 days for 5 severities,
+  to be recosted at 3 once the rule is settled.
 - **40-item annotation tool not built.** `annotation/annotate.py` absent, `make annotate`
   broken. Author judges it (label noise must not go to a model RQ2 measures); produces
   `mean_seconds_per_item` + label-noise rate in one pass. `make data` is broken too —
