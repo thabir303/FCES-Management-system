@@ -624,6 +624,16 @@ class LLMClient:
             "temperature": 0.0,
         }
         if json_schema is not None:
+            # `json_schema` is the whole `response_format.json_schema` object, so it must
+            # carry `name` alongside `schema`. Checked here rather than left to the
+            # endpoint: a 400 arrives only after the request is issued, and on a sweep that
+            # means discovering it once per severity instead of once, before anything runs.
+            if "name" not in json_schema or "schema" not in json_schema:
+                raise LLMError(
+                    "json_schema must be the response_format.json_schema object, with "
+                    f"'name' and 'schema' keys; got {sorted(json_schema)}. Passing the "
+                    "bare JSON Schema is rejected by the endpoint with a 400."
+                )
             payload["response_format"] = {"type": "json_schema", "json_schema": json_schema}
 
         for attempt in range(self.max_retries + 1):

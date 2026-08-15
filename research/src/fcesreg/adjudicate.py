@@ -41,11 +41,17 @@ SYSTEM_PROMPT = (
 
 #: Constrains the reply shape. ``reason`` is required so a verdict is never unexplained in
 #: the ledger, where it is the only record of why a pair was decided as it was.
+#:
+#: This is the whole ``response_format.json_schema`` object, so it carries ``name`` beside
+#: ``schema`` — the endpoint rejects the bare schema with a 400.
 VERDICT_SCHEMA: dict = {
-    "type": "object",
-    "properties": {"same": {"type": "boolean"}, "reason": {"type": "string"}},
-    "required": ["same", "reason"],
-    "additionalProperties": False,
+    "name": "duplicate_verdict",
+    "schema": {
+        "type": "object",
+        "properties": {"same": {"type": "boolean"}, "reason": {"type": "string"}},
+        "required": ["same", "reason"],
+        "additionalProperties": False,
+    },
 }
 
 
