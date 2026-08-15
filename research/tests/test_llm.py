@@ -26,6 +26,7 @@ from fcesreg.llm import (
     LLMRequest,
     Limits,
     RateCard,
+    TransportFailure,
     cache_key,
     read_ledger,
 )
@@ -349,6 +350,32 @@ class TestStructuredOutputFailures:
         with pytest.raises(LLMError):
             client.complete("sys", "p")
         assert transport.calls == 1
+
+    def test_a_transport_failure_is_retried_then_succeeds(self, tmp_path):
+        # Over a sweep lasting days, transient network failures are certain rather than
+        # possible; one of them must not end the run.
+        class Flaky:
+            def __init__(self):
+                self.calls = 0
+
+            def __call__(self, payload):
+                self.calls += 1
+                if self.calls <= 2:
+                    raise TransportFailure("ReadTimeout: the read operation timed out")
+                return StubTransport()._ok()
+
+        transport = Flaky()
+        client = make_client(tmp_path, transport, max_retries=3)
+        assert client.complete("sys", "p").text == "duplicate"
+        assert transport.calls == 3
+
+    def test_a_persistent_transport_failure_gives_up(self, tmp_path):
+        def always_fail(payload):
+            raise TransportFailure("ConnectError: refused")
+
+        client = make_client(tmp_path, always_fail, max_retries=2)
+        with pytest.raises(LLMError, match="transport failed"):
+            client.complete("sys", "p")
 
     def test_a_bare_schema_is_refused_before_a_request_is_issued(self, tmp_path):
         # The endpoint wants the whole response_format.json_schema object; passing the bare

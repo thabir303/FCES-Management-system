@@ -61,6 +61,7 @@ __all__ = [
     "DailyQuotaExhausted",
     "LLMClient",
     "LLMError",
+    "TransportFailure",
     "LLMRequest",
     "LLMResponse",
     "Limits",
@@ -153,6 +154,15 @@ DEFAULT_LIMITS = Limits()
 
 class LLMError(RuntimeError):
     """The endpoint returned something this client will not interpret."""
+
+
+class TransportFailure(LLMError):
+    """The request never produced a response: timeout, reset, DNS, connection refused.
+
+    Distinct from an error status because it carries no information about the request's
+    validity — it is worth retrying, whereas a 400 is not. Over a sweep lasting days,
+    transient network failures are certain rather than possible.
+    """
 
 
 class BudgetExceeded(RuntimeError):
@@ -267,15 +277,21 @@ def _http_transport(
     def transport(payload: dict[str, Any]) -> tuple[int, dict[str, Any], Mapping[str, str]]:
         import httpx
 
-        response = httpx.post(
-            f"{base_url.rstrip('/')}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {_api_key()}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-            timeout=timeout,
-        )
+        try:
+            response = httpx.post(
+                f"{base_url.rstrip('/')}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {_api_key()}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=timeout,
+            )
+        except httpx.HTTPError as exc:
+            # Translated at the boundary so `_call` can retry it without importing httpx,
+            # which stays a lazy dependency. A read timeout on a long reasoning generation
+            # is ordinary, and left unhandled one of them ends a multi-day sweep.
+            raise TransportFailure(f"{type(exc).__name__}: {exc}") from exc
         try:
             body = response.json()
         except ValueError:
@@ -319,7 +335,9 @@ class LLMClient:
         sleep: Callable[[float], None] = time.sleep,
         monotonic: Callable[[], float] = time.monotonic,
         max_retries: int = 5,
-        timeout: float = 60.0,
+        # A reasoning model asked for up to 1024 output tokens can legitimately take longer
+        # than a minute; 60s was timing out on the hardest pairs of the cascade sweep.
+        timeout: float = 180.0,
     ) -> None:
         self.model = model
         self.cache_dir = Path(cache_dir)
@@ -639,7 +657,15 @@ class LLMClient:
         for attempt in range(self.max_retries + 1):
             self._wait_for_quota(estimated)
             started = self._monotonic()
-            status, body, headers = self._transport(payload)
+            try:
+                status, body, headers = self._transport(payload)
+            except TransportFailure as exc:
+                if attempt == self.max_retries:
+                    raise LLMError(
+                        f"transport failed {self.max_retries} times in a row: {exc}"
+                    ) from exc
+                self._sleep(2.0 * (attempt + 1))
+                continue
             elapsed_ms = int((self._monotonic() - started) * 1000)
             self._note_headers(headers)
             self._last_request_at = self._monotonic()
