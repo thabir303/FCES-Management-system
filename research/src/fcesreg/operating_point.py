@@ -27,7 +27,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from fcesreg.metrics import threshold_sweep
+from fcesreg.metrics import threshold_sweep, wilson_lower_bound
 
 __all__ = [
     "DEFAULT_TARGET",
@@ -54,6 +54,12 @@ def precision_automation_curve(scores, labels) -> pd.DataFrame:
     full rather than reduced. It starts at the highest score present; a threshold above that
     resolves nothing, and the precision of an empty set is undefined rather than perfect.
 
+    ``precision_lower`` is the one-sided 95% Wilson lower bound on that row's precision, and
+    it is what ``automated_share_at_precision`` selects against. Carried in the curve so the
+    figure can show the floor being applied rather than leaving the quoted points looking
+    unexplained: a row whose ``precision`` clears the target while its ``precision_lower``
+    does not is a point supported by too little evidence to quote.
+
     ``recall`` is ``nan`` throughout when the label set contains no positives — there is
     nothing to recall, and an inferred 0.0 would read as a measurement.
     """
@@ -63,6 +69,10 @@ def precision_automation_curve(scores, labels) -> pd.DataFrame:
         {
             "threshold": sweep.threshold,
             "precision": sweep.precision,
+            "precision_lower": [
+                wilson_lower_bound(int(tp), int(n))
+                for tp, n in zip(sweep.tp, sweep.n_selected, strict=True)
+            ],
             "recall": (
                 sweep.tp / sweep.n_positive
                 if sweep.n_positive
@@ -76,25 +86,40 @@ def precision_automation_curve(scores, labels) -> pd.DataFrame:
 def automated_share_at_precision(
     scores, labels, target: float = DEFAULT_TARGET
 ) -> tuple[float, float]:
-    """``(threshold, automated_share)`` at the *lowest* threshold holding ``target``.
+    """``(threshold, automated_share)`` at the *lowest* threshold **confidently** holding
+    ``target``.
 
     Lowest, not highest, because among the operating points that satisfy the precision floor
     the useful one is the point automating the most work. Precision is not monotone in the
     threshold, so this is a search over the curve rather than a boundary lookup.
 
-    Returns ``(nan, 0.0)`` when no threshold reaches the target. **That is a finding, not an
-    error**: it says this method cannot be operated at this precision on this data, which is
-    a reportable result about the method. The caller reports it as such and does not retry
-    at a lower target.
+    Qualification is by the lower bound of a one-sided 95% Wilson interval, the same rule
+    ``dedup.select_threshold`` uses and for the same reason: a floor should mean confidence
+    that precision is at least the target, not a point estimate that happens to clear it.
+    An automated share resting on a handful of accepted items is not an automated share.
+    Two consequences follow from the arithmetic and are properties of the rule, not bugs:
+
+    * meeting 0.95 needs at least 52 accepted items even if every one is correct, and 0.99
+      needs 268;
+    * ``target=1.0`` can never be met at any sample size, because a finite run of correct
+      decisions never evidences certainty.
+
+    Returns ``(nan, 0.0)`` when no threshold qualifies. **That is a finding, not an error**:
+    it says this method cannot be operated at this precision on this data. The caller
+    reports it as such and does not retry at a lower target.
     """
     if not 0.0 < target <= 1.0:
         raise ValueError(f"target must be in (0, 1], got {target}")
 
     sweep = threshold_sweep(scores, labels)
 
-    # tp > 0 excludes a degenerate point that admits only negatives: its precision is 0 and
-    # it could never meet a positive target, but the guard states the intent.
-    ok = np.flatnonzero((sweep.precision >= target) & (sweep.tp > 0))
+    confident = np.array(
+        [
+            wilson_lower_bound(int(tp), int(n))
+            for tp, n in zip(sweep.tp, sweep.n_selected, strict=True)
+        ]
+    )
+    ok = np.flatnonzero(confident >= target)
     if ok.size == 0:
         return float("nan"), 0.0
 

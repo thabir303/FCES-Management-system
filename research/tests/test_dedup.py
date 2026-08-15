@@ -106,16 +106,47 @@ class TestTfidfMatcher:
 
 
 class TestSelectThreshold:
+    def _separated(self, n_pos: int, n_neg: int):
+        """``n_pos`` positives scoring above ``n_neg`` negatives, every score distinct."""
+        scores = np.concatenate(
+            [np.linspace(1.0, 0.6, n_pos), np.linspace(0.5, 0.1, n_neg)]
+        )
+        return scores, np.array([1] * n_pos + [0] * n_neg)
+
     def test_recovers_a_known_answer(self):
-        scores = np.array([0.9, 0.8, 0.7, 0.6, 0.5])
-        labels = np.array([1, 1, 0, 1, 0])
-        # At 0.8 precision is 1.0; including 0.7 drops it to 2/3.
-        assert select_threshold(scores, labels, 1.0) == 0.8
+        # 80 clean positives above every negative. The lowest qualifying threshold is the
+        # last positive, and admitting the first negative must break it.
+        scores, labels = self._separated(80, 80)
+        t = select_threshold(scores, labels, 0.95)
+        assert t == pytest.approx(0.6)
+        assert prf1(labels, score_to_prediction(scores, t))["precision"] == 1.0
 
     def test_takes_the_lowest_threshold_meeting_the_target(self):
-        scores = np.array([0.9, 0.8, 0.7, 0.6])
-        labels = np.array([1, 1, 1, 0])
-        assert select_threshold(scores, labels, 0.75) == 0.6
+        # Among qualifying thresholds the useful one automates the most work, so the
+        # selected point must be the lowest, not the highest.
+        scores, labels = self._separated(80, 80)
+        t = select_threshold(scores, labels, 0.95)
+        admitted = int((scores >= t).sum())
+        assert admitted == 80  # every positive, not just the top few
+
+    def test_a_threshold_supported_by_too_little_evidence_does_not_qualify(self):
+        # The defect this rule exists for. Three positives above everything else gives a
+        # point estimate of 1.000, but three items evidence nothing.
+        scores = np.concatenate([np.array([1.0, 0.99, 0.98]), np.linspace(0.5, 0.1, 200)])
+        labels = np.array([1, 1, 1] + [0] * 200)
+        assert select_threshold(scores, labels, 0.95) == float("inf")
+
+    def test_the_evidence_demanded_scales_with_the_target(self):
+        # 60 clean positives clears 0.95 (needs 52) but not 0.99 (needs 268).
+        scores, labels = self._separated(60, 200)
+        assert np.isfinite(select_threshold(scores, labels, 0.95))
+        assert select_threshold(scores, labels, 0.99) == float("inf")
+
+    def test_a_target_of_one_is_unreachable_at_any_sample_size(self):
+        # A finite run of correct decisions never evidences certainty. Documented rather
+        # than special-cased: 0.95 and 0.99 are the targets the paper reports.
+        scores, labels = self._separated(5000, 5000)
+        assert select_threshold(scores, labels, 1.0) == float("inf")
 
     def test_unreachable_target_returns_inf_not_a_fallback(self):
         # A finding, not an error: the caller reports that no threshold reaches it

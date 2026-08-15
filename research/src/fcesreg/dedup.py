@@ -23,7 +23,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from fcesreg.embed import DEFAULT_CACHE_DIR as EMBED_CACHE_DIR
 from fcesreg.embed import DEFAULT_MODEL as EMBED_MODEL
 from fcesreg.embed import embed
-from fcesreg.metrics import threshold_sweep
+from fcesreg.metrics import threshold_sweep, wilson_lower_bound
 from fcesreg.normalise import normalise_key
 from fcesreg.schema import text_of
 
@@ -272,23 +272,45 @@ class CascadeMatcher:
 def select_threshold(
     scores: np.ndarray, labels: np.ndarray, precision_target: float
 ) -> float:
-    """Lowest threshold reaching ``precision_target``. **Fit on dev, never on test.**
+    """Lowest threshold **confidently** reaching ``precision_target``. Fit on dev, never test.
 
-    Returns the threshold that maximises recall subject to precision, which is the
-    operating point RQ3 asks for: a method that is accurate on average but cannot be run
-    at high precision is of little use to a faculty that has to sign off a register.
+    A threshold qualifies when the *lower bound of a one-sided 95% Wilson interval* on its
+    precision reaches the target — not when its point estimate does. The distinction is not
+    pedantry; it is what stops the function returning a threshold supported by almost
+    nothing:
 
-    The precision this promises is the precision the returned threshold delivers, which
-    requires that tied scores be admitted as a block — see ``metrics.threshold_sweep``. A
-    sweep over individual items instead can stop part-way through a run of equal scores
-    and return a threshold whose real precision is far below the target.
+    ==========  ===================  ==============================
+    severity    point estimate says  the same threshold on test
+    ==========  ===================  ==============================
+    0.30        ≥0.95 on 14 pairs    0.800 precision on 10 accepted
+    0.75        ≥0.95 on **1** pair  0.000 precision on 0 accepted
+    ==========  ===================  ==============================
 
-    Returns ``inf`` when no threshold reaches the target — a finding, not an error. The
-    caller reports it as such rather than falling back to a lower target.
+    A precision floor should mean confidence that precision is at least the target, so the
+    evidence demanded scales with the strictness of the target — which a fixed minimum on
+    accepted pairs cannot do, and which needs no invented constant.
+
+    **One-sided, at 95%.** The claim is one-directional: there is no upper-side risk to
+    insure against, and using the lower limit of a *two-sided* 95% interval would assert
+    97.5% confidence while calling it 95%. ``metrics`` names both constants so the choice
+    is visible at the call site.
+
+    The precision promised is also the precision delivered, which additionally requires
+    tied scores to be admitted as a block — see ``metrics.threshold_sweep``.
+
+    Returns ``inf`` when no threshold qualifies — a finding, not an error, and after this
+    change a common one. The caller reports it as such rather than falling back to a lower
+    target; the cascade reads it as "nothing can be auto-accepted at this severity".
     """
     sweep = threshold_sweep(scores, labels)
 
-    ok = np.flatnonzero((sweep.precision >= precision_target) & (sweep.tp > 0))
+    confident = np.array(
+        [
+            wilson_lower_bound(int(tp), int(n))
+            for tp, n in zip(sweep.tp, sweep.n_selected, strict=True)
+        ]
+    )
+    ok = np.flatnonzero(confident >= precision_target)
     if ok.size == 0:
         return float("inf")
     return float(sweep.threshold[ok[-1]])

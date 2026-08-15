@@ -38,28 +38,40 @@ def _hand_built(n_head_pos: int, n_mid_neg: int, n_tail_neg: int):
 
 
 class TestKnownFixture:
-    """C8's stated acceptance criterion."""
+    """C8's stated acceptance criterion, under the Wilson floor."""
 
     def test_recovers_a_hand_computed_answer(self):
-        # 100 items: 19 positives scoring highest, then 81 negatives. Admitting the top 20
-        # gives 19 true and 1 false, so precision is exactly 19/20 = 0.95 and the automated
-        # share is exactly 20/100 = 0.20. Every lower threshold admits another negative, so
-        # 0.20 is the most work that can be automated at this floor.
-        scores, labels = _hand_built(n_head_pos=19, n_mid_neg=1, n_tail_neg=80)
+        # 200 items: 100 positives scoring above 100 negatives. The floor is the lower
+        # bound of a one-sided 95% Wilson interval, so the selected point is the lowest one
+        # whose bound still clears 0.95. That admits 101 items -- all 100 positives plus the
+        # first negative, point estimate 100/101 = 0.9901, bound 0.9568. Admitting one more
+        # gives 100/102 = 0.9804 and a bound of 0.9425, which fails. So the answer is
+        # 101/200 = 0.505, and it tolerates exactly one false positive.
+        scores, labels = _hand_built(n_head_pos=100, n_mid_neg=100, n_tail_neg=0)
 
         threshold, share = automated_share_at_precision(scores, labels, target=0.95)
 
-        assert share == pytest.approx(0.20)
+        assert share == pytest.approx(101 / 200)
         delivered = prf1(labels, (scores >= threshold).astype(int))
-        assert delivered["precision"] == pytest.approx(0.95)
+        assert delivered["tp"] == 100 and delivered["fp"] == 1
 
     def test_a_stricter_target_automates_less(self):
-        scores, labels = _hand_built(n_head_pos=19, n_mid_neg=1, n_tail_neg=80)
+        scores, labels = _hand_built(n_head_pos=100, n_mid_neg=100, n_tail_neg=0)
         _, at_95 = automated_share_at_precision(scores, labels, target=0.95)
-        _, at_99 = automated_share_at_precision(scores, labels, target=0.99)
-        # 0.99 cannot afford the single negative, so it stops at the 19 clean positives.
-        assert at_99 == pytest.approx(0.19)
-        assert at_99 < at_95
+        threshold_99, at_99 = automated_share_at_precision(scores, labels, target=0.99)
+        # 0.99 needs 268 accepted items even if every one is correct, and only 100 positives
+        # exist here. Unreachable is the honest answer, not a smaller share.
+        assert np.isnan(threshold_99) and at_99 == 0.0
+        assert at_95 > 0.0
+
+    def test_a_point_estimate_that_clears_the_target_is_not_enough(self):
+        # The whole reason for the rule. Three positives above everything else give a point
+        # estimate of 1.000 at a share of 3/203, which the old rule quoted as an operating
+        # point. Three items evidence nothing.
+        scores = np.concatenate([np.array([1.0, 0.99, 0.98]), np.linspace(0.5, 0.1, 200)])
+        labels = np.array([1, 1, 1] + [0] * 200)
+        threshold, share = automated_share_at_precision(scores, labels, target=0.95)
+        assert np.isnan(threshold) and share == 0.0
 
     def test_default_target_is_the_headline_floor(self):
         assert DEFAULT_TARGET == 0.95
@@ -107,8 +119,22 @@ class TestCurve:
         scores, labels = _hand_built(5, 2, 3)
         curve = precision_automation_curve(scores, labels)
         assert list(curve.columns) == [
-            "threshold", "precision", "recall", "automated_share",
+            "threshold", "precision", "precision_lower", "recall", "automated_share",
         ]
+
+    def test_the_lower_bound_never_exceeds_the_point_estimate(self):
+        scores, labels = _hand_built(20, 10, 10)
+        curve = precision_automation_curve(scores, labels)
+        assert (curve["precision_lower"] <= curve["precision"] + 1e-12).all()
+
+    def test_the_selected_point_is_the_lowest_row_clearing_the_bound(self):
+        # Ties the curve's precision_lower column to what the selector actually does, so a
+        # reader of the figure can see the floor being applied rather than inferring it.
+        scores, labels = _hand_built(n_head_pos=100, n_mid_neg=100, n_tail_neg=0)
+        threshold, _ = automated_share_at_precision(scores, labels, target=0.95)
+        curve = precision_automation_curve(scores, labels)
+        qualifying = curve[curve["precision_lower"] >= 0.95]
+        assert qualifying["threshold"].min() == pytest.approx(threshold)
 
     def test_automated_share_rises_as_the_threshold_falls(self):
         scores, labels = _hand_built(5, 2, 3)
@@ -131,7 +157,7 @@ class TestCurve:
         assert (curve["automated_share"] > 0).all()
 
     def test_curve_and_point_agree(self):
-        scores, labels = _hand_built(n_head_pos=19, n_mid_neg=1, n_tail_neg=80)
+        scores, labels = _hand_built(n_head_pos=100, n_mid_neg=100, n_tail_neg=0)
         threshold, share = automated_share_at_precision(scores, labels, target=0.95)
         curve = precision_automation_curve(scores, labels)
         row = curve[np.isclose(curve["threshold"], threshold)]
