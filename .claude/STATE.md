@@ -16,20 +16,21 @@ F1**, measured contamination 42.0% (CI 29.4%–55.8%). Corpus A carries precisio
 
 ## Blocked or waiting on the supervisor
 
-- **The Corpus A cascade sweep is RUNNING.** `run_dedup.py --config
-  research/configs/dedup.yaml --corpus abtbuy --cascade`. 2,325 adjudications at a
-  measured 539 tokens each = 1.25M tokens ≈ **6.3 days** of quota (200k/day binds).
-  It will exit **code 2** on `DailyQuotaExhausted` — that is success, not failure:
-  **re-run the identical command each day.** Every completed call is cached, so a
-  re-run replays free and continues. Do not clear `.cache/llm`.
+- **Corpus A cascade sweep: RE-RUN THIS DAILY.** `.venv/bin/python
+  research/scripts/run_dedup.py --config research/configs/dedup.yaml --corpus abtbuy
+  --cascade`. Exit **code 2** = `DailyQuotaExhausted` = success; re-run tomorrow.
+  Cached calls replay free — **never clear `.cache/llm`**. 305 of 2,325 done
+  (2026-08-15, 199k/200k tokens); at a measured 638 tok/adj, **~6.4 days left**.
+  Severity 0.0 is complete: band 127/1916 (6.6%), R 0.553 P 0.983 F1 0.708, against
+  TF-IDF alone at R 0.155 P 0.970. No run record is written on a quota stop, so
+  `results/runs/` stays empty until the sweep finishes — that is deliberate.
 - **40-item annotation exercise is the author's to run.** `annotation/annotate.py` is
   built and `make annotate` works; nobody has judged the 40 items yet. Judged by a
   person, never a model — RQ2 measures a model on this task. Produces
   `mean_seconds_per_item` **and** the label-noise rate in one pass. `make data` is still
   broken: `research/scripts/build_taxonomy.py` does not exist.
-- **Open:** is separator-blindness at key level intended? `normalise_key` collapses
-  `1.5kW`/`1,5 kW`, immunising exact-match to one of seven error classes by construction.
-- **Unresolved:** the agreed page budget (3 tables, 2 figures, `T8_cost` to prose) is in no amendment.
+- **Open:** separator-blindness at key level — `normalise_key` collapses `1.5kW`/`1,5 kW`,
+  immunising exact-match to one error class by construction. Page budget: in no amendment.
 
 ## Next three tasks in §11 order
 
