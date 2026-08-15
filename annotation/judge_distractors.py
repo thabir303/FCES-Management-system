@@ -45,6 +45,7 @@ import numpy as np
 import pandas as pd
 
 from fcesreg.degrade import DegradationConfig, make_distractors, procurement_ref, title_refs
+from fcesreg.metrics import Z_TWO_SIDED_95, wilson_interval
 from fcesreg.paths import annotation_path, data_path
 from fcesreg.timing import ItemTiming, summarise, time_item, write_timings
 
@@ -60,27 +61,11 @@ KEYS = {
 #: cleanliness.
 CONTAMINATED_VERDICTS = ("same_procurement", "unsure")
 
-#: Two-sided 95% quantile of the standard normal. Passed as a literal rather than pulled
-#: from scipy so this reporting constant does not need a dependency to exist.
-Z_95 = 1.959963984540054
-
-
-def wilson_interval(successes: int, n: int, z: float = Z_95) -> tuple[float, float, float]:
-    """Wilson score interval for a binomial proportion. Returns (point_estimate, lower, upper).
-
-    Preferred over the naive normal (Wald) interval, which at n=50 and a low-to-moderate
-    rate can push its lower bound below zero or otherwise misstate coverage — the standard
-    reason Wilson's interval is used for small-sample proportions. Both bounds are clipped
-    into ``[0, 1]``.
-    """
-    if n <= 0:
-        raise ValueError("cannot estimate a rate from zero judged pairs")
-    p_hat = successes / n
-    z2 = z * z
-    denom = 1.0 + z2 / n
-    centre = (p_hat + z2 / (2 * n)) / denom
-    spread = (z / denom) * ((p_hat * (1 - p_hat) / n + z2 / (4 * n * n)) ** 0.5)
-    return p_hat, max(0.0, centre - spread), min(1.0, centre + spread)
+#: Re-exported for the tests that were written against this module. The implementation
+#: moved to ``fcesreg.metrics`` once a second caller needed it — this is a *reported
+#: interval*, so it takes the two-sided constant, not the one-sided bound used for a
+#: threshold's precision floor.
+Z_95 = Z_TWO_SIDED_95
 
 
 def load_pool(corpus_path: Path, divisions: list[str], pool_max_pairs: int | None, seed: int):

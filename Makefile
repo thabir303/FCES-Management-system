@@ -54,8 +54,9 @@ data:
 annotate:
 	$(PY) annotation/annotate.py
 
-# Every mined distractor judged by hand. C6 and the transfer runner consume this set,
-# so they wait on it being complete.
+# A 50-pair random sample of the mined distractors, judged by hand, reporting the
+# contamination rate with a Wilson interval (amendment 7). The mined pool is used
+# downstream UNFILTERED — this measures it, it does not clean it, so nothing waits on it.
 judge-distractors:
 	$(PY) annotation/judge_distractors.py
 
@@ -96,6 +97,9 @@ test:
 	$(PYTEST) research/tests -q
 	@if [ -d system/api/tests ]; then $(PYTEST) system/api/tests -q; \
 	 else echo "api tests: none yet"; fi
+# annotation/ is outside research/tests' discovery scope, and both tools there compute
+# numbers that reach the paper — a contamination rate and a label-noise rate.
+	$(PYTEST) annotation -q
 
 smoke:
 	$(PY) research/scripts/run_dedup.py --config research/configs/smoke.yaml

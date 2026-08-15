@@ -13,7 +13,62 @@ from typing import NamedTuple
 import numpy as np
 import pandas as pd
 
-__all__ = ["prf1", "macro_weighted_f1", "confusion", "ThresholdSweep", "threshold_sweep"]
+__all__ = [
+    "prf1",
+    "macro_weighted_f1",
+    "confusion",
+    "ThresholdSweep",
+    "threshold_sweep",
+    "Z_ONE_SIDED_95",
+    "Z_TWO_SIDED_95",
+    "wilson_interval",
+    "wilson_lower_bound",
+]
+
+#: 95th percentile of the standard normal — a **one-sided** 95% lower confidence bound.
+#: Used where the claim is one-directional ("precision is at least P"), since there is no
+#: upper-side risk to insure against.
+Z_ONE_SIDED_95 = 1.6448536269514722
+
+#: 97.5th percentile — the half-width of a **two-sided** 95% interval. Used where an
+#: interval is reported, as for the distractor contamination rate.
+Z_TWO_SIDED_95 = 1.959963984540054
+
+
+def wilson_interval(
+    successes: int, n: int, z: float = Z_TWO_SIDED_95
+) -> tuple[float, float, float]:
+    """Wilson score interval for a binomial proportion: ``(point, lower, upper)``.
+
+    Preferred to the naive normal (Wald) interval, which at small ``n`` and a rate near 0
+    or 1 pushes a bound outside ``[0, 1]`` and misstates coverage. Both bounds are clipped.
+
+    ``z`` decides what is being claimed and the two are not interchangeable:
+    :data:`Z_TWO_SIDED_95` for a reported interval, :data:`Z_ONE_SIDED_95` for a one-sided
+    bound. Passing the two-sided constant to a one-sided claim silently asserts 97.5%
+    confidence while calling it 95%.
+    """
+    if n <= 0:
+        raise ValueError("cannot estimate a rate from zero judged items")
+    p_hat = successes / n
+    z2 = z * z
+    denom = 1.0 + z2 / n
+    centre = (p_hat + z2 / (2 * n)) / denom
+    spread = (z / denom) * ((p_hat * (1 - p_hat) / n + z2 / (4 * n * n)) ** 0.5)
+    return p_hat, max(0.0, centre - spread), min(1.0, centre + spread)
+
+
+def wilson_lower_bound(successes: int, n: int, z: float = Z_ONE_SIDED_95) -> float:
+    """Lower confidence bound alone. ``0.0`` for ``n == 0``, where nothing is evidenced.
+
+    Defaults to the **one-sided** constant, because every caller of this function is asking
+    a one-directional question: is the true rate at least this? Returning 0.0 rather than
+    raising on an empty set makes it usable inside a vectorised threshold sweep, where
+    "no evidence" and "fails the bar" want the same treatment.
+    """
+    if n <= 0:
+        return 0.0
+    return wilson_interval(successes, n, z)[1]
 
 
 class ThresholdSweep(NamedTuple):

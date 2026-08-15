@@ -20,6 +20,7 @@ __all__ = [
     "SchemaError",
     "validate_frame",
     "text_of",
+    "present_text",
 ]
 
 RECORD_COLUMNS = [
@@ -116,3 +117,23 @@ def text_of(df: pd.DataFrame) -> pd.Series:
     title = df["title"].fillna("")
     description = df["description"].fillna("") if "description" in df else ""
     return (title + " " + description).str.strip()
+
+
+def present_text(value) -> str | None:
+    """``value`` as text, or ``None`` where the field is absent.
+
+    **pandas stores a missing string as float ``nan``, which is truthy.** A bare
+    ``if value:`` guard therefore admits it, and what follows either raises — string
+    functions reject a float — or formats it into the output as the literal ``"nan"``. The
+    second is the dangerous one, because it does not stop anything: it has already put
+    ``"nan"`` into a degraded title (where both copies of a pair got the same spurious
+    token, making duplicates easier to match) and into an annotator's screen.
+
+    This is the single scalar-level companion to :func:`text_of`, which does the same job
+    column-wise through ``fillna("")``. Prefer either to an ad-hoc truthiness check.
+    """
+    if value is None:
+        return None
+    if isinstance(value, float) and pd.isna(value):
+        return None
+    return value or None

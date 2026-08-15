@@ -49,7 +49,7 @@ class TestWilsonInterval:
         assert (upper_10 - lower_10) > (upper_50 - lower_50)
 
     def test_zero_judged_pairs_is_an_error_not_a_silent_nan(self):
-        with pytest.raises(ValueError, match="zero judged pairs"):
+        with pytest.raises(ValueError, match="zero judged items"):
             wilson_interval(0, 0)
 
     def test_wald_would_have_gone_negative_here_wilson_does_not(self):

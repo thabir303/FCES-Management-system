@@ -28,6 +28,7 @@ import yaml
 from fcesreg.cpv import cpv_class
 from fcesreg.normalise import normalise_text
 from fcesreg.paths import data_path
+from fcesreg.schema import present_text as _present_text
 
 __all__ = [
     "ERROR_CLASSES",
@@ -207,27 +208,6 @@ def vary_units(s: str, rng: np.random.Generator, rate: float) -> str:
         return f"{number}{separator}{unit}"
 
     return _UNIT_RE.sub(repl, s)
-
-
-def _present_text(value) -> str | None:
-    """``value`` as text, or ``None`` where the field is absent.
-
-    pandas stores a missing string as float ``nan``, **which is truthy**. A bare
-    ``if value:`` guard therefore lets it through, and what follows either raises — the
-    string functions here reject a float — or, worse, formats it into the record as the
-    literal ``"nan"``. The second failure is the dangerous one: it does not stop the run,
-    it silently plants a token in the text, and because both copies of a degraded pair
-    receive the same one it makes duplicates *easier* to match.
-
-    20% of Abt-Buy records carry a null description, so this is the common path on Corpus
-    A rather than an edge case. Treating null as absent matches ``schema.text_of``, which
-    reads the same fields through ``fillna("")``.
-    """
-    if value is None:
-        return None
-    if isinstance(value, float) and np.isnan(value):
-        return None
-    return value or None
 
 
 def merge_fields(rec: dict, rng: np.random.Generator, rate: float) -> dict:
