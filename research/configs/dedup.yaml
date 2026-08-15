@@ -39,9 +39,13 @@ cascade:
   # Runaway guard, not a budget. A band above this raises rather than adjudicating a prefix.
   max_adjudications: 5000
   condition: cascade
-  # Measured, not guessed: 8 live adjudications on real Abt-Buy test pairs used a mean of
-  # 136 output tokens (max 205). 96 was too low — this is a reasoning model and it hit the
-  # cap before it could close a valid JSON document, which the endpoint rejects outright
-  # rather than returning truncated text. 256 leaves headroom over the observed maximum
-  # while still capping a runaway generation.
-  max_tokens: 256
+  # This is a reasoning model, so output length varies with how hard the pair is, and the
+  # tail is much longer than the middle: 8 sampled adjudications used a mean of 136 output
+  # tokens (max 205), yet both 96 and 256 truncated on harder pairs. Truncation is fatal
+  # rather than lossy — the endpoint rejects an unclosed document outright — and it is not
+  # transient, so retrying cannot clear it.
+  #
+  # Raising the cap costs almost nothing. Billing and the rate-limit window both use
+  # *measured* tokens, so a generous cap changes the pre-flight pacing estimate and the
+  # worst case, not the bill. Set well above the observed tail.
+  max_tokens: 1024
