@@ -482,6 +482,17 @@ RQ3 while minimising the size of the adjudicated band. Selecting once on
 undegraded records and carrying the result across would not satisfy the
 target on the data it is applied to, and is not done.
 
+A threshold satisfies the target when the lower bound of a Wilson score
+interval on its precision reaches the target, not when its point estimate
+does. The distinction is not pedantic. A point estimate admits thresholds
+whose precision rests on a handful of accepted pairs, and one estimated
+from a single pair is not an estimate at all; such thresholds are
+selected on the development partition and then fail on the held out data,
+which is the behaviour a precision floor exists to prevent. Requiring
+confidence rather than a favourable point estimate also scales the
+evidence demanded with the strictness of the target, which a fixed
+minimum on accepted pairs would not.
+
 The target is not always attainable. Where no threshold on the base
 similarity reaches the required precision, the upper threshold is
 undefined, nothing is accepted without adjudication, and the band extends
