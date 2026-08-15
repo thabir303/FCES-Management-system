@@ -676,9 +676,38 @@ class LLMClient:
                 self._sleep(2.0 * (attempt + 1))
                 continue
 
+            # A structured-output generation that failed to validate is the model missing
+            # its own schema on this attempt, not a malformed request: the identical payload
+            # usually succeeds on a retry. It is a 400, so it would otherwise be fatal — and
+            # on a sweep of thousands of calls, one such generation would kill a multi-day
+            # run that is otherwise entirely recoverable from cache. Everything else in the
+            # 4xx range stays fatal, because retrying a genuinely bad request only wastes
+            # quota.
+            if status == 400 and _is_json_validate_failure(body):
+                if attempt == self.max_retries:
+                    raise LLMError(
+                        f"the model failed to produce schema-valid JSON {self.max_retries} "
+                        f"times in a row for one request; this is the pathological case, "
+                        f"not the transient one: {body!r}"
+                    )
+                self._sleep(1.0 * (attempt + 1))
+                continue
+
             raise LLMError(f"{status} from endpoint: {body!r}")
 
         raise LLMError("retry loop exited without a response")  # pragma: no cover
+
+
+def _is_json_validate_failure(body: Any) -> bool:
+    """Whether a 400 is the endpoint reporting a bad *generation* rather than a bad request.
+
+    Matched on the error code, not on the human-readable message, which is prose and will
+    be reworded without notice.
+    """
+    if not isinstance(body, dict):
+        return False
+    error = body.get("error")
+    return isinstance(error, dict) and error.get("code") == "json_validate_failed"
 
 
 def _retry_after(headers: Mapping[str, str], default: float) -> float:

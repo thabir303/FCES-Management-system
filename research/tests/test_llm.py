@@ -316,6 +316,50 @@ class TestRateLimitHeaders:
         assert transport.calls == 1
 
 
+class TestStructuredOutputFailures:
+    """A 400 that reports a bad *generation* is transient; a 400 reporting a bad request
+    is not. On a sweep of thousands of calls, treating the first as fatal kills a multi-day
+    run, and treating the second as retryable only burns quota."""
+
+    FAILED = (
+        400,
+        {"error": {"code": "json_validate_failed", "failed_generation": ""}},
+        {},
+    )
+
+    def test_a_failed_generation_is_retried_and_succeeds(self, tmp_path):
+        # The stub returns a success once its script is exhausted.
+        transport = StubTransport(script=[self.FAILED, self.FAILED])
+        client = make_client(tmp_path, transport, max_retries=3)
+        assert client.complete("sys", "p").text == "duplicate"
+        assert transport.calls == 3
+
+    def test_a_persistent_failure_gives_up_and_says_it_is_pathological(self, tmp_path):
+        transport = StubTransport(script=[self.FAILED] * 10)
+        client = make_client(tmp_path, transport, max_retries=2)
+        with pytest.raises(LLMError, match="pathological"):
+            client.complete("sys", "p")
+
+    def test_a_malformed_request_400_is_still_fatal_on_the_first_try(self, tmp_path):
+        # Distinguished by error code, not by the prose message, which gets reworded.
+        transport = StubTransport(
+            script=[(400, {"error": {"code": "invalid_request_error"}}, {})] * 5
+        )
+        client = make_client(tmp_path, transport, max_retries=3)
+        with pytest.raises(LLMError):
+            client.complete("sys", "p")
+        assert transport.calls == 1
+
+    def test_a_bare_schema_is_refused_before_a_request_is_issued(self, tmp_path):
+        # The endpoint wants the whole response_format.json_schema object; passing the bare
+        # JSON Schema earns a 400 that costs a request to discover.
+        transport = StubTransport()
+        client = make_client(tmp_path, transport)
+        with pytest.raises(LLMError, match="must be the response_format.json_schema object"):
+            client.complete("sys", "p", json_schema={"type": "object"})
+        assert transport.calls == 0
+
+
 class TestQuotaGovernance:
     def test_daily_token_allowance_stops_before_the_request_is_issued(self, tmp_path):
         transport = StubTransport()
