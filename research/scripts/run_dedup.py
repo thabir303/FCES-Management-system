@@ -34,6 +34,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import yaml
+from dotenv import load_dotenv
 
 from fcesreg.adjudicate import LLMAdjudicator
 from fcesreg.dedup import (
@@ -197,6 +198,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--sweep", action="store_true", help="run the full severity factorial")
     p.add_argument("--cascade", action="store_true", help="run the cascade (Corpus A only)")
     args = p.parse_args(argv)
+
+    # `llm.py` deliberately reads only os.environ — no .env mechanics inside the library.
+    # Bootstrapping it is the entrypoint's job, and every runner that can reach the endpoint
+    # must do this or fail on the first call with the key unset.
+    load_dotenv(repo_root() / ".env")
 
     cfg = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     run_id = new_run_id(SCRIPT, args.config)
