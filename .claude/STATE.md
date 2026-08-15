@@ -44,10 +44,9 @@ F1**, measured contamination 42.0% (CI 29.4%–55.8%). Corpus A carries precisio
 - Quota: 200k tokens/day binds before 1000 requests/day → **~310 adjudications/day** at the
   measured 638 tokens each. `limit-requests` is per *day*, `limit-tokens` per *minute*.
 - TeX is installed but `/Library/TeX/texbin` is not on PATH; `make paper` prepends it.
-- `make experiments` names runners that don't exist yet — build order, not a bug, for that
-  target only. Does **not** excuse `make data`, which is still broken.
-- Blocking figures in `results/runs/` are **severity-free** — re-run now C4 exists, don't
-  compare the two sets silently.
+- `make experiments` names runners that don't exist yet — build order, not a bug, there
+  only; does **not** excuse `make data`. Blocking figures in `results/runs/` are
+  **severity-free** — re-run now C4 exists, don't compare the two sets silently.
 - Corpus B pair completeness at `t=8` is far below the 0.98 floor and non-monotonic —
   both findings, neither refitted. `F1_severity.pdf` has **no Corpus A panel** as
   specified; Corpus A dedup is `T4_abtbuy`.
