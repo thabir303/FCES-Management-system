@@ -1,0 +1,13 @@
+classify_run: latest
+dedup_config: research/configs/dedup.yaml
+illustrative_register_size: 5000
+seed: 0
+severities:
+- 0.0
+- 0.25
+- 0.5
+- 0.75
+- 1.0
+targets:
+- 0.95
+- 0.99

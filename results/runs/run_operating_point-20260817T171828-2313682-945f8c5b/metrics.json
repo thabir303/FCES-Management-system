@@ -1,0 +1,387 @@
+{
+  "classification": {
+    "levels": {
+      "class": {
+        "accuracy": 0.6228727025187202,
+        "condition": "tfidf_svm",
+        "macro_f1": 0.5595715984154692,
+        "n_scored": 2938,
+        "routed_to_review": 0.2584553255931348,
+        "unspecified_at_level": 0.15270065623422513
+      },
+      "division": {
+        "accuracy": 0.782180716809692,
+        "condition": "tfidf_svm",
+        "macro_f1": 0.7593311184428958,
+        "n_scored": 3962,
+        "routed_to_review": 0.0,
+        "unspecified_at_level": 0.0
+      }
+    },
+    "source_run": "run_classify-20260817T112609-18cccb9-744816d0"
+  },
+  "dedup": [
+    {
+      "automated_share": 0.0,
+      "matcher": "exact",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.0,
+      "target": 0.95,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "exact",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.0,
+      "target": 0.99,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.01722338204592902,
+      "matcher": "tfidf",
+      "n_test_pairs": 1916,
+      "precision": 0.9696969696969697,
+      "promised_share_on_dev": 0.023110066588327458,
+      "recall": 0.1553398058252427,
+      "severity": 0.0,
+      "target": 0.95,
+      "threshold": 0.6467327940927428
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "tfidf",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.0,
+      "target": 0.99,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "embedding",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.0,
+      "target": 0.95,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "embedding",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.0,
+      "target": 0.99,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "exact",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.25,
+      "target": 0.95,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "exact",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.25,
+      "target": 0.99,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "tfidf",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.25,
+      "target": 0.95,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "tfidf",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.25,
+      "target": 0.99,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "embedding",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.25,
+      "target": 0.95,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "embedding",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.25,
+      "target": 0.99,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "exact",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.5,
+      "target": 0.95,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "exact",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.5,
+      "target": 0.99,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "tfidf",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.5,
+      "target": 0.95,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "tfidf",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.5,
+      "target": 0.99,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "embedding",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.5,
+      "target": 0.95,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "embedding",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.5,
+      "target": 0.99,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "exact",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.75,
+      "target": 0.95,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "exact",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.75,
+      "target": 0.99,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "tfidf",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.75,
+      "target": 0.95,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "tfidf",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.75,
+      "target": 0.99,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "embedding",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.75,
+      "target": 0.95,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "embedding",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 0.75,
+      "target": 0.99,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "exact",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 1.0,
+      "target": 0.95,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "exact",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 1.0,
+      "target": 0.99,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "tfidf",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 1.0,
+      "target": 0.95,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "tfidf",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 1.0,
+      "target": 0.99,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "embedding",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 1.0,
+      "target": 0.95,
+      "threshold": null
+    },
+    {
+      "automated_share": 0.0,
+      "matcher": "embedding",
+      "n_test_pairs": 1916,
+      "precision": null,
+      "promised_share_on_dev": 0.0,
+      "recall": null,
+      "severity": 1.0,
+      "target": 0.99,
+      "threshold": null
+    }
+  ],
+  "effort_formula": "hours = n_review * t / 3600, for a handling time of t seconds per item",
+  "handling_time": "not measured; residual effort is reported as review volume (ruled 2026-08-17)",
+  "residual_volume": {
+    "embedding": {
+      "automated_share": 0.0,
+      "baseline_review": 5000,
+      "effort_formula": "hours = n_review * t / 3600, for a handling time of t seconds per item",
+      "n_automated": 0,
+      "n_records": 5000,
+      "n_review": 5000,
+      "volume_reduction": 0.0
+    },
+    "exact": {
+      "automated_share": 0.0,
+      "baseline_review": 5000,
+      "effort_formula": "hours = n_review * t / 3600, for a handling time of t seconds per item",
+      "n_automated": 0,
+      "n_records": 5000,
+      "n_review": 5000,
+      "volume_reduction": 0.0
+    },
+    "tfidf": {
+      "automated_share": 0.01722338204592902,
+      "baseline_review": 5000,
+      "effort_formula": "hours = n_review * t / 3600, for a handling time of t seconds per item",
+      "n_automated": 86,
+      "n_records": 5000,
+      "n_review": 4914,
+      "volume_reduction": 0.01722338204592902
+    }
+  },
+  "unit_note": "dedup automates a decision about a PAIR and categorisation one about a RECORD; the two shares have different denominators and are never summed"
+}
