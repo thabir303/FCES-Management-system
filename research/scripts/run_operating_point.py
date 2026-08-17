@@ -20,6 +20,15 @@ is reviewed. Scoring only the accepts as automated — the single-threshold mode
 every obvious non-duplicate as outstanding human work and put the automated share at 1.7%
 where it is in fact above 99%. The two-bound rule is :func:`operating_point.band_operating_point`.
 
+**An automated share is never reported without the duplicates it cost.** Clearing the field
+discards duplicates along with the noise and they never reach a reviewer. The two errors are
+not symmetric: a wrong acceptance is a false merge a reader can see and undo, and the
+precision floor is fitted to bound it, whereas a wrong rejection leaves a duplicate in the
+register indistinguishable from a genuine second item, with nothing bounding it and nobody
+looking. So every operating point carries ``n_duplicates_lost`` and ``recall_ceiling``
+beside its share, in counts as well as rates, because the choice a faculty is making is how
+many undetected duplicates to accept in exchange for how much review to avoid.
+
 **Thresholds are selected on dev and reported on test.** The share a threshold promises
 where it was chosen is not the share it delivers, and the gap between them is itself worth
 seeing — it is reported rather than hidden.
@@ -71,11 +80,14 @@ def delivered(scores: np.ndarray, labels: np.ndarray, lower: float, upper: float
     accepted = scores >= upper
     rejected = scores < lower
     band = ~(accepted | rejected)
+    n_positive = int(labels.sum())
+    n_lost = int(labels[rejected].sum())
     return {
         "lower": None if not np.isfinite(lower) else float(lower),
         "upper": None if not np.isfinite(upper) else float(upper),
         "automated_share": float(1.0 - band.mean()),
         "band_fraction": float(band.mean()),
+        "n_positive": n_positive,
         "n_auto_accepted": int(accepted.sum()),
         "n_auto_rejected": int(rejected.sum()),
         "n_band": int(band.sum()),
@@ -86,7 +98,16 @@ def delivered(scores: np.ndarray, labels: np.ndarray, lower: float, upper: float
             float(1.0 - labels[rejected].mean()) if rejected.any() else None
         ),
         "recall_auto_accepted": (
-            float(labels[accepted].sum() / labels.sum()) if labels.sum() else None
+            float(labels[accepted].sum() / n_positive) if n_positive else None
+        ),
+        # The half the automated share hides: duplicates discarded without ever reaching a
+        # reviewer. Nothing bounds this the way the precision floor bounds a false merge.
+        "n_duplicates_lost": n_lost,
+        "duplicates_lost_rate": (n_lost / n_positive) if n_positive else None,
+        "recall_ceiling": (
+            float((labels[accepted].sum() + labels[band].sum()) / n_positive)
+            if n_positive
+            else None
         ),
     }
 
@@ -119,13 +140,21 @@ def dedup_points(cfg: dict, dedup_cfg: dict) -> list[dict]:
                 precision = got["precision_auto_accepted"]
                 print(
                     f"  {name:<10} sev {severity:<5} P>={target}  "
-                    f"automated dev {fitted['automated_share']:.3f} -> "
-                    f"test {got['automated_share']:.3f}  "
-                    f"(band {got['n_band']:>5} of {len(test_labels):>5})  "
+                    f"automated {got['automated_share']:.3f}  "
+                    f"band {got['n_band']:>5}  "
                     + (
-                        f"accept P {precision:.3f} on {got['n_auto_accepted']}"
+                        f"accept P {precision:.3f} on {got['n_auto_accepted']:>3}"
                         if precision is not None
-                        else "nothing auto-accepted"
+                        else "nothing auto-accepted    "
+                    )
+                    # Never printed without its other half.
+                    + f"   LOST {got['n_duplicates_lost']:>3} of {got['n_positive']} "
+                    f"duplicates"
+                    + (
+                        f" ({got['duplicates_lost_rate']:.1%}), ceiling R "
+                        f"{got['recall_ceiling']:.3f}"
+                        if got["recall_ceiling"] is not None
+                        else ""
                     )
                 )
     return rows
@@ -226,10 +255,18 @@ def main(argv: list[str] | None = None) -> int:
         if row["severity"] != cfg["severities"][0] or row["target"] != cfg["targets"][0]:
             continue
         got = residual_effort(n, row["automated_share"])
+        # The trade, never one side of it: review avoided against duplicates merged in
+        # unreviewed. Scaled to the illustrative register so both halves share a unit.
+        got["duplicates_lost_per_register"] = round(
+            n * row["n_duplicates_lost"] / row["n_test_pairs"]
+        )
+        got["duplicates_lost_rate"] = row["duplicates_lost_rate"]
         volumes[row["matcher"]] = got
         print(
             f"  {row['matcher']:<10} {got['n_automated']:>5} automated, "
             f"{got['n_review']:>5} to review  ({got['volume_reduction']:.1%} reduction)"
+            f"  — and ~{got['duplicates_lost_per_register']:>3} duplicates merged in "
+            f"unreviewed"
         )
     print(f"\n  {EFFORT_FORMULA}")
     print("  Handling time is not measured here; the reduction is a ratio and needs none.")

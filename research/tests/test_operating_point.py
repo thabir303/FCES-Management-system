@@ -259,6 +259,50 @@ class TestBandOperatingPoint:
         assert got["n_auto_accepted"] == 0
         assert got["precision_auto_accepted"] is None
 
+    def test_it_reports_the_duplicates_confident_rejection_discarded(self):
+        # The half an automated share hides. Nothing bounds this the way the precision
+        # floor bounds a false merge, so it has to be measured and carried.
+        scores, labels = self.separable()
+        got = band_operating_point(scores, labels, 0.95)
+        rejected = scores < got["lower"]
+        assert got["n_duplicates_lost"] == int(labels[rejected].sum())
+        assert got["duplicates_lost_rate"] == pytest.approx(
+            got["n_duplicates_lost"] / labels.sum()
+        )
+
+    def test_the_lost_and_the_reachable_account_for_every_duplicate(self):
+        got = band_operating_point(*self.separable(), 0.95)
+        assert got["recall_ceiling"] == pytest.approx(
+            1.0 - got["n_duplicates_lost"] / got["n_positive"]
+        )
+
+    def test_the_ceiling_bounds_what_any_adjudicator_could_reach(self):
+        # A perfect reviewer recovers the whole band and nothing more; a cascade cannot
+        # exceed this however good its adjudicator is.
+        scores, labels = self.separable()
+        got = band_operating_point(scores, labels, 0.95)
+        assert 0.0 <= got["recall_ceiling"] <= 1.0
+        assert got["recall_ceiling"] < 1.0 or got["n_duplicates_lost"] == 0
+
+    def test_automating_more_loses_more_between_the_extremes(self):
+        """The trade the curve exists to show — but only between the extremes.
+
+        Raising the floor tightens *both* rules, so a stricter pipeline rejects less and
+        discards fewer duplicates while also automating less. That is the direction, and it
+        holds on the real corpus (84 duplicates lost at 0.95 against 16 at 0.99).
+
+        It is **not strictly monotone** and must not be asserted as if it were: on this
+        fixture 0.80 loses 61 and 0.90 loses 65. Adjacent floors can invert because the two
+        bounds move independently. Compared at the ends, where the effect dominates.
+        """
+        scores = np.concatenate([np.linspace(0.4, 1.0, 200), np.linspace(0.0, 0.6, 800)])
+        labels = np.concatenate([np.ones(200, int), np.zeros(800, int)])
+        loose = band_operating_point(scores, labels, 0.80)
+        tight = band_operating_point(scores, labels, 0.99)
+        assert loose["automated_share"] > tight["automated_share"]
+        assert loose["n_duplicates_lost"] > tight["n_duplicates_lost"]
+        assert loose["recall_ceiling"] < tight["recall_ceiling"]
+
     def test_automation_can_be_entirely_rejection(self):
         # The headline shape of the real result: at a high floor nothing is confidently a
         # duplicate, yet most pairs are still resolved without a human.

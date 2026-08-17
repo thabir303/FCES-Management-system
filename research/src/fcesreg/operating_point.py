@@ -200,6 +200,15 @@ def band_operating_point(scores, labels, target: float = DEFAULT_TARGET) -> dict
     rejected = scores < lower
     band = ~(accepted | rejected)
     n = len(scores)
+    n_positive = int(labels.sum())
+
+    # **The reject side, which the automated share hides.** Clearing the field discards
+    # duplicates along with the noise, and those never reach a reviewer. The asymmetry is
+    # the whole point: a wrong acceptance is a false merge a reader can see and undo, and
+    # the precision floor is fitted to bound it; a wrong rejection puts a duplicate into
+    # the register where it is indistinguishable from a genuine second item, nothing bounds
+    # it, and nobody looks. An automated share reported without this is not reportable.
+    n_lost = int(labels[rejected].sum())
 
     return {
         "lower": lower,
@@ -208,6 +217,7 @@ def band_operating_point(scores, labels, target: float = DEFAULT_TARGET) -> dict
         "upper_undefined": not np.isfinite(upper),
         "lower_undefined": not np.isfinite(lower),
         "n_items": int(n),
+        "n_positive": n_positive,
         "n_auto_accepted": int(accepted.sum()),
         "n_auto_rejected": int(rejected.sum()),
         "n_band": int(band.sum()),
@@ -220,6 +230,18 @@ def band_operating_point(scores, labels, target: float = DEFAULT_TARGET) -> dict
         ),
         "purity_auto_rejected": (
             float(1.0 - labels[rejected].mean()) if rejected.any() else None
+        ),
+        # Absolute count first: a faculty is choosing how many undetected duplicates to
+        # accept in exchange for how much review to avoid, and that trade reads in counts.
+        "n_duplicates_lost": n_lost,
+        "duplicates_lost_rate": (n_lost / n_positive) if n_positive else None,
+        # What recall the operating point still permits, before the adjudicator does
+        # anything at all: everything auto-accepted, plus everything a perfect reviewer
+        # could recover from the band. A cascade cannot exceed this however good it is.
+        "recall_ceiling": (
+            float((labels[accepted].sum() + labels[band].sum()) / n_positive)
+            if n_positive
+            else None
         ),
     }
 
