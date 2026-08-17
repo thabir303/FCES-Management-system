@@ -26,7 +26,13 @@ level RQ2 evaluates. A leaf code can be wrong while the class and division it ro
 are right, so this rate is an **upper bound** on the noise affecting the reported results —
 stated as such in the summary rather than silently equated with them.
 
-    python annotation/annotate.py
+**The two figures are not equally delegable, and they are reported as two sample sizes,
+never merged.** Label noise can be judged by a model that sits outside RQ2's comparison —
+weaker than a human judgement, and disclosed as such. Handling time cannot: it measures how
+long a *person* takes, so it comes from ``--timing-only N``, run by the author.
+
+    python annotation/annotate.py                 # label noise: 40 items
+    python annotation/annotate.py --timing-only 15  # handling time: a person, ~8 minutes
     python annotation/annotate.py --summary
 """
 
@@ -152,11 +158,16 @@ def main(argv: list[str] | None = None) -> int:
                    default=annotation_path("labels", "cpv_label_noise.jsonl"))
     p.add_argument("--timings", type=Path,
                    default=annotation_path("labels", "cpv_label_noise_timings.jsonl"))
+    p.add_argument("--timing-only", type=int, metavar="N", default=None,
+                   help="N items judged by a PERSON, for the handling-time figure only")
     p.add_argument("--summary", action="store_true", help="report and stop")
     args = p.parse_args(argv)
 
     sample = load_sample(args.corpus, args.taxonomy, args.divisions, args.n, args.seed)
     sample_ids = set(sample["record_id"])
+
+    if args.timing_only is not None:
+        return timing_run(sample, args)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     all_judged: dict[str, dict] = {}
@@ -220,6 +231,57 @@ def main(argv: list[str] | None = None) -> int:
 
     write_timings(args.timings, timings)
     return _summary(sample, judged, args)
+
+
+def timing_run(sample: pd.DataFrame, args) -> int:
+    """``--timing-only N``: the handling-time half, which only a person can supply.
+
+    **Why this is a separate mode rather than a flag on the main run.** The label-noise
+    rate and the handling time come from the same reading, but they are not equally
+    delegable. A model can judge whether a code fits; a model timing its own reading
+    measures a language model's latency, and reporting that as human curation effort would
+    not be a limitation but a false measurement — and RQ3 derives residual hours from it,
+    so the error would land on the headline result.
+
+    The same screens and the same required judgement, so the durations reflect real work
+    rather than a person clicking through. Judgements are **not** written to the labels
+    file: this run measures effort, and mixing its verdicts into the noise sample would
+    make two different sample sizes look like one.
+    """
+    take = sample.head(args.timing_only)
+    print(f"\nTiming run: {len(take)} items, roughly {len(take) * 30 // 60} minutes.")
+    print("Judge each one properly — the point is how long real work takes.")
+    print("Your verdicts are NOT recorded here; only the durations are.\n")
+
+    timings: list[ItemTiming] = []
+    for n, (_, record) in enumerate(take.iterrows(), 1):
+        render(n, len(take), record)
+        with time_item(record["record_id"], timings) as abandon:
+            while True:
+                choice = input("  > ").strip().lower()
+                if choice == "q":
+                    abandon()
+                    break
+                if choice in KEYS:
+                    break
+                print(f"  expected one of {sorted(KEYS)} or q")
+        if choice == "q":
+            print(f"\nstopped after {n - 1} timed items")
+            break
+
+    write_timings(args.timings, timings)
+    try:
+        got = summarise(read_timings(args.timings))
+        print(f"\nhandling time: mean {got['mean_seconds']:.1f}s, "
+              f"median {got['median_seconds']:.1f}s, p90 {got['p90_seconds']:.1f}s, "
+              f"n={got['n']}")
+        print(f"  excluded {got['n_abandoned']}: quit without judging, or over the "
+              f"{IDLE_CUTOFF_S:.0f}s idle cutoff")
+        print(f"\n  mean_seconds_per_item = {got['mean_seconds']:.2f}  -> operating_point")
+    except TooFewTimings as e:
+        print(f"\ntiming: {e}", file=sys.stderr)
+        print("A mean needs more items than this; run again to add to the same file.")
+    return 0
 
 
 def _summary(sample: pd.DataFrame, judged: dict, args) -> int:

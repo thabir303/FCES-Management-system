@@ -88,6 +88,57 @@ class TestNoiseRate:
         assert "UPPER BOUND" in capsys.readouterr().out
 
 
+class TestTimingOnlyMode:
+    """The half only a person can supply, kept structurally apart from the other."""
+
+    def test_it_writes_no_judgements(self, tmp_path, monkeypatch, capsys):
+        # Verdicts from a timing run must not enter the noise sample: the two have
+        # different sample sizes and merging them would misreport both.
+        import annotate as mod
+
+        sample = pd.DataFrame(
+            {
+                "record_id": ["r0", "r1"],
+                "title": ["t", "t"],
+                "description": ["d", "d"],
+                "cpv_code": ["30100000", "30100000"],
+                "_division_desc": ["office", "office"],
+                "_class_desc": ["computers", "computers"],
+            }
+        )
+        answers = iter(["a", "d"])
+        monkeypatch.setattr("builtins.input", lambda *_: next(answers))
+
+        class Args:
+            timing_only = 2
+            timings = tmp_path / "t.jsonl"
+            out = tmp_path / "labels.jsonl"
+            seed = 0
+
+        mod.timing_run(sample, Args())
+        assert not (tmp_path / "labels.jsonl").exists()
+        assert (tmp_path / "t.jsonl").exists()
+
+    def test_it_says_verdicts_are_not_recorded(self, tmp_path, monkeypatch, capsys):
+        import annotate as mod
+
+        sample = pd.DataFrame(
+            {
+                "record_id": ["r0"], "title": ["t"], "description": ["d"],
+                "cpv_code": ["30100000"], "_division_desc": ["o"], "_class_desc": ["c"],
+            }
+        )
+        monkeypatch.setattr("builtins.input", lambda *_: "a")
+
+        class Args:
+            timing_only = 1
+            timings = tmp_path / "t.jsonl"
+            seed = 0
+
+        mod.timing_run(sample, Args())
+        assert "NOT recorded" in capsys.readouterr().out
+
+
 class TestVerdicts:
     def test_only_disagree_counts_as_noise(self):
         # Deliberately unlike the distractor tool, where `unsure` counted against purity.
