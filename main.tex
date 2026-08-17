@@ -113,10 +113,10 @@ the governing risk assessment, service interval tracking with scheduled
 reminders, and tiered access across administrator, technician and read
 only roles. The migration pipeline studied here runs inside it, as a bulk
 import in which records the pipeline resolves confidently enter the
-register directly and the remainder enter a review queue. The system is
-therefore both the destination of the migration and the setting in which
-its residual human cost is observed, which is what allows that cost to be
-reported as a measured quantity rather than an estimate.
+register directly and the remainder enter a review queue. The system is therefore both the destination of the migration and the
+setting in which its residual human cost accrues and is recorded, which
+is what would let that cost be measured in deployment instead of
+assumed.
 
 Answering that question empirically requires records for which the
 correct answers are known. Records held by FCES were not available for
@@ -591,14 +591,19 @@ The two levels present different difficulties. At division level the
 label set is small and its distribution only moderately skewed, so the
 task is tractable but coarse. At class level the label set is an order of
 magnitude larger and its tail is long: most classes carry too few
-examples to be learned at all. Evaluation at class level is therefore
-restricted to labels holding at least a stated minimum of training
-examples, and the proportion of the corpus that restriction covers is
-reported with the results, so that class level accuracy is read against
-the share of the register it applies to rather than against the whole.
-Records falling outside the supported set are not discarded from the
-migration pipeline; they are routed to review, which is where an
-unlearnable category should go.
+examples to be learned at all. Evaluation at class level is therefore restricted, on two grounds
+reported apart because they are different problems. Labels holding fewer
+than a stated minimum of training examples are excluded as unlearnable.
+Records whose published code names a division and assigns no class are
+excluded as well, since they carry no class level ground truth at all;
+scoring them would ask whether a classifier can predict that a buyer was
+vague, which is a property of publishing practice and not of the
+equipment. The proportion each restriction removes is reported with the
+results, so class level accuracy is read against the share of the
+register it applies to, not against the whole. Records falling outside
+the scored set are not discarded from the migration pipeline; they are
+routed to review, which is where both an unlearnable category and an
+absent one belong.
 
 Macro averaged scores are the primary measure at both levels, weighted
 averages are reported alongside them, and a per class breakdown is given
@@ -641,10 +646,18 @@ latency per record, monetary cost per thousand records for any method invoking a
 model, costed at the published rate card recorded with the run, and the automated share, defined as the
 proportion of records the pipeline resolves without human intervention
 while holding precision at or above the target specified in RQ3.
-Residual manual effort is derived from the automated share and a mean
-handling time measured by timing manual curation during the annotation
-exercise. The precision target is [TBC], the timing
-sample comprises [TBC] records, and the observed mean handling time is
+Residual manual effort is reported as the count and proportion of records
+the pipeline routes to review, and total effort is expressed as that
+count multiplied by a per record handling time and not fixed by a single
+measured constant. No handling time is measured here. One observer's
+reading speed would not generalise to the staff who would perform the
+curation, and quoting it as though it did would put a precision on the
+effort estimate that the evidence does not support. A reader holding a
+figure for their own institution obtains their own total; a reader
+without one still has the review volume, which is the quantity the
+automated share determines. The review queue in the delivered system
+records the duration of each decision, so the figure becomes measurable
+in deployment without being asserted in advance. The precision target is
 [TBC].
 
 \subsection{External Validation}
@@ -689,9 +702,11 @@ passes through the deduplication and classification stages and the
 outcome is routed to one of two destinations. Records resolved above the
 precision threshold are written directly to the register. Records below
 it enter a review queue presenting the candidate decision, the competing
-alternatives and the similarity evidence, so that the human effort
-measured in the evaluation corresponds to a task a curator can actually
-perform rather than to an abstract count of uncertain records.
+alternatives and the similarity evidence, so the residual effort reported
+here corresponds to a task a curator can actually perform and not to an
+abstract count of uncertain records. The queue records the duration of
+each decision, which is what makes the per record handling time an
+institution would need obtainable from its own use of the system.
 
 \subsection{Reproducibility}
 
