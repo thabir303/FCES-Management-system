@@ -1,0 +1,25 @@
+# RQ3: automated share at a fixed precision floor, and the review volume it leaves (§6.13).
+#
+# Committed; runners take no tuning flags.
+
+# Corpus A only. RQ3's operating point is carried by the benchmark corpus because precision
+# is not reportable on Corpus B (amendment 8), and an automated share at a precision floor
+# is meaningless without a trustworthy precision.
+dedup_config: research/configs/dedup.yaml
+classify_run: latest
+
+# 0.95 headlines, 0.99 is quoted from the same curve rather than by re-running anything.
+# 1.0 is deliberately absent: under the one-sided 95% Wilson floor it is unreachable at any
+# sample size, and asking for it would report a finding as a configuration.
+targets: [0.95, 0.99]
+
+# The severities the curve is reported at. 0.0 is the operating point a clean register
+# would see; the rest say how fast the automated share decays as records get messier, which
+# is the question a faculty with a real spreadsheet is actually asking.
+severities: [0.0, 0.25, 0.5, 0.75, 1.0]
+seed: 0
+
+# The size of register the residual volume is quoted for. Not a measurement — a scale the
+# reader can hold in mind — so it is stated in the caption as an illustration and the
+# proportional reduction, which is scale-free, is the actual result.
+illustrative_register_size: 5000

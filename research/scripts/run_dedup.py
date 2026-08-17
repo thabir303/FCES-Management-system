@@ -47,7 +47,8 @@ from fcesreg.dedup import (
 )
 from fcesreg.degrade import DegradationConfig, degrade_frame, make_distractors
 from fcesreg.llm import DailyQuotaExhausted, LLMClient
-from fcesreg.metrics import prf1, threshold_sweep, wilson_lower_bound
+from fcesreg.metrics import prf1
+from fcesreg.operating_point import reject_bound
 from fcesreg.paths import repo_root, results_path
 from fcesreg.runs import capture_env, new_run_id, write_run
 from fcesreg.splits import load as load_splits
@@ -59,24 +60,6 @@ FREE_MATCHERS = {
     "tfidf": TfidfMatcher,
     "embedding": EmbeddingMatcher,
 }
-
-
-def reject_bound(scores: np.ndarray, labels: np.ndarray, target: float) -> float:
-    """Highest threshold whose *rejected* set is confidently negative.
-
-    The mirror of :func:`dedup.select_threshold`, read from the other end and held to the
-    same standard: a pair is auto-rejected only where the evidence supports rejecting it,
-    not merely where the point estimate looks safe. ``-inf`` means nothing can be rejected
-    without adjudication, which at high severity is the honest answer.
-    """
-    sweep = threshold_sweep(scores, labels)
-    n_below = sweep.n_items - sweep.n_selected
-    neg_below = n_below - (sweep.n_positive - sweep.tp)
-    bound = np.array(
-        [wilson_lower_bound(int(k), int(n)) for k, n in zip(neg_below, n_below, strict=True)]
-    )
-    ok = np.flatnonzero(bound >= target)
-    return float(sweep.threshold[ok[0]]) if ok.size else float("-inf")
 
 
 def evaluate(matcher, pairs: pd.DataFrame, records: pd.DataFrame, threshold: float) -> dict:

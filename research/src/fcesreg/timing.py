@@ -1,9 +1,15 @@
-"""Per-item handling time (§6.15).
+"""Per-item timing for the annotation tools (§6.15).
 
-The mean handling time that RQ3 converts into residual hours is measured here, during the
-timed annotation exercise — **not** by the review queue UI. The headline result must not
-depend on a full-stack React component; once the review queue works, its observed handling
-time is reported as independent corroboration of this figure (§5.7).
+**Nothing this module produces is a reported figure** (ruled 2026-08-17). RQ3 reports
+residual effort as review *volume*, with total effort left as a formula a reader
+substitutes their own handling time into; see :func:`operating_point.residual_effort`.
+Timing an author's own reading measures that author and timing a model's measures endpoint
+latency, so neither is curation effort.
+
+What remains is instrumentation: the annotation tools time judgements as they are made so
+an annotator can see how long a session took and so an abandoned item is countable rather
+than invisible. The review queue records its own per-decision duration separately (§5.7),
+as operational telemetry of a deployment rather than a measurement of a corpus.
 """
 
 from __future__ import annotations

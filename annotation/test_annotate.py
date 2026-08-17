@@ -1,8 +1,8 @@
 """Tests for the parts of annotate.py that are not the interactive loop.
 
-The label-noise rate and the mean handling time both reach the paper, so the sampling, the
-rate arithmetic and the exclusion accounting are tested. The `input()` loop is exercised by
-hand, as the distractor tool's is.
+The label-noise rate reaches the paper, so the sampling, the rate arithmetic and the
+exclusion accounting are tested. Handling time no longer reaches anything, and there are
+tests for that too. The `input()` loop is exercised by hand, as the distractor tool's is.
 
 Not wired into `make test`: `annotation/` is outside `research/tests`' discovery scope.
 
@@ -88,55 +88,39 @@ class TestNoiseRate:
         assert "UPPER BOUND" in capsys.readouterr().out
 
 
-class TestTimingOnlyMode:
-    """The half only a person can supply, kept structurally apart from the other."""
+class TestHandlingTimeIsNotAResult:
+    """Handling time is no longer measured (ruled 2026-08-17).
 
-    def test_it_writes_no_judgements(self, tmp_path, monkeypatch, capsys):
-        # Verdicts from a timing run must not enter the noise sample: the two have
-        # different sample sizes and merging them would misreport both.
+    RQ3 reports residual review *volume*, with total effort left as a formula a reader
+    substitutes their own handling time into. These guard the two ways the old figure could
+    come back: the mode that produced it, and the hand-off line that piped it into the
+    headline result.
+    """
+
+    def test_the_timing_only_mode_is_gone(self):
         import annotate as mod
 
-        sample = pd.DataFrame(
-            {
-                "record_id": ["r0", "r1"],
-                "title": ["t", "t"],
-                "description": ["d", "d"],
-                "cpv_code": ["30100000", "30100000"],
-                "_division_desc": ["office", "office"],
-                "_class_desc": ["computers", "computers"],
-            }
-        )
-        answers = iter(["a", "d"])
-        monkeypatch.setattr("builtins.input", lambda *_: next(answers))
+        assert not hasattr(mod, "timing_run")
 
-        class Args:
-            timing_only = 2
-            timings = tmp_path / "t.jsonl"
-            out = tmp_path / "labels.jsonl"
-            seed = 0
-
-        mod.timing_run(sample, Args())
-        assert not (tmp_path / "labels.jsonl").exists()
-        assert (tmp_path / "t.jsonl").exists()
-
-    def test_it_says_verdicts_are_not_recorded(self, tmp_path, monkeypatch, capsys):
+    def test_no_timing_only_flag_is_offered(self):
+        # It would otherwise cost the author eight minutes on a figure with nowhere to go.
         import annotate as mod
 
-        sample = pd.DataFrame(
-            {
-                "record_id": ["r0"], "title": ["t"], "description": ["d"],
-                "cpv_code": ["30100000"], "_division_desc": ["o"], "_class_desc": ["c"],
-            }
-        )
-        monkeypatch.setattr("builtins.input", lambda *_: "a")
+        assert "--timing-only" not in (mod.main.__doc__ or "") + Path(
+            mod.__file__
+        ).read_text(encoding="utf-8")
+
+    def test_the_summary_pipes_nothing_into_the_operating_point(self, capsys, tmp_path):
+        import annotate as mod
 
         class Args:
-            timing_only = 1
-            timings = tmp_path / "t.jsonl"
             seed = 0
+            timings = tmp_path / "absent.jsonl"
 
-        mod.timing_run(sample, Args())
-        assert "NOT recorded" in capsys.readouterr().out
+        mod._summary(_sample(4), _judged(agree=3, disagree=1), Args())
+        out = capsys.readouterr().out
+        assert "mean_seconds_per_item" not in out
+        assert "operating_point" not in out
 
 
 class TestVerdicts:

@@ -1,12 +1,16 @@
-"""CPV label-noise annotation, timed (§6.15, §13.3).
+"""CPV label-noise annotation (§6.15, §13.3).
 
-One exercise producing two results, because they come from the same reading:
+Produces one reported result: the **label-noise rate** — how often the published CPV code
+fails to describe the procurement — which bounds what any classifier trained or evaluated
+against those codes can be said to have achieved.
 
-* the **label-noise rate** — how often the published CPV code fails to describe the
-  procurement — which bounds what any classifier trained or evaluated against those codes
-  can be said to have achieved;
-* the **mean handling time** per judgement, which RQ3 converts into residual hours. There
-  is no model substitute for this one: it measures how long a *person* takes.
+**Handling time is no longer measured and this tool no longer offers to measure it**
+(ruled 2026-08-17). RQ3 reports residual effort as review *volume*, with total effort left
+as a formula a reader substitutes their own handling time into. Timing an author's own
+reading measures that author and timing a model's measures endpoint latency; neither is
+curation effort, and reporting one as such would be a false measurement rather than a
+limitation. Judgements are still timed as they are made, because knowing how long the
+exercise took is useful, but that figure reaches no result.
 
 **Judged by the author, never by a language model, and this matters more here than it did
 for the distractor sample.** RQ2 measures how accurately a language model assigns CPV
@@ -26,13 +30,10 @@ level RQ2 evaluates. A leaf code can be wrong while the class and division it ro
 are right, so this rate is an **upper bound** on the noise affecting the reported results —
 stated as such in the summary rather than silently equated with them.
 
-**The two figures are not equally delegable, and they are reported as two sample sizes,
-never merged.** Label noise can be judged by a model that sits outside RQ2's comparison —
-weaker than a human judgement, and disclosed as such. Handling time cannot: it measures how
-long a *person* takes, so it comes from ``--timing-only N``, run by the author.
+Label noise can be judged by a model that sits outside RQ2's comparison — weaker than a
+human judgement, and disclosed as such wherever the rate is reported.
 
-    python annotation/annotate.py                 # label noise: 40 items
-    python annotation/annotate.py --timing-only 15  # handling time: a person, ~8 minutes
+    python annotation/annotate.py            # label noise: 40 items
     python annotation/annotate.py --summary
 """
 
@@ -152,22 +153,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--divisions", nargs="+",
                    default=["30", "31", "32", "33", "38", "42", "43", "44"])
     p.add_argument("--n", type=int, default=40,
-                   help="items to judge; 40 gives a usable mean handling time")
+                   help="items to judge; 40 gives a usable interval on the noise rate")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--out", type=Path,
                    default=annotation_path("labels", "cpv_label_noise.jsonl"))
     p.add_argument("--timings", type=Path,
                    default=annotation_path("labels", "cpv_label_noise_timings.jsonl"))
-    p.add_argument("--timing-only", type=int, metavar="N", default=None,
-                   help="N items judged by a PERSON, for the handling-time figure only")
     p.add_argument("--summary", action="store_true", help="report and stop")
     args = p.parse_args(argv)
 
     sample = load_sample(args.corpus, args.taxonomy, args.divisions, args.n, args.seed)
     sample_ids = set(sample["record_id"])
-
-    if args.timing_only is not None:
-        return timing_run(sample, args)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     all_judged: dict[str, dict] = {}
@@ -233,57 +229,6 @@ def main(argv: list[str] | None = None) -> int:
     return _summary(sample, judged, args)
 
 
-def timing_run(sample: pd.DataFrame, args) -> int:
-    """``--timing-only N``: the handling-time half, which only a person can supply.
-
-    **Why this is a separate mode rather than a flag on the main run.** The label-noise
-    rate and the handling time come from the same reading, but they are not equally
-    delegable. A model can judge whether a code fits; a model timing its own reading
-    measures a language model's latency, and reporting that as human curation effort would
-    not be a limitation but a false measurement — and RQ3 derives residual hours from it,
-    so the error would land on the headline result.
-
-    The same screens and the same required judgement, so the durations reflect real work
-    rather than a person clicking through. Judgements are **not** written to the labels
-    file: this run measures effort, and mixing its verdicts into the noise sample would
-    make two different sample sizes look like one.
-    """
-    take = sample.head(args.timing_only)
-    print(f"\nTiming run: {len(take)} items, roughly {len(take) * 30 // 60} minutes.")
-    print("Judge each one properly — the point is how long real work takes.")
-    print("Your verdicts are NOT recorded here; only the durations are.\n")
-
-    timings: list[ItemTiming] = []
-    for n, (_, record) in enumerate(take.iterrows(), 1):
-        render(n, len(take), record)
-        with time_item(record["record_id"], timings) as abandon:
-            while True:
-                choice = input("  > ").strip().lower()
-                if choice == "q":
-                    abandon()
-                    break
-                if choice in KEYS:
-                    break
-                print(f"  expected one of {sorted(KEYS)} or q")
-        if choice == "q":
-            print(f"\nstopped after {n - 1} timed items")
-            break
-
-    write_timings(args.timings, timings)
-    try:
-        got = summarise(read_timings(args.timings))
-        print(f"\nhandling time: mean {got['mean_seconds']:.1f}s, "
-              f"median {got['median_seconds']:.1f}s, p90 {got['p90_seconds']:.1f}s, "
-              f"n={got['n']}")
-        print(f"  excluded {got['n_abandoned']}: quit without judging, or over the "
-              f"{IDLE_CUTOFF_S:.0f}s idle cutoff")
-        print(f"\n  mean_seconds_per_item = {got['mean_seconds']:.2f}  -> operating_point")
-    except TooFewTimings as e:
-        print(f"\ntiming: {e}", file=sys.stderr)
-        print("A mean needs more items than this; run again to add to the same file.")
-    return 0
-
-
 def _summary(sample: pd.DataFrame, judged: dict, args) -> int:
     counts: dict[str, int] = {}
     for row in judged.values():
@@ -317,18 +262,19 @@ def _summary(sample: pd.DataFrame, judged: dict, args) -> int:
     else:
         print("\nevery judged item was `unsure` — no rate can be reported")
 
+    # How long the exercise took, printed for the annotator and going nowhere else. There
+    # is deliberately no `mean_seconds_per_item -> operating_point` hand-off any more: RQ3
+    # reports review volume, and a handling time measured on one reader is not the input to
+    # a result about a corpus (ruled 2026-08-17).
     if args.timings.exists():
         try:
             got = summarise(read_timings(args.timings))
-            print(f"\nhandling time: mean {got['mean_seconds']:.1f}s, "
-                  f"median {got['median_seconds']:.1f}s, p90 {got['p90_seconds']:.1f}s, "
-                  f"n={got['n']}")
-            print(f"  excluded {got['n_abandoned']} item(s): quit without judging, or over "
-                  f"the {IDLE_CUTOFF_S:.0f}s idle cutoff (an interrupted session, not a "
-                  f"slow judgement)")
-            print(f"\n  mean_seconds_per_item = {got['mean_seconds']:.2f}  -> operating_point")
-        except TooFewTimings as e:
-            print(f"\ntiming: {e}", file=sys.stderr)
+            print(f"\nthis exercise took: mean {got['mean_seconds']:.1f}s per item, "
+                  f"median {got['median_seconds']:.1f}s, n={got['n']} "
+                  f"({got['n_abandoned']} excluded over the {IDLE_CUTOFF_S:.0f}s cutoff)")
+            print("  Not a reported figure. RQ3 reports residual review VOLUME.")
+        except TooFewTimings:
+            pass
     return 0
 
 

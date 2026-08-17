@@ -14,7 +14,9 @@ from fcesreg.metrics import prf1
 from fcesreg.operating_point import (
     DEFAULT_TARGET,
     automated_share_at_precision,
+    band_operating_point,
     precision_automation_curve,
+    reject_bound,
     residual_effort,
 )
 
@@ -181,44 +183,163 @@ class TestCurve:
             assert delivered["recall"] == pytest.approx(row["recall"])
 
 
-class TestResidualEffort:
-    def test_hours_reconcile(self):
-        got = residual_effort(1000, 0.75, 60.0)
-        assert got["baseline_hours"] == pytest.approx(1000 * 60 / 3600)
-        assert got["residual_hours"] == pytest.approx(got["baseline_hours"] * 0.25)
-        assert got["hours_saved"] + got["residual_hours"] == pytest.approx(
-            got["baseline_hours"]
+class TestBandOperatingPoint:
+    """The two-bound rule the duplicate pipeline actually uses.
+
+    The single-threshold model counted every obvious non-duplicate as outstanding human
+    work and put the automated share at 1.7% where it is above 99%. These tests pin the
+    difference so it cannot come back.
+    """
+
+    def separable(self, n_pos: int = 200, n_neg: int = 800):
+        # Positives high, negatives low, well separated: both bounds are attainable, so
+        # the band is small and both ends of the automation are exercised.
+        scores = np.concatenate(
+            [np.linspace(0.75, 1.0, n_pos), np.linspace(0.0, 0.25, n_neg)]
+        )
+        labels = np.concatenate([np.ones(n_pos, int), np.zeros(n_neg, int)])
+        return scores, labels
+
+    def test_automation_counts_both_ends(self):
+        got = band_operating_point(*self.separable())
+        # The point of the rule: rejects dominate, and ignoring them loses almost all of it.
+        assert got["n_auto_rejected"] > got["n_auto_accepted"]
+        assert got["automated_share"] > 0.9
+
+    def test_the_three_outcomes_partition_the_items(self):
+        got = band_operating_point(*self.separable())
+        assert (
+            got["n_auto_accepted"] + got["n_auto_rejected"] + got["n_band"]
+            == got["n_items"]
         )
 
-    def test_full_automation_leaves_nothing(self):
-        got = residual_effort(500, 1.0, 45.0)
-        assert got["residual_hours"] == pytest.approx(0.0)
-        assert got["hours_saved"] == pytest.approx(got["baseline_hours"])
+    def test_automated_share_is_one_minus_the_band(self):
+        got = band_operating_point(*self.separable())
+        assert got["automated_share"] == pytest.approx(1.0 - got["band_fraction"])
 
-    def test_no_automation_saves_nothing(self):
-        got = residual_effort(500, 0.0, 45.0)
-        assert got["hours_saved"] == pytest.approx(0.0)
-        assert got["residual_hours"] == pytest.approx(got["baseline_hours"])
+    def test_both_ends_hold_the_floor_they_were_fitted_at(self):
+        got = band_operating_point(*self.separable(), 0.95)
+        assert got["precision_auto_accepted"] >= 0.95
+        assert got["purity_auto_rejected"] >= 0.95
+
+    def test_crossed_bounds_are_flagged_not_silently_resolved(self):
+        # A well-separated scorer makes both rules certify the same middle region: each is
+        # computed against its own denominator, so both can hold at once. The overlap is
+        # resolved to a single cut and the crossing is recorded, because an automated share
+        # computed from contradictory bounds would exceed the number of items.
+        got = band_operating_point(*self.separable(), 0.95)
+        assert got["bounds_crossed"]
+        assert got["lower"] == got["upper"]
+        assert got["n_band"] == 0
+
+    def test_uncrossed_bounds_are_not_flagged(self):
+        # Guards the guard: a fixture where the rules genuinely leave a band must not trip
+        # the flag, or the flag would say nothing.
+        scores = np.concatenate([np.linspace(0.4, 1.0, 200), np.linspace(0.0, 0.6, 800)])
+        labels = np.concatenate([np.ones(200, int), np.zeros(800, int)])
+        got = band_operating_point(scores, labels, 0.95)
+        assert not got["bounds_crossed"]
+        assert got["n_band"] > 0
+
+    def test_a_higher_floor_never_automates_more(self):
+        scores, labels = self.separable()
+        shares = [
+            band_operating_point(scores, labels, t)["automated_share"]
+            for t in (0.80, 0.90, 0.95, 0.99)
+        ]
+        assert shares == sorted(shares, reverse=True)
+
+    def test_an_unreachable_end_is_reported_not_faked(self):
+        # Nothing separable: no threshold can confidently accept, so upper is undefined and
+        # the accepted set is empty rather than being filled to make the number look better.
+        scores = np.full(100, 0.5)
+        labels = np.array([i % 2 for i in range(100)])
+        got = band_operating_point(scores, labels, 0.99)
+        assert got["upper_undefined"]
+        assert got["n_auto_accepted"] == 0
+        assert got["precision_auto_accepted"] is None
+
+    def test_automation_can_be_entirely_rejection(self):
+        # The headline shape of the real result: at a high floor nothing is confidently a
+        # duplicate, yet most pairs are still resolved without a human.
+        scores = np.concatenate([np.linspace(0.4, 0.6, 50), np.zeros(950)])
+        labels = np.concatenate([np.ones(50, int), np.zeros(950, int)])
+        got = band_operating_point(scores, labels, 0.95)
+        assert got["n_auto_accepted"] == 0
+        assert got["n_auto_rejected"] > 0
+        assert got["automated_share"] > 0.0
+
+
+class TestRejectBound:
+    def test_nothing_confidently_negative_returns_minus_inf(self):
+        # Half positive at every score: no rejected set is confidently negative, and an
+        # invented bound would silently discard real duplicates.
+        labels = np.array([i % 2 for i in range(100)])
+        assert reject_bound(np.full(100, 0.5), labels, 0.95) == float("-inf")
+
+    def test_the_rejected_set_meets_the_floor(self):
+        scores = np.concatenate([np.linspace(0.8, 1.0, 100), np.linspace(0.0, 0.2, 400)])
+        labels = np.concatenate([np.ones(100, int), np.zeros(400, int)])
+        bound = reject_bound(scores, labels, 0.95)
+        rejected = scores < bound
+        assert rejected.any()
+        assert 1.0 - labels[rejected].mean() >= 0.95
+
+
+class TestResidualEffort:
+    """Review VOLUME, not hours (ruled 2026-08-17). Handling time is not measured anywhere
+    in this project, so it must not be an input here — and it must not be reachable through
+    a default either, which is what these tests are mostly guarding."""
+
+    def test_volumes_reconcile(self):
+        got = residual_effort(1000, 0.75)
+        assert got["n_review"] == 250
+        assert got["n_automated"] == 750
+        assert got["n_automated"] + got["n_review"] == got["baseline_review"] == 1000
+
+    def test_full_automation_leaves_nothing_to_review(self):
+        got = residual_effort(500, 1.0)
+        assert got["n_review"] == 0
+        assert got["n_automated"] == 500
+
+    def test_no_automation_reviews_everything(self):
+        got = residual_effort(500, 0.0)
+        assert got["n_review"] == 500
+        assert got["n_automated"] == 0
+
+    def test_it_takes_no_handling_time_in_any_position(self):
+        # The whole point of the ruling: there is no argument to pass one into.
+        with pytest.raises(TypeError):
+            residual_effort(1000, 0.75, 60.0)  # type: ignore[call-arg]
+
+    def test_it_reports_no_hours_under_any_key(self):
+        # A key named *hours would be an assumed handling time reaching a result, which is
+        # exactly what reporting volume exists to prevent.
+        got = residual_effort(1000, 0.75)
+        assert not [k for k in got if "hour" in k or "second" in k]
+
+    def test_it_carries_the_conversion_as_a_formula(self):
+        # Declined, not forgotten: a reader with their own handling time can convert, and
+        # can see that this project did not.
+        got = residual_effort(1000, 0.75)
+        assert "n_review" in got["effort_formula"] and "3600" in got["effort_formula"]
+
+    def test_the_reduction_is_a_ratio_and_needs_no_handling_time(self):
+        # Why the volume framing costs nothing: the proportional saving is the same number
+        # whatever t turns out to be.
+        assert residual_effort(1000, 0.75)["volume_reduction"] == 0.75
+        assert residual_effort(37, 0.75)["volume_reduction"] == 0.75
 
     def test_the_inputs_are_carried_into_the_result(self):
         # A run record must be able to show what produced the number, not just the number.
-        got = residual_effort(1000, 0.75, 60.0)
+        got = residual_effort(1000, 0.75)
         assert got["n_records"] == 1000
         assert got["automated_share"] == 0.75
-        assert got["mean_seconds_per_item"] == 60.0
-
-    def test_handling_time_has_no_default(self):
-        with pytest.raises(TypeError):
-            residual_effort(1000, 0.75)  # type: ignore[call-arg]
-
-    def test_a_non_positive_handling_time_is_refused(self):
-        with pytest.raises(ValueError, match="measured by the timed annotation"):
-            residual_effort(1000, 0.75, 0.0)
 
     def test_a_share_outside_the_unit_interval_is_refused(self):
         with pytest.raises(ValueError, match="automated_share must be in"):
-            residual_effort(1000, 1.5, 60.0)
+            residual_effort(1000, 1.5)
 
     def test_a_negative_record_count_is_refused(self):
         with pytest.raises(ValueError, match="n_records must be non-negative"):
-            residual_effort(-1, 0.5, 60.0)
+            residual_effort(-1, 0.5)
