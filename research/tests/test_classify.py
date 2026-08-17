@@ -16,7 +16,11 @@ from fcesreg.classify import (
     ClassificationResult,
     Classifier,
     EmbeddingLogRegClassifier,
+    EmbeddingShortlister,
+    Shortlister,
+    TfidfShortlister,
     TfidfSvmClassifier,
+    recall_at_k,
     shortlist_codes,
 )
 
@@ -169,3 +173,83 @@ class TestShortlist:
     def test_deterministic(self, stub_encoder):
         tax = self.taxonomy()
         assert shortlist_codes("a pump", tax, k=8) == shortlist_codes("a pump", tax, k=8)
+
+
+class TestShortlisters:
+    def taxonomy(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            {
+                "cpv_code": ["3010", "3310", "4210"],
+                "cpv_description": [
+                    "computers and office machinery",
+                    "medical equipment and consumables",
+                    "industrial machinery and pumps",
+                ],
+            }
+        )
+
+    @pytest.mark.parametrize("factory", [EmbeddingShortlister, TfidfShortlister])
+    def test_both_satisfy_the_protocol(self, factory):
+        assert isinstance(factory(), Shortlister)
+
+    @pytest.mark.parametrize("factory", [EmbeddingShortlister, TfidfShortlister])
+    def test_ranking_before_fitting_is_a_loud_error(self, factory):
+        with pytest.raises(RuntimeError, match="fit\\(\\) before rank\\(\\)"):
+            factory().rank(["a pump"])
+
+    @pytest.mark.parametrize("factory", [EmbeddingShortlister, TfidfShortlister])
+    def test_an_empty_taxonomy_is_refused(self, factory):
+        with pytest.raises(ValueError, match="taxonomy is empty"):
+            factory().fit(pd.DataFrame({"cpv_code": [], "cpv_description": []}))
+
+    @pytest.mark.parametrize("factory", [EmbeddingShortlister, TfidfShortlister])
+    def test_ranking_is_a_permutation_of_the_pool(self, factory, stub_encoder):
+        s = factory(min_df=1) if factory is TfidfShortlister else factory()
+        s.fit(self.taxonomy())
+        ranked = s.rank(["a pump", "a laptop"])
+        assert ranked.shape == (2, 3)
+        for row in ranked:
+            assert sorted(row) == [0, 1, 2]
+
+    def test_tfidf_ranks_a_lexical_match_first(self):
+        # No stub encoder: this retriever must work on characters alone, and the point of
+        # measuring it is that the embedding one may not put the answer near the top.
+        s = TfidfShortlister(min_df=1)
+        s.fit(self.taxonomy())
+        assert s.rank(["industrial pumps"])[0][0] == 2
+
+    def test_corpus_text_widens_the_vocabulary_without_touching_labels(self):
+        # The corpus contributes document frequencies only; a retriever that saw the labels
+        # would not be a retriever, it would be a classifier.
+        corpus = pd.DataFrame(
+            {"title": ["centrifugal pump overhaul"], "description": [""],
+             "cpv_code": ["42100000"]}
+        )
+        s = TfidfShortlister(min_df=1)
+        s.fit(self.taxonomy(), corpus=corpus)
+        assert s.rank(["centrifugal pump overhaul"])[0][0] == 2
+
+
+class TestRecallAtK:
+    def test_counts_a_hit_only_inside_k(self):
+        ranked = np.array([[2, 0, 1], [0, 1, 2]])
+        got = recall_at_k(ranked, np.array([0, 0]), [1, 2, 3])
+        assert got["recall"][1] == 0.5
+        assert got["recall"][2] == 1.0
+        assert got["recall"][3] == 1.0
+
+    def test_a_code_absent_from_the_pool_counts_against_recall(self):
+        # Never silently excluded: a true code the retriever cannot offer is exactly the
+        # failure this measurement exists to expose.
+        got = recall_at_k(np.array([[0, 1]]), np.array([-1]), [1, 2])
+        assert got["recall"][2] == 0.0
+        assert got["n_not_in_pool"] == 1
+        assert got["mean_rank_when_found"] is None
+
+    def test_mean_rank_is_one_based_and_over_found_rows_only(self):
+        got = recall_at_k(np.array([[0, 1], [1, 0]]), np.array([0, -1]), [2])
+        assert got["mean_rank_when_found"] == 1.0
+
+    def test_mismatched_lengths_are_refused(self):
+        with pytest.raises(ValueError, match="rankings against"):
+            recall_at_k(np.array([[0, 1]]), np.array([0, 1]), [1])

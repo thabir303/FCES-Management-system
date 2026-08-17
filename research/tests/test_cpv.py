@@ -11,6 +11,7 @@ from fcesreg.cpv import (
     division,
     cpv_class,
     label_series,
+    labelled_at,
     leaf_sparsity,
     supported_labels,
 )
@@ -34,6 +35,33 @@ class TestTruncation:
         # §4.2: eight-digit classification is not viable and must not be built.
         with pytest.raises(ValueError, match="level must be one of"):
             label_series(corpus(["38510000"]), "leaf")
+
+
+class TestLabelledAt:
+    """A division-only code is not a class, and truncating it silently invents one."""
+
+    def test_a_division_only_code_has_no_class(self):
+        # 30000000 means "division 30, no class assigned". cpv_class makes it "3000",
+        # which is not a CPV class and has no taxonomy row.
+        got = labelled_at(corpus(["30000000"]), "class")
+        assert not got.iloc[0]
+        assert labelled_at(corpus(["30000000"]), "division").iloc[0]
+
+    def test_a_class_level_code_is_labelled_at_both(self):
+        for level in LEVELS:
+            assert labelled_at(corpus(["30200000"]), level).iloc[0]
+
+    def test_a_leaf_code_is_labelled_at_both(self):
+        for level in LEVELS:
+            assert labelled_at(corpus(["44316400"]), level).iloc[0]
+
+    def test_a_missing_code_is_labelled_at_neither(self):
+        for level in LEVELS:
+            assert not labelled_at(pd.DataFrame({"cpv_code": [None]}), level).iloc[0]
+
+    def test_the_leaf_level_is_still_rejected(self):
+        with pytest.raises(ValueError, match="level must be one of"):
+            labelled_at(corpus(["44316400"]), "leaf")
 
 
 class TestSupportedLabels:

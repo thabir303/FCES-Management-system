@@ -55,3 +55,50 @@ def test_a_runner_takes_a_config_not_tuning_flags(script):
         f"{script.name} exposes {sorted(added & forbidden)} as a flag; these belong in the "
         f"committed config so a run's parameters are recoverable from the repository"
     )
+
+
+class TestScoredSetSelection:
+    """`run_classify.restrict` decides what a classification figure is measured over.
+
+    It is runner code, but it is the difference between macro F1 0.560 and 0.508, so it
+    gets a real test rather than a grep. A division-only code truncates to a four-digit
+    string that is not a CPV class, and scoring it as one credits the model for
+    reproducing the absence of a label.
+    """
+
+    @pytest.fixture
+    def restrict(self):
+        import sys
+
+        sys.path.insert(0, str(repo_root() / "research" / "scripts"))
+        from run_classify import restrict
+
+        return restrict
+
+    def frame(self):
+        import pandas as pd
+
+        return pd.DataFrame(
+            {
+                "cpv_code": ["30200000", "30000000", "44316400", "99999999"],
+                "title": ["laptops", "office stuff", "hardware", "other"],
+            }
+        )
+
+    def test_a_division_only_code_is_not_scored_at_class_level(self, restrict):
+        got = restrict(self.frame(), "class", {"3020", "3000", "4431"})
+        assert sorted(got["cpv_code"]) == ["30200000", "44316400"]
+
+    def test_it_is_still_scored_at_division_level(self, restrict):
+        got = restrict(self.frame(), "division", {"30", "44"})
+        assert "30000000" in set(got["cpv_code"])
+
+    def test_the_superseded_measurement_is_still_reachable(self, restrict):
+        # Kept so the figure already reported can be reproduced, not deleted.
+        got = restrict(self.frame(), "class", {"3020", "3000", "4431"}, genuine_only=False)
+        assert "30000000" in set(got["cpv_code"])
+
+    def test_an_unsupported_label_is_excluded_either_way(self, restrict):
+        for genuine_only in (True, False):
+            got = restrict(self.frame(), "class", {"3020"}, genuine_only)
+            assert "99999999" not in set(got["cpv_code"])

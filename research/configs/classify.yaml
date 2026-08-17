@@ -25,6 +25,17 @@ min_examples: 50
 llm_sample_n: 500
 llm_sample_seed: 0
 
+# Shortlist recall at k: the CEILING on the retrieval-augmented condition, measured before
+# any quota is spent on it. The shortlist is retrieved by embedding similarity, and
+# embeddings are the weaker representation on this data (0.351 against 0.508 at class
+# level). A shortlist that omits the true code makes the model's accuracy a measurement of
+# the retriever, so the ceiling is established first and reported with the results.
+#
+# k=12 is the shortlist the condition actually sends; the others bracket it, so a reader
+# can see whether recall is limited by k or by the retriever.
+shortlist:
+  ks: [1, 3, 5, 10, 12, 20, 30, 50]
+
 # A label-noise collision found by hand in the 40-item sample: 44316400 is "hardware" in the
 # builders' ironmongery sense, and both audio-visual equipment and Navy IT equipment were
 # published under it. A character n-gram model trained on those labels may reproduce the

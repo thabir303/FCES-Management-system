@@ -25,6 +25,7 @@ the network except through an injected adjudicator-style client.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
@@ -45,7 +46,12 @@ __all__ = [
     "ClassificationResult",
     "TfidfSvmClassifier",
     "EmbeddingLogRegClassifier",
+    "Shortlister",
+    "EmbeddingShortlister",
+    "TfidfShortlister",
+    "recall_at_k",
     "shortlist_codes",
+    "taxonomy_text",
 ]
 
 #: The two levels evaluated. Leaf (8-digit) is deliberately absent — see the module
@@ -163,6 +169,108 @@ class EmbeddingLogRegClassifier:
         return ClassificationResult(codes=codes, scores=scores, alternatives=alternatives)
 
 
+def taxonomy_text(taxonomy: pd.DataFrame) -> list[str]:
+    """``"code description"`` per row — what a retriever matches a record against."""
+    return (taxonomy["cpv_code"] + " " + taxonomy["cpv_description"].fillna("")).tolist()
+
+
+@runtime_checkable
+class Shortlister(Protocol):
+    """Ranks the taxonomy against a record. The retrieval half of the RAG condition.
+
+    Separated from :func:`shortlist_codes` so that **shortlist recall at k is measurable
+    without spending a single language model call**. If the true code is not in the
+    shortlist the model cannot be right, so a measured accuracy for the condition would
+    conflate the model choosing badly with the retriever never offering the right option.
+    That ceiling is a reported result, not an implementation detail.
+    """
+
+    name: str
+
+    def fit(self, taxonomy: pd.DataFrame, corpus: pd.DataFrame | None = None) -> None: ...
+
+    def rank(self, texts: Sequence[str]) -> np.ndarray: ...
+
+
+class EmbeddingShortlister:
+    """Cosine similarity between record text and ``"code description"``.
+
+    What the paper specifies. Note it is *untrained*: it never sees a label, so it can only
+    match a record against how the taxonomy describes itself.
+    """
+
+    name = "embedding"
+
+    def __init__(self) -> None:
+        self.matrix: np.ndarray | None = None
+
+    def fit(self, taxonomy: pd.DataFrame, corpus: pd.DataFrame | None = None) -> None:
+        if taxonomy.empty:
+            raise ValueError("taxonomy is empty; there is nothing to shortlist")
+        self.matrix = embed(taxonomy_text(taxonomy))
+
+    def rank(self, texts: Sequence[str]) -> np.ndarray:
+        if self.matrix is None:
+            raise RuntimeError("fit() before rank()")
+        return np.argsort(-(embed(list(texts)) @ self.matrix.T), axis=1)
+
+
+class TfidfShortlister:
+    """Character n-gram TF-IDF, same features as :class:`TfidfSvmClassifier`.
+
+    ``corpus`` contributes only its *text* to the vectoriser's vocabulary and document
+    frequencies, never its labels — the taxonomy alone is 1,209 short strings, whose
+    document frequencies describe the taxonomy's own prose rather than the procurement
+    vocabulary a record is written in. This retriever remains untrained in the sense that
+    matters: it has no access to which code a record was published under.
+    """
+
+    name = "tfidf"
+
+    def __init__(self, ngram_range: tuple[int, int] = (2, 5), min_df: int = 2):
+        self.vectoriser = TfidfVectorizer(
+            analyzer="char_wb", ngram_range=ngram_range, sublinear_tf=True,
+            min_df=min_df, lowercase=True,
+        )
+        self.matrix = None
+
+    def fit(self, taxonomy: pd.DataFrame, corpus: pd.DataFrame | None = None) -> None:
+        if taxonomy.empty:
+            raise ValueError("taxonomy is empty; there is nothing to shortlist")
+        codes = taxonomy_text(taxonomy)
+        vocabulary = codes if corpus is None else codes + text_of(corpus).tolist()
+        self.vectoriser.fit(vocabulary)
+        self.matrix = self.vectoriser.transform(codes)
+
+    def rank(self, texts: Sequence[str]) -> np.ndarray:
+        if self.matrix is None:
+            raise RuntimeError("fit() before rank()")
+        # Both sides are L2-normalised by TfidfVectorizer, so the product is cosine.
+        similarity = (self.vectoriser.transform(list(texts)) @ self.matrix.T).toarray()
+        return np.argsort(-similarity, axis=1)
+
+
+def recall_at_k(ranked: np.ndarray, true_position: np.ndarray, ks: Sequence[int]) -> dict:
+    """Share of records whose true code appears in the top ``k`` of the ranking.
+
+    The ceiling on the retrieval-augmented condition: a language model handed a shortlist
+    missing the answer cannot produce it, and reporting that outcome as the model's
+    accuracy would measure the retriever under the model's name.
+    """
+    if len(ranked) != len(true_position):
+        raise ValueError(f"{len(ranked)} rankings against {len(true_position)} labels")
+    hit_at = np.argmax(ranked == true_position[:, None], axis=1)
+    found = (ranked == true_position[:, None]).any(axis=1)
+    # A record whose true code is absent from the pool entirely can never be retrieved;
+    # it counts against recall rather than being quietly excluded.
+    return {
+        "n": int(len(ranked)),
+        "recall": {int(k): float((found & (hit_at < k)).mean()) for k in ks},
+        "mean_rank_when_found": float(hit_at[found].mean() + 1) if found.any() else None,
+        "n_not_in_pool": int((~found).sum()),
+    }
+
+
 def shortlist_codes(
     record_text: str, taxonomy: pd.DataFrame, k: int = 12
 ) -> list[tuple[str, str]]:
@@ -172,14 +280,10 @@ def shortlist_codes(
     and the retrieval half of the retrieval-augmented condition: sending every code would
     cost far more per call and would stop the condition being a retrieval one at all.
     """
-    if taxonomy.empty:
-        raise ValueError("taxonomy is empty; there is nothing to shortlist")
-    descriptions = (
-        taxonomy["cpv_code"] + " " + taxonomy["cpv_description"].fillna("")
-    ).tolist()
-    similarity = embed(descriptions) @ embed([record_text])[0]
-    top = np.argsort(-similarity)[:k]
+    shortlister = EmbeddingShortlister()
+    shortlister.fit(taxonomy)
+    descriptions = taxonomy["cpv_description"].fillna("")
     return [
-        (taxonomy["cpv_code"].iloc[i], taxonomy["cpv_description"].fillna("").iloc[i])
-        for i in top
+        (taxonomy["cpv_code"].iloc[i], descriptions.iloc[i])
+        for i in shortlister.rank([record_text])[0, :k]
     ]

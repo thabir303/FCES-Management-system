@@ -28,7 +28,7 @@ import pandas as pd
 import yaml
 
 from fcesreg.classify import EmbeddingLogRegClassifier, TfidfSvmClassifier
-from fcesreg.cpv import label_series, supported_labels
+from fcesreg.cpv import label_series, labelled_at, supported_labels
 from fcesreg.metrics import confusion, macro_weighted_f1
 from fcesreg.paths import repo_root
 from fcesreg.runs import capture_env, new_run_id, write_run
@@ -40,7 +40,9 @@ CLASSICAL = {"tfidf_svm": TfidfSvmClassifier, "embedding_logreg": EmbeddingLogRe
 
 
 def load_partitions(cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
-    corpus = pd.read_parquet(cfg["corpus"])
+    # Anchored, not working-directory relative: a bare config path is right from the repo
+    # root and wrong from research/, which is the defect `paths.py` exists to prevent.
+    corpus = pd.read_parquet(repo_root() / cfg["corpus"])
     corpus = corpus[corpus["cpv_code"].str[:2].isin(set(cfg["divisions"]))]
     splits = load_splits()
     dev = corpus[corpus["record_id"].isin(splits.cf_dev)].reset_index(drop=True)
@@ -48,21 +50,49 @@ def load_partitions(cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
     return dev, test
 
 
-def restrict(frame: pd.DataFrame, level: str, labels: set[str]) -> pd.DataFrame:
-    return frame[label_series(frame, level).isin(labels)].reset_index(drop=True)
+def restrict(
+    frame: pd.DataFrame, level: str, labels: set[str], genuine_only: bool = True
+) -> pd.DataFrame:
+    """Records the classifier is scored on: a supported label, present at this level.
+
+    ``genuine_only`` drops records published at a coarser granularity than ``level``
+    (:func:`cpv.labelled_at`). It is the default because ``"3000"`` is not a CPV class but
+    a division-only code truncated, and scoring it as one measures the buyer's vagueness
+    rather than the record's category. The opposite setting reproduces the figure measured
+    before this was noticed, which is why it is kept rather than deleted.
+    """
+    keep = label_series(frame, level).isin(labels)
+    if genuine_only:
+        keep &= labelled_at(frame, level)
+    return frame[keep].reset_index(drop=True)
 
 
-def evaluate_level(cfg: dict, dev: pd.DataFrame, test: pd.DataFrame, level: str) -> dict:
-    labels, coverage = supported_labels(dev, level, cfg["min_examples"])
-    dev_ok, test_ok = restrict(dev, level, labels), restrict(test, level, labels)
+def evaluate_level(
+    cfg: dict, dev: pd.DataFrame, test: pd.DataFrame, level: str, genuine_only: bool = True
+) -> dict:
+    labels, _ = supported_labels(dev, level, cfg["min_examples"])
+    dev_ok = restrict(dev, level, labels, genuine_only)
+    # Re-derive support after the restriction: dropping division-only records removes the
+    # pseudo-classes outright and can push a genuine one below min_examples, and a label
+    # kept on a count it no longer has would break the guarantee the threshold exists for.
+    labels, _ = supported_labels(dev_ok, level, cfg["min_examples"])
+    dev_ok = restrict(dev_ok, level, labels, genuine_only)
+    test_ok = restrict(test, level, labels, genuine_only)
+    # Coverage stays relative to the WHOLE development partition — it is the share of the
+    # migration the classifier covers, not the share of what survived filtering.
+    coverage = float(len(dev_ok) / len(dev)) if len(dev) else 0.0
 
     ordered = sorted(labels)
     out: dict = {
         "level": level,
+        "genuine_labels_only": genuine_only,
         "n_supported_labels": len(labels),
         "train_coverage": coverage,
-        # The share the classifier declines to automate: not an error, not absent.
+        # The share the classifier declines to automate: not an error, not absent. Two
+        # causes, reported apart because they are different problems — a class too rare to
+        # learn, and a record the buyer never assigned a class to at all.
         "test_routed_to_review": 1.0 - len(test_ok) / len(test) if len(test) else 0.0,
+        "test_unspecified_at_level": float((~labelled_at(test, level)).mean()),
         "n_train": len(dev_ok),
         "n_test": len(test_ok),
         "conditions": {},
@@ -146,6 +176,21 @@ def main(argv: list[str] | None = None) -> int:
     metrics: dict = {"levels": {}, "conditions_run": sorted(CLASSICAL)}
     for level in cfg["levels"]:
         metrics["levels"][level] = evaluate_level(cfg, dev, test, level)
+        # Where division-only codes exist at this level, the superseded figure is measured
+        # too and kept beside the primary one, so a number that has already been reported
+        # is seen to change rather than quietly changing.
+        if metrics["levels"][level]["test_unspecified_at_level"]:
+            print("  --- including division-only codes as classes (superseded) ---")
+            superseded = evaluate_level(cfg, dev, test, level, genuine_only=False)
+            metrics["levels"][level]["including_unspecified"] = {
+                "n_test": superseded["n_test"],
+                "n_supported_labels": superseded["n_supported_labels"],
+                "test_routed_to_review": superseded["test_routed_to_review"],
+                "conditions": {
+                    name: {k: v for k, v in got.items() if k in ("macro_f1", "weighted_f1", "accuracy")}
+                    for name, got in superseded["conditions"].items()
+                },
+            }
 
     if args.per_class:
         for level, result in metrics["levels"].items():

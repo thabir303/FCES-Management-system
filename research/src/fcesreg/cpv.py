@@ -27,6 +27,7 @@ __all__ = [
     "division",
     "cpv_class",
     "label_series",
+    "labelled_at",
     "build_taxonomy",
     "supported_labels",
     "leaf_sparsity",
@@ -57,6 +58,33 @@ def label_series(df: pd.DataFrame, level: Level, column: str = "cpv_code") -> pd
         raise ValueError(f"level must be one of {LEVELS}, got {level!r}")
     fn = division if level == "division" else cpv_class
     return df[column].fillna("").map(fn)
+
+
+def labelled_at(df: pd.DataFrame, level: Level, column: str = "cpv_code") -> pd.Series:
+    """Whether each record carries a label *at* ``level``, rather than only above it.
+
+    A buyer may publish ``30000000``, which is division 30 with no class assigned.
+    :func:`cpv_class` truncates it to ``"3000"``, and ``"3000"`` is not a CPV class — the
+    taxonomy has no such row. Scoring those records at class level measures whether a
+    classifier can predict that *the buyer was vague*, which is a property of publishing
+    practice and not of the record, and it credits the model for reproducing a non-answer.
+
+    22.6% of the development partition and 15.3% of the test partition are published this
+    way. They are routed to review at class level, for the same reason a label with too few
+    examples is: there is no class-level ground truth to be right or wrong about.
+    """
+    if level not in LEVELS:
+        raise ValueError(f"level must be one of {LEVELS}, got {level!r}")
+    width = 2 if level == "division" else 4
+
+    def carries(code: str) -> bool:
+        # A missing code is unlabelled at every level. Without this guard `_level_of("")`
+        # returns 8 — it ends with neither run of zeros — so an absent code would claim
+        # the finest granularity of all, which is the estimating-the-unmeasured defect
+        # in its purest form.
+        return len(code) == 8 and code.isdigit() and _level_of(code) >= width
+
+    return df[column].fillna("").astype(str).map(carries)
 
 
 def _level_of(code: str) -> int:
