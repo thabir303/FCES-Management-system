@@ -383,12 +383,22 @@ continue to use the corpus in full.
 
 Labels assigned by purchasing authorities are not error free, and the
 publisher documents known quality issues in the released data
-\cite{contractsfinder}. A stratified sample is therefore manually
-reviewed to estimate label noise, and the estimated noise rate is
-reported alongside the classification results so that measured accuracy
-can be interpreted against the ceiling the labels themselves impose.
-The sample comprises [TBC] records, and the observed rate of
-disagreement with the published code is [TBC].
+\cite{contractsfinder}. A stratified sample is therefore reviewed to estimate label noise, and
+the rate is reported alongside the classification results. The sample
+comprises [TBC] records, and the observed rate of disagreement with the
+published code is [TBC].
+
+Reporting the rate is not sufficient on its own, because label noise does
+not act only as a ceiling on measured accuracy. Where the mislabelling is
+systematic rather than clerical, a classifier trained on those labels
+learns the error and is scored as correct for reproducing it, so measured
+accuracy overstates the accuracy a user would experience. The direction
+matters: a ceiling makes a result pessimistic, whereas a learned and
+rewarded error makes it optimistic, and the second is the more dangerous
+reading to leave uncorrected. Where the manual review identifies a
+recurring mislabelling, the per-class results are examined for evidence
+that the classifiers reproduce it, and the finding is reported with the
+records concerned rather than inferred from the aggregate.
 
 \subsection{Degradation Model}
 
