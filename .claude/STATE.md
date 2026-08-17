@@ -32,7 +32,8 @@ auto-accepts).
   *worse* (0.432) — cold matching needs semantics, learned matching needs exact tokens.
   Proposal sent: send all 74 codes, no shortlist (ceiling 1.000, 3.6 days at n=500).
 - **Handling time needs the author**: `annotate.py --timing-only 15`, ~8 min. Label noise
-  is done (13.2%, CI 5.8%–27.3%, n=38); a model timing its own reading measures latency. **Open:** `normalise_key` separator-blindness; page budget in no amendment.
+  is done (13.2%, CI 5.8%–27.3%, n=38); a model timing its own reading measures latency.
+- **Open:** `normalise_key` separator-blindness; page budget in no amendment.
 
 ## Next three tasks in §11 order
 
@@ -45,9 +46,8 @@ auto-accepts).
 
 ## Gotchas that are not plan amendments
 
-- Quota: 200k/day binds before 1000 requests/day → **~310 adjudications/day** at 638 tok
-  each; RQ2 is 784 tok/record at k=12, ~1,421 with all 74 codes. Cascade sev 0.5
-  subsampled to **m=800** stratified by label — full band costs 6.1 days against 2.6.
+- Quota: 200k/day binds before 1000/day → **~310 adjudications/day** at 638 tok; RQ2 is 784
+  tok/record at k=12, ~1,421 with all 74. Cascade sev 0.5 subsampled to **m=800** by label.
 - TeX at `/Library/TeX/texbin`; `make paper` prepends it. `make experiments` names unbuilt
   runners; **`make data` is a real break** — no `build_taxonomy.py`. Blocking figures in
   `results/runs/` are **severity-free**.
