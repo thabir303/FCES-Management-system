@@ -16,19 +16,26 @@ Session handoff. Volatile — update at the end of every §11 task. Hard cap 60 
 
 ## Current task
 
-**C6, C8 closed.** Wilson floor adopted (one-sided 95%) in `select_threshold` and
-`automated_share_at_precision`: 0.95 needs ≥52 accepted items, 0.99 needs 268, 1.0 is
-unreachable at any n. Amendment 8: **Corpus B carries no precision or F1** (42.0%
-contamination, CI 29.4%–55.8%); Corpus A carries precision, F1, RQ3.
+**C7 classical done.** Division macro F1 **0.759** tfidf / 0.709 embed; class **0.560** /
+0.410 over 74 genuine classes, **25.8% routed to review**. TF-IDF wins 69 of 74 classes;
+embeddings score exactly 0.00 on small lexically-distinctive ones. 4431 collision
+propagated — P 0.359 R 0.301, 28 of 78 predictions scored correct on IT procurements.
 
-**Cascade results so far** — sev 0.0: band 6.6%, R 0.553 P 0.983. sev 0.15: band 14.7%,
-R 0.417, **P combined 0.851 — below the 0.95 floor**. The threshold constrains only what
-it auto-accepts; nothing constrains the adjudicator, so both precisions are now reported
-per severity. Where upper is undefined nothing is auto-accepted and the combined figure
-is entirely the adjudicator's.
+**`labelled_at` corrects a reported number.** `30000000` truncated to class `"3000"`,
+which is not a CPV class; 22.6% dev / 15.3% test publish that way. Now routed to review.
+Class macro F1 0.508→0.560, routed 10.7%→25.8%. Superseded figure kept beside it.
+
+C6/C8 closed: Wilson floor one-sided 95% (0.95 needs ≥52 accepted, 0.99 needs 268, 1.0
+unreachable). Amendment 8: **Corpus B carries no precision or F1** (42.0% contamination).
+Cascade sev 0.0 band 6.6% R 0.553 P 0.983; sev 0.15 band 14.7% R 0.417 **P combined
+0.851**. Both precisions reported per severity — the threshold binds only auto-accepts.
 
 ## Blocked or waiting on the supervisor
 
+- **Shortlist recall gates 2 quota days.** Embedding retrieval @12 = **0.682** on the
+  74-code supported pool, 0.260 on the full 1,209-class taxonomy. TF-IDF retrieval is
+  *worse* (0.432) — cold matching needs semantics, learned matching needs exact tokens.
+  Proposal sent: send all 74 codes, no shortlist (ceiling 1.000, 3.6 days at n=500).
 - **Handling time needs the author**: `annotation/annotate.py --timing-only 15`, ~8 min.
   Label noise is done (13.2%, CI 5.8%–27.3%, n=38 decided, judged by Claude). A model
   must not time its own reading — that measures LLM latency, and RQ3 derives residual
@@ -37,9 +44,9 @@ is entirely the adjudicator's.
 
 ## Next three tasks in §11 order
 
-1. **C7 `classify.py` + `run_classify.py`** — RQ2 has NO implementation. Highest
-   priority. Classical pair (TF-IDF+SVM, embed+logreg) costs no quota; LLM condition
-   **n=500** (ruled), ~2.0 days, waits behind the sweep.
+1. **System, stopping at the ruled line** — schema incl. six review-queue logging fields,
+   asset CRUD + list/detail, bulk import wizard, review queue. Nothing past it before
+   the report ships (QR, floor plan, reminders, role UI, audit browser are 14 Sep).
 2. **`run_transfer.py`** — recall + pair completeness only (amendment 8).
 3. **Amendment 9** — §10 omits the Corpus A sweep and still puts the cascade in the cf
    sweep; the paper now says Corpus A only. Plus the naive-floor write-up.
@@ -58,7 +65,7 @@ is entirely the adjudicator's.
 
 ## Last verified
 
-**2026-08-15** — `make test`: 391 passed + 2 skipped (research), 26 (annotation), from
-the repository root, `research/` and `/tmp`. `make paper`: clean, 7 pages.
-`judge_distractors.py --summary` still reproduces 42.0% (CI 29.4%–55.8%) after
-`wilson_interval` moved into `fcesreg.metrics`.
+**2026-08-17** — `make test`: 460 passed + 4 skipped (research), 28 (annotation),
+identical from the repository root, `research/` and `/tmp`. Today's cascade quota is
+spent (300 live adjudications, 203k tokens); `run_classify` and `run_shortlist` re-run
+on a clean tree after commit `18cccb9`.
