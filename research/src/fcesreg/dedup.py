@@ -246,6 +246,15 @@ class CascadeMatcher:
         if n_band > self.max_adjudications:
             raise AdjudicationBudgetExceeded(n_band, self.max_adjudications)
 
+        # How each pair was decided, kept so a caller can score the auto-accepted portion
+        # separately from the whole. The threshold constrains only what it accepts without
+        # adjudication; nothing constrains the adjudicator, so the two precisions can
+        # diverge and the combined figure can fall below the floor the design exists to
+        # hold. Reporting only the combined figure hides which half moved.
+        self.last_decision = np.where(
+            in_band, "adjudicated", np.where(base_scores >= self.upper, "accept", "reject")
+        )
+
         out = (base_scores >= self.upper).astype(np.float64)
         if n_band:
             verdicts = np.asarray(
@@ -262,6 +271,8 @@ class CascadeMatcher:
             "n_pairs": int(len(pairs)),
             "n_adjudicated": n_band,
             "band_fraction": (n_band / len(pairs)) if len(pairs) else 0.0,
+            "n_auto_accepted": int((self.last_decision == "accept").sum()),
+            "n_auto_rejected": int((self.last_decision == "reject").sum()),
             "lower": float(self.lower),
             "upper": float(self.upper),
             "upper_undefined": bool(np.isinf(self.upper)),

@@ -156,6 +156,39 @@ class TestDecisions:
         assert set(np.unique(out)) <= {0.0, 1.0}
 
 
+class TestDecisionProvenance:
+    """Which half of the cascade decided a pair, so the two precisions can be told apart.
+
+    The selection procedure constrains only the auto-accepted portion. Nothing constrains
+    the adjudicator, so the combined output can fall below the target the design exists to
+    hold — and reporting only the combined figure would charge that to a threshold that
+    never saw the pairs.
+    """
+
+    def test_every_pair_is_labelled_with_how_it_was_decided(self):
+        scores = np.array([0.9, 0.5, 0.1])
+        c = CascadeMatcher(FixedBase(scores), 0.3, 0.7, RecordingAdjudicator())
+        c.score_pairs(_pairs(3), _records(3))
+        assert list(c.last_decision) == ["accept", "adjudicated", "reject"]
+
+    def test_the_three_counts_partition_the_pairs(self):
+        rng = np.random.default_rng(1)
+        scores = rng.random(100)
+        c = CascadeMatcher(FixedBase(scores), 0.3, 0.7, RecordingAdjudicator())
+        c.score_pairs(_pairs(100), _records(100))
+        s = c.stats
+        assert s["n_auto_accepted"] + s["n_auto_rejected"] + s["n_adjudicated"] == s["n_pairs"]
+
+    def test_an_undefined_upper_auto_accepts_nothing(self):
+        # Then the combined precision is entirely the adjudicator's, and there is no
+        # auto-accepted precision to report at all.
+        scores = np.array([0.9, 0.5, 0.1])
+        c = CascadeMatcher(FixedBase(scores), 0.3, float("inf"), RecordingAdjudicator())
+        c.score_pairs(_pairs(3), _records(3))
+        assert c.stats["n_auto_accepted"] == 0
+        assert "accept" not in set(c.last_decision)
+
+
 class TestUndefinedUpperThreshold:
     """Where no threshold meets the precision target, upper is inf. That is a result."""
 

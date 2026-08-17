@@ -149,6 +149,46 @@ def run_free_matchers(cfg: dict, corpus: str) -> list[dict]:
     return rows
 
 
+def stratified_subsample(pairs: pd.DataFrame, n: int, seed: int) -> pd.DataFrame:
+    """``n`` pairs drawn stratified by label, so the positive rate is preserved exactly.
+
+    Not the band subsampling rejected in §10.1. The *whole* band of this subsample is
+    adjudicated, so the cascade's behaviour on it is exact; only the population is smaller,
+    and the cost is a wider interval rather than an estimate in place of a measurement.
+    """
+    rng = np.random.default_rng(seed)
+    take = []
+    for label, block in pairs.groupby("label", sort=True):
+        k = round(n * len(block) / len(pairs))
+        idx = rng.choice(len(block), size=min(k, len(block)), replace=False)
+        take.append(block.iloc[np.sort(idx)])
+    return pd.concat(take).sort_index().reset_index(drop=True)
+
+
+def split_precision(pairs: pd.DataFrame, decision: np.ndarray, scores: np.ndarray) -> dict:
+    """Precision of the auto-accepted portion beside precision of the combined output.
+
+    **The selection procedure constrains only the first.** A threshold is chosen so that
+    what it accepts without adjudication meets the target; nothing constrains what the
+    adjudicator then does with the band. Where the upper threshold is undefined, nothing is
+    auto-accepted at all and the combined figure is entirely the adjudicator's. Reporting
+    only the combined number would attribute the adjudicator's errors to a threshold that
+    never saw those pairs.
+    """
+    labels = pairs["label"].to_numpy()
+    predicted = (scores >= 0.5).astype(int)
+
+    auto = decision == "accept"
+    out = {"n_auto_accepted": int(auto.sum())}
+    if auto.any():
+        out["precision_auto_accepted"] = prf1(labels[auto], predicted[auto])["precision"]
+    else:
+        # Unmeasured is not estimated: with no auto-accepted pairs there is no such
+        # precision, and 0.0 would read as a measured failure rather than an empty set.
+        out["precision_auto_accepted"] = None
+    return out
+
+
 def run_cascade(cfg: dict, client: LLMClient) -> list[dict]:
     """Corpus A only, three severities, one repetition, every pair in the band adjudicated."""
     settings = cfg["cascade"]
@@ -161,9 +201,16 @@ def run_cascade(cfg: dict, client: LLMClient) -> list[dict]:
     adjudicator = LLMAdjudicator(
         client, condition=settings["condition"], max_tokens=settings["max_tokens"]
     )
+    subsamples = {s["severity"]: s for s in settings.get("subsample", [])}
+
     rows = []
     for severity in settings["severities"]:
         records, dev, test = build_abtbuy(cfg, severity, settings["seed"])
+        drawn = subsamples.get(severity)
+        if drawn:
+            test = stratified_subsample(test, drawn["n"], drawn["seed"])
+            print(f"  sev {severity}: subsampled to {len(test)} pairs "
+                  f"({int(test['label'].sum())} positive), whole band adjudicated")
         base = FREE_MATCHERS[settings["base"]]()
         dev_scores = base.score_pairs(dev, records)
         labels = dev["label"].to_numpy()
@@ -178,16 +225,27 @@ def run_cascade(cfg: dict, client: LLMClient) -> list[dict]:
             f"{'-inf' if np.isinf(lower) else f'{lower:.4f}'}, upper "
             f"{'inf (nothing auto-accepted)' if np.isinf(upper) else f'{upper:.4f}'}"
         )
-        got = evaluate(cascade, test, records, 0.5)
+        scores = cascade.score_pairs(test, records)
+        got = prf1(test["label"].to_numpy(), (scores >= 0.5).astype(int))
+        got["threshold"] = None if np.isinf(upper) else float(upper)
+        split = split_precision(test, cascade.last_decision, scores)
         rows.append(
             {"matcher": "cascade", "severity": severity, "seed": settings["seed"],
-             **got, **cascade.stats}
+             "n_subsampled": len(test) if drawn else None,
+             **got, **split, **cascade.stats}
         )
+        auto = split["precision_auto_accepted"]
         print(
             f"    adjudicated {cascade.stats['n_adjudicated']}/{cascade.stats['n_pairs']} "
             f"({cascade.stats['band_fraction']:.1%})  R {got['recall']:.3f}  "
-            f"P {got['precision']:.3f}  F1 {got['f1']:.3f}"
+            f"P combined {got['precision']:.3f}  "
+            f"P auto-accepted {'n/a (nothing auto-accepted)' if auto is None else f'{auto:.3f}'}"
         )
+        if auto is not None and got["precision"] < cfg["precision_target"] <= auto:
+            print(
+                f"      NOTE: the threshold held {cfg['precision_target']} on what it "
+                f"accepted, but the combined output did not. The gap is the adjudicator's."
+            )
     return rows
 
 

@@ -496,10 +496,22 @@ minimum on accepted pairs would not.
 The target is not always attainable. Where no threshold on the base
 similarity reaches the required precision, the upper threshold is
 undefined, nothing is accepted without adjudication, and the band extends
-to every pair not confidently rejected. This is reported rather than
-avoided: the severity at which the target ceases to be reachable by a
-base matcher alone is itself a result, and it bounds what any pipeline of
-this shape can offer on records of that quality. The proportion of pairs reaching the language model, and the resulting
+to every pair not confidently rejected. This is reported, not avoided: the severity at which the target ceases to
+be reachable by a base matcher alone is itself a result, and it bounds
+what any pipeline of this shape can offer on records of that quality.
+
+A distinction follows that the cascade's structure makes easy to miss.
+The threshold guarantees the target only on the pairs it accepts without
+adjudication. Pairs resolved by the language model carry no such
+guarantee, since no threshold governs them, so the precision of the
+cascade's combined output is not bounded below by the target and may fall
+beneath it. Both quantities are therefore reported: the precision of the
+auto-accepted portion, which the selection procedure constrains, and the
+precision of the combined output, which it does not. Where the two
+diverge the difference is attributable to the adjudicator, and the
+severity at which the combined output first falls below the target is
+reported as the point beyond which the pipeline cannot deliver the
+guarantee it was designed around. The proportion of pairs reaching the language model, and the resulting
 cost per thousand records, are reported alongside accuracy, because a
 cascade that improves accuracy at unbounded cost is not a usable result.
 

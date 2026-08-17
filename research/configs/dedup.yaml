@@ -36,6 +36,18 @@ cascade:
   # its cost or fails to, so a level at or near it is the one that must not be missed.
   severities: [0.0, 0.15, 0.5]
   seed: 0
+  # At severity 0.5 neither bound is defined, so the band is every pair and the full test
+  # split would cost 6.1 days of quota against 2.6 for this. The trend across 0.0 and 0.15
+  # is already coherent in band, recall and precision, so the third point establishes where
+  # the curve lands under heavy degradation rather than resolving it to ±6.7pp; ±10.3pp
+  # costs 3.5 fewer days. **Not the band subsampling §10.1 rejected** — the whole band of
+  # this subsample is adjudicated, so the cascade's behaviour on it is exact and only the
+  # population is smaller. Report n and the interval with the figure.
+  subsample:
+    - severity: 0.5
+      n: 800
+      seed: 0
+
   # Runaway guard, not a budget. A band above this raises rather than adjudicating a prefix.
   max_adjudications: 5000
   condition: cascade
