@@ -1,0 +1,21 @@
+collision_check:
+  code: '4431'
+  label: builders' ironmongery 'hardware' vs AV/IT equipment
+  level: class
+corpus: data/processed/corpus_b_contractsfinder.parquet
+divisions:
+- '30'
+- '31'
+- '32'
+- '33'
+- '38'
+- '42'
+- '43'
+- '44'
+levels:
+- division
+- class
+llm_sample_n: 500
+llm_sample_seed: 0
+min_examples: 50
+taxonomy: data/processed/cpv_taxonomy.parquet

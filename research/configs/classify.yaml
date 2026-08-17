@@ -1,0 +1,36 @@
+# CPV classification, three conditions (§6.10, §10, C7).
+#
+# Committed; runners take no tuning flags.
+
+corpus: data/processed/corpus_b_contractsfinder.parquet
+taxonomy: data/processed/cpv_taxonomy.parquet
+divisions: ["30", "31", "32", "33", "38", "42", "43", "44"]
+
+levels: ["division", "class"]
+
+# Class-level evaluation is restricted to labels with at least this many training records.
+# The restriction is a REPORTED number, not an internal threshold: it is the share of the
+# migration the classifier declines to automate, and RQ3's automated share must account for
+# it. Records whose true label is unsupported are routed to review, never discarded (§6.10).
+min_examples: 50
+
+# The language model condition runs on a stratified sample of the test partition; the
+# classical pair also report on that same sample alongside their full-partition figures, so
+# the three are compared on identical data.
+#
+# n=500 rather than 1000 (ruled): 2.0 quota days against 3.9, and the extra resolution buys
+# less than it costs while the cascade sweep competes for the same allowance. At CLASS level
+# 500 is thin, and that comparison is reported as underpowered rather than as equal in
+# weight to the division-level one.
+llm_sample_n: 500
+llm_sample_seed: 0
+
+# A label-noise collision found by hand in the 40-item sample: 44316400 is "hardware" in the
+# builders' ironmongery sense, and both audio-visual equipment and Navy IT equipment were
+# published under it. A character n-gram model trained on those labels may reproduce the
+# collision and be scored CORRECT for doing so. Checked explicitly rather than noticed in
+# passing, and reported either way — a clean negative is informative and costs a sentence.
+collision_check:
+  level: class
+  code: "4431"
+  label: "builders' ironmongery 'hardware' vs AV/IT equipment"
