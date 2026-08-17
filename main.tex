@@ -643,9 +643,27 @@ is measured there.
 
 Operational measures are reported for every method: mean processing
 latency per record, monetary cost per thousand records for any method invoking a language
-model, costed at the published rate card recorded with the run, and the automated share, defined as the
-proportion of records the pipeline resolves without human intervention
-while holding precision at or above the target specified in RQ3.
+model, costed at the published rate card recorded with the run, and the automated share, defined as the proportion of records the
+pipeline resolves without human intervention while holding precision at
+or above the target specified in RQ3.
+
+The automated share is not one quantity. It comprises confident
+acceptance and confident rejection, and the two carry asymmetric risk. A
+wrong acceptance creates a false merge, which a subsequent reader can
+see and undo, and which the precision floor is fitted to bound. A wrong
+rejection lets a duplicate pass into the register unreviewed, where it is
+indistinguishable from a genuine second item and inflates the recorded
+holdings; nothing in the selection procedure bounds it, and no one ever
+looks at it. That is the harm this paper opens by describing, so
+automation that produces it cannot be reported as though it were free.
+
+Both sides are therefore reported at every operating point: the precision
+of the accepted set, and the number and proportion of true duplicates
+discarded by confident rejection without reaching review. The second is
+reported in absolute terms as well as as a rate, since a faculty
+deciding whether to adopt the pipeline is choosing how many undetected
+duplicates to accept in exchange for how much review it avoids, and that
+trade is legible in counts and not in percentages.
 Residual manual effort is reported as the count and proportion of records
 the pipeline routes to review, and total effort is expressed as that
 count multiplied by a per record handling time and not fixed by a single
