@@ -86,9 +86,15 @@ def recall_at(scores: np.ndarray, labels: np.ndarray, threshold: float) -> float
 
 
 def blocking_completeness(records: pd.DataFrame, truth: pd.DataFrame, cfg: dict) -> dict:
-    """Pair completeness under the Corpus A configuration, applied unchanged."""
+    """Pair completeness under the Corpus A configuration, applied unchanged.
+
+    The block-size cap is reported alongside, because completeness lost to *dropping
+    oversized blocks* and completeness lost to *the key not grouping duplicates together*
+    are different failures with different fixes, and the ratio between the two corpora is
+    uninterpretable without knowing which one moved.
+    """
     block = cfg["blocking"]
-    pairs, _ = candidate_pairs(
+    pairs, reports = candidate_pairs(
         records,
         [block["scheme"]],
         max_block_size=block["max_block_size"],
@@ -99,7 +105,16 @@ def blocking_completeness(records: pd.DataFrame, truth: pd.DataFrame, cfg: dict)
             }
         },
     )
-    return evaluate_blocking(pairs, truth, n_records=len(records))
+    got = evaluate_blocking(pairs, truth, n_records=len(records))
+    for report in reports:
+        got |= {
+            "blocks_dropped": report.blocks_dropped,
+            "records_in_dropped_blocks": report.records_in_dropped_blocks,
+            "n_unblocked_records": report.n_unblocked_records,
+            "largest_block": report.largest_block,
+            "n_blocks": report.n_blocks,
+        }
+    return got
 
 
 def fit_on_corpus_a(cfg: dict) -> dict[str, float]:
@@ -177,6 +192,16 @@ def paired(cfg: dict, severity: float, thresholds: dict[str, float]) -> list[dic
                 ),
                 "reduction_ratio_corpus_a": a_block["reduction_ratio"],
                 "reduction_ratio_corpus_b": b_block["reduction_ratio"],
+                "blocks_dropped_corpus_a": a_block.get("blocks_dropped"),
+                "blocks_dropped_corpus_b": b_block.get("blocks_dropped"),
+                "records_in_dropped_blocks_corpus_a": a_block.get(
+                    "records_in_dropped_blocks"
+                ),
+                "records_in_dropped_blocks_corpus_b": b_block.get(
+                    "records_in_dropped_blocks"
+                ),
+                "largest_block_corpus_a": a_block.get("largest_block"),
+                "largest_block_corpus_b": b_block.get("largest_block"),
             }
         )
     return rows
@@ -218,9 +243,19 @@ def main(argv: list[str] | None = None) -> int:
     print()
     rows: list[dict] = []
     for severity in cfg["severities"]:
-        for row in paired(cfg, severity, thresholds):
-            rows.append(row)
+        batch = paired(cfg, severity, thresholds)
+        rows.extend(batch)
+        for row in batch:
             show(row)
+        first = batch[0]
+        print(
+            f"      blocking: A dropped {first['blocks_dropped_corpus_a']} blocks "
+            f"({first['records_in_dropped_blocks_corpus_a']} records, largest "
+            f"{first['largest_block_corpus_a']})   B dropped "
+            f"{first['blocks_dropped_corpus_b']} blocks "
+            f"({first['records_in_dropped_blocks_corpus_b']} records, largest "
+            f"{first['largest_block_corpus_b']})"
+        )
 
     metrics = {
         "withheld": (
