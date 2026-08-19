@@ -1,0 +1,27 @@
+blocking:
+  max_block_size: 500
+  min_overlap: 8
+  mode: per_gram
+  n: 3
+  scheme: sorted_ngrams
+corpus_a: /Users/tanvirhasanabir/Documents/FCES/data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: /Users/tanvirhasanabir/Documents/FCES/data/processed/corpus_a_abtbuy_pairs.parquet
+corpus_b: /Users/tanvirhasanabir/Documents/FCES/data/processed/corpus_b_contractsfinder.parquet
+divisions:
+- '30'
+- '31'
+- '32'
+- '33'
+- '38'
+- '42'
+- '43'
+- '44'
+measures:
+- recall
+- pair_completeness
+precision_target: 0.95
+seed: 0
+severities:
+- 0.0
+- 0.25
+- 0.5
