@@ -1,0 +1,33 @@
+# External Validation: what transfers from the benchmark corpus to the procurement one
+# (§10, G10, amendment 8).
+#
+# Committed; runners take no tuning flags.
+
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: data/processed/corpus_a_abtbuy_pairs.parquet
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+divisions: ["30", "31", "32", "33", "38", "42", "43", "44"]
+
+# **Recall and pair completeness only.** Corpus B's negative set carries 42.0% measured
+# contamination (Wilson 95% CI 29.4%–55.8%, amendment 8), which corrupts precision directly
+# while leaving both of these untouched: recall is computed over duplicates whose membership
+# is known by construction, and pair completeness likewise. Precision and F1 are not
+# computed here at all — not as a headline, not as a lower bound.
+measures: ["recall", "pair_completeness"]
+
+# Severities the paired comparison is made at. The transfer question is asked at each,
+# because a configuration that transfers on clean records need not transfer on messy ones,
+# and that difference is the finding rather than a caveat.
+severities: [0.0, 0.25, 0.5]
+seed: 0
+
+precision_target: 0.95
+
+# Selected on the Corpus A DEV partition and carried across UNCHANGED. Nothing is refitted
+# on Corpus B; any completeness the transfer loses is reported, never recovered.
+blocking:
+  scheme: sorted_ngrams
+  n: 3
+  mode: per_gram
+  min_overlap: 8
+  max_block_size: 500
