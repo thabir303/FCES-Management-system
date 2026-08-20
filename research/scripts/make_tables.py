@@ -279,6 +279,36 @@ def table_classification(run: dict) -> str:
     )
 
 
+def table_costs(run: dict) -> str:
+    """T8_cost: cascade throughput and notional cost per 1,000 pairs, per severity.
+
+    **Not yet registered in BUILDERS.** ``run_costs.py`` deduplicates the live ledger by
+    ``prompt_sha256`` so this is already immune to replay inflation, but the band fraction
+    and ``n_pairs`` it reads come from a ``run_dedup --cascade`` record that is not yet a
+    finished 1,209/1,209 -- wire this in once that run lands, so the table reports the
+    completed cascade rather than a partial day's.
+    """
+    m = run["metrics"]
+    latency = "n/a" if m["mean_latency_ms"] is None else f"{m['mean_latency_ms']:.0f}"
+    rows = ["Sev. & Band & Adjudicated/Pairs & USD/1000 & Tokens/1000 \\\\\n\\hline\n"]
+    for row in m["band"]:
+        rows.append(
+            f"{row['severity']} & {row['band_fraction']:.1%} & "
+            f"{row['n_adjudicated']}/{row['n_pairs']} & "
+            f"{row['usd_per_1000']:.4f} & {row['tokens_per_1000']:.0f} \\\\\n"
+        )
+    caption = (
+        f"Cascade cost, deduplicated by prompt across every day the sweep took: "
+        f"{m['n_calls']} distinct adjudications, mean latency {latency}\\,ms over live "
+        f"calls only, throughput "
+        f"{m['throughput_per_day']['calls_per_day']:.0f}/day bound by "
+        f"{_esc(m['throughput_per_day']['binding_limit'])}. \\$0.00 actual spend; USD is "
+        "notional at the ledger's rate card. Band fraction and pair counts from "
+        f"{_esc(m['dedup_run_id'])}."
+    )
+    return _wrap("".join(rows), caption, "tab:costs", run["run_id"], "lrrrr")
+
+
 def table_transfer(run: dict) -> str:
     """External Validation: pair completeness (and recall, where a threshold exists) at
     each severity, Corpus A carried to Corpus B unchanged.
@@ -318,6 +348,7 @@ BUILDERS = {
     "run_blocking": {"T3_blocking.tex": table_blocking},
     "run_classify": {"T6_classification.tex": table_classification},
     # "run_transfer": {"T9_transfer.tex": table_transfer},  # pending: see table_transfer docstring
+    # "run_costs": {"T8_cost.tex": table_costs},  # pending: see table_costs docstring
     "run_profile": {
         "T1_corpus_a.tex": table_corpus_a,
         "T1_corpus_b.tex": table_corpus_b,

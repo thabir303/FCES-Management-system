@@ -1,0 +1,13 @@
+# T8_cost (§11, PROJECT_PLAN.md line 1471): ms/record, tokens/1000 and notional USD/1000 at
+# the ledger's own rate card, rate-limit-bound throughput, measured cascade band fraction.
+#
+# Committed; runners take no tuning flags.
+
+condition: cascade
+llm_config: research/configs/llm.yaml
+
+# The run_dedup cascade run to read band_fraction / n_pairs / n_adjudicated from, per
+# severity. `null` means "the most recent clean run_dedup --cascade record" -- set once
+# tomorrow's cascade completes at 1,209/1,209, so the reported figure is the finished run,
+# not a partial day's.
+run_dedup_run_id: null
