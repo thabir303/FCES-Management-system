@@ -1,0 +1,51 @@
+{
+  "corpora": {
+    "corpus_a": {
+      "caps": [
+        {
+          "blocks_dropped": 0,
+          "cap_applied": 10000,
+          "completed": true,
+          "largest_block": 361,
+          "max_block_size": 10000,
+          "n_blocks": 19499,
+          "n_candidates": 28102,
+          "pair_completeness": 0.24757281553398058,
+          "records_in_dropped_blocks": 0,
+          "reduction_ratio": 0.988091757285758,
+          "seconds": 0.7767577910562977,
+          "short_titles": {
+            "median_grams_per_title": 32.0,
+            "n_records": 2173,
+            "n_short_titles": 3,
+            "short_title_share": 0.0013805798435342844
+          }
+        }
+      ]
+    },
+    "corpus_b": {
+      "caps": [
+        {
+          "blocks_dropped": 8,
+          "cap_applied": 10000,
+          "completed": true,
+          "largest_block": 9605,
+          "max_block_size": 10000,
+          "n_blocks": 41335,
+          "n_candidates": 90883051,
+          "pair_completeness": 0.4409389197375063,
+          "records_in_dropped_blocks": 97882,
+          "reduction_ratio": 0.9348633136793254,
+          "seconds": 438.09778445900884,
+          "short_titles": {
+            "median_grams_per_title": 33.0,
+            "n_records": 52826,
+            "n_short_titles": 609,
+            "short_title_share": 0.011528414038541627
+          }
+        }
+      ]
+    }
+  },
+  "severity": 0.25
+}
