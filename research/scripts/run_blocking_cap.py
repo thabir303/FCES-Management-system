@@ -13,14 +13,20 @@ is what a binding guard looks like; on Corpus A the cap is nearly inert.
 strings share every gram, so a pair that fails to block fails for a mechanical reason and
 not because degradation destroyed the text they had in common.
 
-Two mechanisms are separated, because they have different fixes:
+**Every (corpus, cap) measurement runs in an isolated subprocess and the run record is
+rewritten after each one completes.** The first version of this runner held everything in
+one process and wrote a single run record at the end; an uncapped pass on Corpus B started
+swapping instead of failing, and fifteen minutes of silence gave no way to tell "still
+working" from "already lost" — the whole sweep was lost with it. This version cannot lose a
+completed measurement to a later one's failure: each cap gets its own process, its own
+`RLIMIT_AS` memory ceiling and its own wall-clock timeout applied from outside, and a cap
+that exceeds its budget is recorded as a failure rather than retried or silently dropped.
+
+Two mechanisms are separated in what is measured, because they have different fixes:
 
 * the **cap** — the pair's gram was deleted for being too popular;
 * the **short title** — the title yields fewer than ``min_overlap`` grams, so no cap and no
   key could ever have blocked it.
-
-The second is counted directly and is independent of the cap, which is what makes it the
-control on the first.
 
 Zero quota, CPU only.
 
@@ -30,98 +36,146 @@ Zero quota, CPU only.
 from __future__ import annotations
 
 import argparse
+import json
+import subprocess
+import sys
+import tempfile
 import time
 from pathlib import Path
 
-import pandas as pd
 import yaml
 
-from fcesreg.blocking import _grams, _norm_titles, ngram_overlap_candidates
 from fcesreg.paths import repo_root
 from fcesreg.runs import capture_env, new_run_id, write_run
 
-from run_dedup import build_abtbuy
-from run_transfer import build_cf_positives
-
 SCRIPT = "run_blocking_cap"
-
-#: Stands in for "no cap". Larger than any posting list either corpus can produce, so the
-#: filter is a no-op rather than a special case threaded through the library.
-NO_CAP = 10**9
+WORKER = Path(__file__).resolve().parent / "_blocking_cap_worker.py"
 
 
-def short_titles(records: pd.DataFrame, n: int, min_overlap: int) -> dict:
-    """Records whose title yields fewer than ``min_overlap`` distinct n-grams.
+#: How often to check the worker's memory footprint. Frequent enough that a runaway
+#: allocation is caught within a couple of seconds of crossing the budget, cheap enough
+#: (one `ps` invocation) that it costs nothing against a run measured in minutes.
+POLL_SECONDS = 2.0
 
-    These can never reach the overlap threshold against anything, at any cap. Counting them
-    separates a guard that is set wrong from a corpus that cannot be blocked this way at
-    all, and it costs one pass over the titles.
+
+def _rss_gb(pid: int) -> float | None:
+    """The worker's resident set size in GB, via `ps` -- portable, no new dependency.
+
+    `psutil` would be the obvious tool and is not a project dependency; adding one for a
+    single measurement in a diagnostic runner is not worth the dependency-split rule this
+    project otherwise holds (see the fcesreg rules on rapidfuzz). `ps` ships everywhere
+    this project runs.
     """
-    counts = [len(_grams(t, n)) for t in _norm_titles(records)]
-    n_short = sum(1 for c in counts if c < min_overlap)
-    return {
-        "n_records": len(counts),
-        "n_short_titles": n_short,
-        "short_title_share": n_short / len(counts) if counts else 0.0,
-        "median_grams_per_title": float(pd.Series(counts).median()) if counts else None,
-    }
-
-
-def completeness(pairs: pd.DataFrame, truth: pd.DataFrame) -> float | None:
-    positives = truth[truth["label"] == 1] if "label" in truth else truth
-    wanted = {
-        tuple(sorted((a, b)))
-        for a, b in zip(positives["left_id"], positives["right_id"], strict=True)
-    }
-    if not wanted:
-        return None
-    got = {
-        tuple(sorted((a, b)))
-        for a, b in zip(pairs["left_id"], pairs["right_id"], strict=True)
-    }
-    return len(wanted & got) / len(wanted)
-
-
-def at_cap(records: pd.DataFrame, truth: pd.DataFrame, cap: int | None, cfg: dict) -> dict:
-    """One corpus at one cap. Records where it breaks rather than fighting it."""
-    started = time.monotonic()
-    row: dict = {"max_block_size": cap, "cap_applied": NO_CAP if cap is None else cap}
     try:
-        pairs, reports = ngram_overlap_candidates(
-            records,
-            n=cfg["n"],
-            min_overlap=cfg["min_overlap"],
-            max_block_size=NO_CAP if cap is None else cap,
+        out = subprocess.run(
+            ["ps", "-o", "rss=", "-p", str(pid)], capture_output=True, text=True, timeout=5
         )
-    except (MemoryError, ValueError) as exc:
-        # A reduction ratio that collapses is a result; an uncapped run that will not fit in
-        # memory is also a result, and both are reported rather than quietly skipped.
-        return row | {
-            "completed": False,
-            "failure": f"{type(exc).__name__}: {exc}"[:200],
-            "seconds": time.monotonic() - started,
-        }
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+    text = out.stdout.strip()
+    return int(text) / (1024**2) if text else None  # ps reports RSS in KB
 
-    report = reports[0] if isinstance(reports, list) else reports
-    n = len(records)
-    n_possible = n * (n - 1) // 2
-    return row | {
-        "completed": True,
-        "pair_completeness": completeness(pairs, truth),
-        "reduction_ratio": 1 - (len(pairs) / n_possible) if n_possible else None,
-        "n_candidates": len(pairs),
-        "blocks_dropped": report.blocks_dropped,
-        "records_in_dropped_blocks": report.records_in_dropped_blocks,
-        "n_blocks": report.n_blocks,
-        "largest_block": report.largest_block,
-        "seconds": time.monotonic() - started,
+
+def _watch(proc: subprocess.Popen, timeout_seconds: float, memory_gb: float) -> str | None:
+    """Poll a running worker; kill it on a wall-clock or memory budget breach.
+
+    Returns ``None`` on a clean exit within budget, or a short reason string otherwise.
+    Enforced from OUTSIDE the worker because `RLIMIT_AS` cannot be lowered on this
+    platform (see `_blocking_cap_worker.py`) -- polling and killing is the portable
+    substitute for the same protection: a swap-thrashing process gets caught and stopped
+    within one poll interval instead of running silently until the machine grinds to a
+    halt, which is what happened the first time this ran with no protection at all.
+    """
+    started = time.monotonic()
+    while proc.poll() is None:
+        elapsed = time.monotonic() - started
+        if elapsed > timeout_seconds:
+            proc.kill()
+            proc.wait(timeout=10)
+            return f"TIMED OUT (budget {timeout_seconds:.0f}s)"
+        rss = _rss_gb(proc.pid)
+        if rss is not None and rss > memory_gb:
+            proc.kill()
+            proc.wait(timeout=10)
+            return f"KILLED at {rss:.1f}GB (budget {memory_gb}GB)"
+        time.sleep(POLL_SECONDS)
+    return None
+
+
+def run_one_cap(corpus: str, cap: dict, cfg: dict, build_cfg: dict) -> dict:
+    """Spawn the isolated worker for one (corpus, cap) pair.
+
+    A completed run's JSON is read back from a temp file, not stdout — stdout is left free
+    for the worker's own progress lines, which are printed with ``flush=True`` and inherited
+    directly by this process's stdout so they appear as the worker makes them, not buffered
+    until exit.
+    """
+    task = {
+        "corpus": corpus,
+        "cap": cap["value"],
+        "severity": cfg["severities"][0],
+        "seed": cfg["seed"],
+        "n": cfg["n"],
+        "min_overlap": cfg["min_overlap"],
+        "memory_gb": cap["memory_gb"],
+        "cfg": build_cfg,
     }
+    label = "none" if cap["value"] is None else f"{cap['value']:,}"
+    print(f"  cap {label:>7}  starting (budget {cap['timeout_seconds']}s, "
+          f"{cap['memory_gb']}GB)...", flush=True)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        task_path = Path(tmp) / "task.json"
+        out_path = Path(tmp) / "result.json"
+        task_path.write_text(json.dumps(task))
+
+        started = time.monotonic()
+        proc = subprocess.Popen(
+            [sys.executable, "-u", str(WORKER), str(task_path), str(out_path)],
+            cwd=repo_root(),
+        )
+        outcome = _watch(proc, cap["timeout_seconds"], cap["memory_gb"])
+        elapsed = time.monotonic() - started
+
+        if outcome is not None:
+            print(f"  cap {label:>7}  {outcome} after {elapsed:.0f}s", flush=True)
+            return {
+                "max_block_size": cap["value"], "completed": False,
+                "failure": f"{outcome} after {elapsed:.0f}s",
+                "seconds": elapsed,
+            }
+
+        if proc.returncode != 0 or not out_path.exists():
+            print(f"  cap {label:>7}  FAILED (exit {proc.returncode}) after {elapsed:.0f}s",
+                  flush=True)
+            return {
+                "max_block_size": cap["value"], "completed": False,
+                "failure": f"subprocess exited {proc.returncode} after {elapsed:.0f}s",
+                "seconds": elapsed,
+            }
+
+        result = json.loads(out_path.read_text())
+
+    short = result["short_titles"]
+    print(
+        f"  cap {label:>7}  PC {result['pair_completeness']:.3f}  "
+        f"RR {result['reduction_ratio']:.6f}  "
+        f"dropped {result['blocks_dropped']:>6} grams  "
+        f"largest {result['largest_block']:>6}  "
+        f"cands {result['n_candidates']:>9,}  "
+        f"short-title {short['n_short_titles']:>5} ({short['short_title_share']:.1%})  "
+        f"{result['seconds']:>5.0f}s",
+        flush=True,
+    )
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--config", type=Path, required=True)
     args = p.parse_args(argv)
+
+    sys.stdout.reconfigure(line_buffering=True)
 
     cfg = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     build_cfg = {
@@ -132,39 +186,24 @@ def main(argv: list[str] | None = None) -> int:
     env = capture_env()
 
     metrics: dict = {"severity": cfg["severities"][0], "corpora": {}}
-    severity = cfg["severities"][0]
+    metrics["corpora"]["corpus_a"] = {"caps": []}
+    metrics["corpora"]["corpus_b"] = {"caps": []}
 
-    a_records, _, a_truth = build_abtbuy(build_cfg, severity, cfg["seed"])
-    b_records, _, b_truth = build_cf_positives(build_cfg, severity, cfg["seed"])
+    def persist() -> None:
+        # Rewritten after EVERY cap, not once at the end -- a run record exists from the
+        # first completed cap onward, and a later cap's failure cannot cost an earlier
+        # cap's result. Idempotent: write_run overwrites the same run_id's files.
+        write_run(run_id, params=cfg, metrics=metrics, env=env)
 
-    for name, records, truth in (
-        ("corpus_a", a_records, a_truth), ("corpus_b", b_records, b_truth)
-    ):
-        short = short_titles(records, cfg["n"], cfg["min_overlap"])
-        print(
-            f"\n{name}: {short['n_records']:,} records, "
-            f"{short['n_short_titles']:,} with fewer than {cfg['min_overlap']} grams "
-            f"({short['short_title_share']:.1%}), median {short['median_grams_per_title']:.0f} "
-            f"grams/title"
-        )
-        rows = []
-        for cap in cfg["max_block_sizes"]:
-            got = at_cap(records, truth, cap, cfg)
-            rows.append(got)
-            label = "none" if cap is None else f"{cap:,}"
-            if not got["completed"]:
-                print(f"  cap {label:>7}  FAILED after {got['seconds']:.0f}s: {got['failure']}")
-                continue
-            print(
-                f"  cap {label:>7}  PC {got['pair_completeness']:.3f}  "
-                f"RR {got['reduction_ratio']:.6f}  "
-                f"dropped {got['blocks_dropped']:>6} grams  "
-                f"largest {got['largest_block']:>6}  "
-                f"cands {got['n_candidates']:>9,}  {got['seconds']:>5.0f}s"
-            )
-        metrics["corpora"][name] = {"short_titles": short, "caps": rows}
+    for corpus in ("corpus_a", "corpus_b"):
+        print(f"\n{corpus}:", flush=True)
+        for cap in cfg["caps"]:
+            got = run_one_cap(corpus, cap, cfg, build_cfg)
+            metrics["corpora"][corpus]["caps"].append(got)
+            persist()
 
-    print(f"\nwrote {write_run(run_id, params=cfg, metrics=metrics, env=env)}")
+    out = repo_root() / "results" / "runs" / run_id
+    print(f"\nwrote {out} (rewritten after every cap)")
     return 0
 
 

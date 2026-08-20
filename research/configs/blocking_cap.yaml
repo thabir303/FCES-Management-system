@@ -22,12 +22,32 @@ divisions: ["30", "31", "32", "33", "38", "42", "43", "44"]
 severities: [0.0]
 seed: 0
 
-# `null` means no cap at all. It may exhaust memory or wall-clock on Corpus B: the overlap
-# product is over every retained gram, and the high-frequency grams are exactly the ones a
-# cap removes. Where it breaks is recorded rather than fought.
-max_block_sizes: [500, 2000, 10000, null]
-
 scheme: sorted_ngrams
 n: 3
 mode: per_gram
 min_overlap: 8
+
+# Ascending, and `null` LAST — a cap can only cost itself, never a smaller one that already
+# completed and was already persisted. The three finite caps carry the argument; `null` is
+# the nice-to-have and is the one most likely to hit its budget on Corpus B (26k records,
+# far more repetitive than Corpus A, so its high-frequency grams keep more of the incidence
+# matrix dense the higher the cap climbs).
+#
+# Each cap runs in its own subprocess with a hard virtual-memory ceiling (RLIMIT_AS) and a
+# wall-clock timeout applied from outside. Without the memory ceiling a large product can
+# start swapping instead of raising MemoryError, which is silent and looks identical to
+# still working — that is what happened the first time this ran. A cap that exceeds its
+# budget is recorded as "no acceptable operating point at this cap", not retried.
+caps:
+  - value: 500
+    timeout_seconds: 180
+    memory_gb: 3
+  - value: 2000
+    timeout_seconds: 300
+    memory_gb: 4
+  - value: 10000
+    timeout_seconds: 600
+    memory_gb: 6
+  - value: null
+    timeout_seconds: 900
+    memory_gb: 8
