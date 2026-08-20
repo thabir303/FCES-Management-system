@@ -312,11 +312,23 @@ def main(argv: list[str] | None = None) -> int:
         try:
             metrics["cascade"] = run_cascade(cfg, client)
         except DailyQuotaExhausted as e:
+            live = sum(1 for r in e.completed.values() if not r.cache_hit)
             print(
                 f"\ndaily quota exhausted after {len(e.completed)} adjudications this "
-                f"invocation. Nothing is lost: every completed call is cached, so "
-                f"re-running this command tomorrow replays them for free and continues.",
+                f"invocation ({live} live, {len(e.completed) - live} from cache). Nothing "
+                f"is lost: every completed call is cached, so re-running this command "
+                f"replays them for free and continues.",
             )
+            if live == 0:
+                print(
+                    "\n*** ZERO LIVE CALLS THIS INVOCATION ***\n"
+                    "The quota day did not advance -- every completed call above was a "
+                    "cache replay, not new progress. The quota clock is UTC "
+                    "(datetime.now(UTC).date()), not local: this happens when the command "
+                    "is run before 06:00 Dhaka time, while the UTC calendar date is still "
+                    "yesterday's. Re-run after 06:00 Dhaka to bank live progress -- running "
+                    "again before then will report success again and still bank nothing."
+                )
             return 2
         except AdjudicationBudgetExceeded as e:
             print(f"\n{e}")
