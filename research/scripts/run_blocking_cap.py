@@ -138,12 +138,19 @@ def run_one_cap(corpus: str, cap: dict, cfg: dict, build_cfg: dict) -> dict:
         elapsed = time.monotonic() - started
 
         if outcome is not None:
-            print(f"  cap {label:>7}  {outcome} after {elapsed:.0f}s", flush=True)
-            return {
-                "max_block_size": cap["value"], "completed": False,
-                "failure": f"{outcome} after {elapsed:.0f}s",
-                "seconds": elapsed,
-            }
+            # Belt and suspenders alongside the worker's os._exit fix: a result the worker
+            # already wrote to disk before the process hung must not be thrown away just
+            # because the process itself failed to terminate promptly afterward.
+            if out_path.exists():
+                print(f"  cap {label:>7}  {outcome} after {elapsed:.0f}s, but a result was "
+                      f"already written -- using it rather than discarding it", flush=True)
+            else:
+                print(f"  cap {label:>7}  {outcome} after {elapsed:.0f}s", flush=True)
+                return {
+                    "max_block_size": cap["value"], "completed": False,
+                    "failure": f"{outcome} after {elapsed:.0f}s",
+                    "seconds": elapsed,
+                }
 
         if proc.returncode != 0 or not out_path.exists():
             print(f"  cap {label:>7}  FAILED (exit {proc.returncode}) after {elapsed:.0f}s",

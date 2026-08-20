@@ -95,7 +95,18 @@ def main() -> int:
     }
     out_path.write_text(json.dumps(result))
     print(f"  [worker] done in {result['seconds']:.0f}s", flush=True)
-    return 0
+
+    # os._exit rather than a normal return. On this platform the sparse overlap product
+    # (scipy/numpy over a BLAS backend) leaves the process alive well past this point --
+    # measured at 900s+ after printing "done" on Corpus B's uncapped pass, long enough to
+    # exceed even a generous wall-clock budget and cause the orchestrator to discard a
+    # result that had already been written to disk. The result is durable at this point
+    # (out_path.write_text above already returned), so a normal interpreter shutdown that
+    # waits on thread pools and atexit handlers buys nothing and has cost a real
+    # measurement once already.
+    import os
+
+    os._exit(0)
 
 
 if __name__ == "__main__":
