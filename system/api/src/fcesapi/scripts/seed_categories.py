@@ -10,11 +10,11 @@ this not be presented as more than it is.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 import pandas as pd
 from sqlalchemy import select
 
+from fcesapi.config import _repo_root
 from fcesapi.db import get_sessionmaker
 from fcesapi.models import Category
 
@@ -24,14 +24,6 @@ _HAZARD_DIVISIONS = {
     "38": ("calibration_required", 365),  # laboratory / optical / precision instruments
     "42": ("mechanical", 180),            # industrial machinery
 }
-
-
-def _repo_root() -> Path:
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        if (parent / "data" / "processed").exists():
-            return parent
-    raise RuntimeError("could not locate repo root from " + str(here))
 
 
 def main() -> int:
