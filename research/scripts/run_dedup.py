@@ -80,7 +80,36 @@ def build_abtbuy(cfg: dict, severity: float, seed: int):
 
 
 def build_cf(cfg: dict, severity: float, seed: int):
-    """Positives from degraded duplicate pairs; negatives from the mined distractor pool.
+    """Positives from degraded duplicate pairs; negatives from the mined distractor pool,
+    remapped onto the same degraded copies.
+
+    **Fixed 2026-08-20 — the two classes previously carried different noise, and inverted
+    the scores.** Negatives are mined against the UNDEGRADED ``block`` (the mining rule
+    needs clean text: the tender-reference and buyer rules, and the 48%->35% correction
+    measured by ``audit_distractors.py``, all depend on it, and nothing about mining
+    changes here). But the ids the mining rule returns are undegraded record ids, which do
+    not exist in the degraded ``records`` frame at all above severity 0 — a KeyError on
+    every call. Silently degrading the SAME copy for both sides of a mined pair would fix
+    the crash but not the confound: positives are two *independently* degraded copies of
+    one record, negatives would then be one *singly*-degraded copy compared to itself, and
+    the two classes would still differ in noise level for reasons having nothing to do with
+    duplication.
+
+    The fix used here maps a mined pair ``(i, j)`` onto ``(i::a, j::b)`` — the same suffix
+    convention :func:`make_duplicate_pairs` uses for positives. A negative then compares two
+    *independently* degraded copies, exactly as a positive does; the only remaining
+    difference between the classes is whether the source record is the same, which is the
+    discrimination under test. Measured before and after this change —
+    ``research/tests/test_degrade.py::TestBuildCfNoiseParity`` pins the result: mean
+    normalised edit distance from source must not differ between the two classes at any
+    severity, and the negative ids returned must resolve in the degraded frame.
+
+    **Nothing published used the broken version.** `run_dedup --corpus cf` has never
+    completed — the cascade exits on quota before `write_run`, and the free-matcher sweep
+    was never run against Corpus B either, so no stored run record and no reported figure
+    reflects the confound. `judge_distractors.py` and `audit_distractors.py` score the
+    UNDEGRADED mining output directly and never call this function, so the 42.0%
+    contamination figure (amendment 8) is unaffected.
 
     The pool is used **unfiltered** (amendment 7). Judgements on it measure contamination;
     they never remove a pair.
@@ -95,6 +124,12 @@ def build_cf(cfg: dict, severity: float, seed: int):
         block = corpus[corpus["record_id"].isin(ids)]
         degraded, positives = make_duplicate_pairs_for(block, config, seed)
         negatives = make_distractors(block, config, seed=seed, corpus="cf")
+        # Mined against `block` (undegraded); remap onto the degraded copies `degraded`
+        # actually holds, so a negative compares two independently degraded records exactly
+        # as a positive compares two independently degraded copies of one record.
+        negatives = negatives.assign(
+            left_id=negatives["left_id"] + "::a", right_id=negatives["right_id"] + "::b"
+        )
         frames.append(degraded)
         pair_sets.append(
             pd.concat([positives, negatives], ignore_index=True).assign(_part=part)

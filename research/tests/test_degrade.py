@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from conftest import CORPUS_B, SPLITS, requires
 from fcesreg.degrade import (
     ERROR_CLASSES,
     procurement_ref,
@@ -376,3 +377,113 @@ class TestDistractors:
     def test_unknown_corpus_raises(self):
         with pytest.raises(ValueError, match="corpus must be"):
             make_distractors(records(), DegradationConfig(0.3), seed=0, corpus="walmart")
+
+
+class TestBuildCfNoiseParity:
+    """`run_dedup.build_cf` was confounded: negatives were mined against undegraded text
+    while positives were two independently degraded copies, so above severity 0 the two
+    classes differed systematically in noise level for reasons having nothing to do with
+    duplication — and the mined ids never resolved in the degraded frame at all, a crash
+    rather than a silent error.
+
+    Fixed by mapping a mined pair ``(i, j)`` onto ``(i::a, j::b)``, the same suffix
+    convention positives use, so a negative compares two independently degraded copies
+    exactly as a positive does. These pin the fix so it cannot regress silently, the way
+    the original confound sat unnoticed for the life of the builder.
+    """
+
+    def build_cf(self):
+        import sys
+
+        sys.path.insert(0, str(pytest.importorskip("fcesreg.paths").repo_root() / "research" / "scripts"))
+        from run_dedup import build_cf
+
+        return build_cf
+
+    def cfg(self):
+        from fcesreg.paths import repo_root
+
+        return {
+            "corpus_b": str(repo_root() / "data/processed/corpus_b_contractsfinder.parquet"),
+            "divisions": ["30", "31", "32", "33", "38", "42", "43", "44"],
+        }
+
+    def distance_from_source(self, ids, degraded_text: dict, source_text: dict) -> np.ndarray:
+        from difflib import SequenceMatcher
+
+        out = []
+        for rid in ids:
+            got = degraded_text.get(rid)
+            src = source_text.get(rid.split("::")[0])
+            if got is None or src is None:
+                continue
+            out.append(1.0 - SequenceMatcher(None, src, got).ratio())
+        return np.array(out)
+
+    @requires(CORPUS_B, SPLITS)
+    @pytest.mark.parametrize("severity", [0.0, 0.25, 0.5])
+    def test_every_negative_id_resolves_in_the_degraded_frame(self, severity):
+        # The crash this fix removes: negatives previously referenced undegraded ids that
+        # do not exist in the frame build_cf returns.
+        build_cf = self.build_cf()
+        records, dev, test = build_cf(self.cfg(), severity, seed=0)
+        in_frame = set(records["record_id"])
+        for pairs in (dev, test):
+            negatives = pairs[pairs["label"] == 0]
+            missing_left = ~negatives["left_id"].isin(in_frame)
+            missing_right = ~negatives["right_id"].isin(in_frame)
+            assert not missing_left.any(), (
+                f"{missing_left.sum()} negative left_ids absent from the degraded frame "
+                f"at severity {severity}"
+            )
+            assert not missing_right.any(), (
+                f"{missing_right.sum()} negative right_ids absent from the degraded frame "
+                f"at severity {severity}"
+            )
+
+    @requires(CORPUS_B, SPLITS)
+    @pytest.mark.parametrize("severity", [0.0, 0.25, 0.5])
+    def test_negatives_carry_the_same_noise_level_as_positives(self, severity):
+        # The confound this fix removes: negatives constant at distance 0 while positives
+        # collapsed toward 1 as severity rose, so a threshold fitted on this partition
+        # would have learned "noisy means duplicate" rather than "same source means
+        # duplicate". Both classes must show the SAME noise process.
+        import sys
+
+        from fcesreg.paths import repo_root
+        from fcesreg.schema import text_of
+
+        sys.path.insert(0, str(repo_root() / "research" / "scripts"))
+        from run_dedup import build_cf
+
+        cfg = self.cfg()
+        corpus = pd.read_parquet(cfg["corpus_b"])
+        corpus = corpus[corpus["cpv_code"].str[:2].isin(set(cfg["divisions"]))]
+        from fcesreg.splits import load as load_splits
+
+        splits = load_splits()
+        source_block = corpus[corpus["record_id"].isin(splits.cf_dev)]
+        source_text = dict(zip(source_block["record_id"], text_of(source_block)))
+
+        records, dev, _ = build_cf(cfg, severity, seed=0)
+        degraded_text = dict(zip(records["record_id"], text_of(records)))
+
+        positives = dev[dev["label"] == 1]
+        negatives = dev[dev["label"] == 0]
+        rng = np.random.default_rng(0)
+        sample = lambda ids: ids if len(ids) <= 300 else rng.choice(ids, 300, replace=False)
+
+        pos_ids = sample(pd.unique(pd.concat([positives["left_id"], positives["right_id"]])))
+        neg_ids = sample(pd.unique(pd.concat([negatives["left_id"], negatives["right_id"]])))
+
+        pos_dist = self.distance_from_source(pos_ids, degraded_text, source_text)
+        neg_dist = self.distance_from_source(neg_ids, degraded_text, source_text)
+
+        assert len(pos_dist) > 0 and len(neg_dist) > 0
+        # Both classes are degraded by the same DegradationConfig at the same severity, so
+        # their mean distance from source should be close -- not the order-of-magnitude
+        # gap the confound produced (e.g. positives 0.665 vs negatives 0.000 at sev 0.25).
+        assert abs(pos_dist.mean() - neg_dist.mean()) < 0.15, (
+            f"sev {severity}: positives mean {pos_dist.mean():.3f}, "
+            f"negatives mean {neg_dist.mean():.3f} -- classes differ in noise level"
+        )
