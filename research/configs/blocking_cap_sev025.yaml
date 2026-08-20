@@ -1,0 +1,37 @@
+# Single-cell addition to the cap-sweep record (§6.8; amendment 9 follow-up).
+#
+# Committed; runners take no tuning flags.
+#
+# Severity 0.0 is the condition where Corpus B's positives are byte-identical, which is why
+# the original sweep (blocking_cap.yaml) used it: any pair that fails to block there fails
+# for a mechanical reason, not because degradation destroyed the shared text. That also
+# means severity 0.0 cannot speak to domain shift — there is no variation between the two
+# copies of a positive pair for blocking to fail on. Severity 0.25 is the lowest severity in
+# the design where Corpus B's positives actually differ from one another, so it is the
+# lowest severity that can measure whether the KEY itself transfers once the guard is
+# rescaled to stop confounding the comparison. One cap, one severity, both corpora: not a
+# sweep, a single fair comparison at the rescaled cap the original transfer run already
+# showed was binding (2,153 blocks dropped on Corpus B at severity 0.25 against 0 on
+# Corpus A, at the shipped 500-cap configuration).
+
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: data/processed/corpus_a_abtbuy_pairs.parquet
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+divisions: ["30", "31", "32", "33", "38", "42", "43", "44"]
+
+severities: [0.25]
+seed: 0
+
+scheme: sorted_ngrams
+n: 3
+mode: per_gram
+min_overlap: 8
+
+# 10,000 only: the cap sweep at severity 0.0 already showed pair completeness on Corpus B
+# is within measurement noise between 10,000 and uncapped (0.979 vs 0.982), so 10,000 is
+# the rescaled cap that recovers the key's behaviour without paying the null-cap runtime
+# a second time for a severity that does not need the extra confirmation.
+caps:
+  - value: 10000
+    timeout_seconds: 600
+    memory_gb: 6
