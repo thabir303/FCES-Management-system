@@ -1,0 +1,32 @@
+caps:
+- memory_gb: 3
+  timeout_seconds: 180
+  value: 500
+- memory_gb: 4
+  timeout_seconds: 300
+  value: 2000
+- memory_gb: 6
+  timeout_seconds: 600
+  value: 10000
+- memory_gb: 8
+  timeout_seconds: 900
+  value: null
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: data/processed/corpus_a_abtbuy_pairs.parquet
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+divisions:
+- '30'
+- '31'
+- '32'
+- '33'
+- '38'
+- '42'
+- '43'
+- '44'
+min_overlap: 8
+mode: per_gram
+n: 3
+scheme: sorted_ngrams
+seed: 0
+severities:
+- 0.0
