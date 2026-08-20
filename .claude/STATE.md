@@ -11,41 +11,38 @@ tomorrow's run. Report missed days and the projected finish in the first line of
 Volatile handoff — update after every §11 task. Hard cap 60 lines.
 
 ## Current task
-**Waiting on two supervisor rulings**: the revised Methodology cut ledger (target now
-~230, not 200); what the cap sweep says about transfer attribution (running, no output yet).
+**Waiting on supervisor rulings**: revised cut ledger to ~230/~245 (owed, not yet sent);
+what the transfer section should say now the cap sweep is attributed; whether the system
+build continues past D3/E5.
 
-**`build_cf` fixed and confirmed 2026-08-20.** Negatives now remap onto degraded copies
-`(i::a, j::b)`. Resolution 983/983 at every severity (was 0/943); noise parity within
-0.002–0.015 of positives (was inverted: negatives flat 0.000 vs positives 0.665–0.801).
-Regression test `test_degrade.py::TestBuildCfNoiseParity` pins both properties.
+**Cap sweep done and attributed** (`run_blocking_cap-20260820T093302-a3c575e`). Corpus A
+flat **0.985** across every cap. Corpus B: 0.411 (500) → 0.885 (2000) → 0.979 (10000) →
+**0.982 (none)** — converges within 0.003 of Corpus A. Short titles constant **850 (1.6%)**
+at every cap, confirming that mechanism is cap-independent. **The −0.575 gap at the shipped
+500-cap config is a guard-scale artifact, not domain shift.** `T9_transfer` still unwired
+pending the ruling on what External Validation should say with this now in hand.
 
-**C7.** Division macro F1 0.759 tfidf / 0.709 embed; class **0.560** / 0.410 over 74 genuine
-classes, **25.8% routed to review**. TF-IDF wins 69 of 74. 4431 ("Wire products") collision
-propagated: P 0.359 R 0.301, 28 of 78 scored correct on IT kit.
+**System built to the ruled line** (`c652b14`): schema (D1, verified upgrade/downgrade
+clean against real Postgres), auth+roles (D2), asset CRUD+search (D3), pipeline boundary
++import wizard+review queue (E1–E5). 22 tests, all against a live DB. Three real bugs found
+verifying against Postgres rather than mocking: enum columns typed `String` against native
+Postgres enums; `GENERATED ALWAYS` columns needed `Computed()` or the ORM tried to write
+them; `Settings.storage_root` was a bare relative default, silently refitting the cached
+classifier depending on cwd — fixed, anchored to repo root.
 
-**G9.** sev 0.0 floor 0.95 → **0.934 automated, 84 of 206 duplicates lost, ceiling R 0.592**
-vs cascade 0.553; floor 0.99 → 0.644, 16 lost, ceiling 0.922. Leverage moves with severity.
-
-**G10.** Transfer carried entirely by pair completeness: A 0.985 → B **0.411**, **not yet
-attributable** (Corpus B saturates `max_block_size=500`). Recall transfer **unmeasurable**.
+**`build_cf` fixed 2026-08-20** — negatives remap onto `(i::a, j::b)`; noise parity
+confirmed, test pins it. **T6_classification generated** from a verified-clean run.
 
 ## Blocked or waiting on the supervisor
-
-- **Page budget target is ~230** (bibliography was omitted from the first count). 8
-  approved cuts −71; supervisor took 6 of 9 outside candidates for −98 more (−169 total);
-  revised ledger owed from Corpus B prose (346–403), Study Design (305–323), Partitioning
-  (614–628). **Open:** separator-blindness in `normalise_key`.
-
+- **Page budget target ~230–245** (bibliography + External Validation growth uncosted).
+  8 approved cuts −71; 6 of 9 outside candidates approved for −98 more. Revised ledger owed.
+- **Open:** separator-blindness in `normalise_key`.
 ## Next tasks
-
-1. **T6_classification** builder written (`df3907d`); generation pending a genuinely
-   clean `run_classify` re-run (the prior "clean" record was mistaken — in progress).
-2. **T9_transfer** builder written, unwired until the cap sweep rules on 0.985→0.411.
-3. **`run_costs.py` / T8_cost** — build after the cascade completes (tomorrow).
-4. System build to the ruled line; RQ2 division-level LLM condition, still uncosted.
+1. `run_costs.py` / T8_cost — build after tomorrow's cascade completion.
+2. RQ2 division-level LLM condition — still uncosted, needs the RAG prompt built.
+3. Wire `T9_transfer` once the supervisor rules on the External Validation wording.
 
 ## Gotchas that are not plan amendments
-
 - **`make_tables.py` refuses the whole build if the latest `run_blocking` record is dirty**
   (`run_blocking-...-15338713`, pre-existing) — call a builder function directly, not `main()`.
 - **`run_dedup` exits 2 on quota before `write_run`**; T4 needs a day where all 1,209 pairs
@@ -55,6 +52,9 @@ attributable** (Corpus B saturates `max_block_size=500`). Recall transfer **unme
   **`make data` is a real break** — no `build_taxonomy.py`.
 - Corpus A pair completeness collapses 0.985 → 0.248 → 0.049 with **zero** blocks dropped:
   key failure, not capping. Naive floor **0.000 on Corpus A** at every severity.
+- `system/`: run `docker compose up -d db` before `alembic`/tests; seed order is
+  `seed_users.py` then `seed_categories.py` (categories FK'd by assets.cpv_code).
 
 ## Last verified
-**2026-08-20** — `make paper` clean, 8 pages; `research/tests` 486 + 7 skipped.
+**2026-08-20** — `make test`: research 486+7 skipped, system/api 22, annotation 29, all
+clean. `make paper` clean, 8 pages.
