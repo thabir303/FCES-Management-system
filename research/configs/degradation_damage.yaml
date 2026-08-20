@@ -1,0 +1,18 @@
+# Is the severity-0.25 blocking reversal (Corpus B PC 0.441 > Corpus A PC 0.248, rescaled
+# cap) a property of blocking, or of the degradation model doing unequal damage to the two
+# corpora at the same severity number? (supervisor ruling, 2026-08-20/21.)
+#
+# Committed; runners take no tuning flags.
+#
+# Measures mean normalised edit distance from source (schema.text_of, 1 - SequenceMatcher
+# ratio -- the same instrument that settled the build_cf noise-parity fix, see
+# test_degrade.py::TestBuildCfNoiseParity), overall and per degradation class in isolation
+# (DegradationConfig's per-class multiplier exists exactly for this).
+
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+divisions: ["30", "31", "32", "33", "38", "42", "43", "44"]
+
+# Matches the severity-0.25 cap sweep cell exactly: same severity, same seed.
+severity: 0.25
+seed: 0
