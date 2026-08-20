@@ -233,8 +233,91 @@ def table_blocking(run: dict) -> str:
     return _wrap("".join(rows), caption, "tab:blocking", run["run_id"], "llrrrr")
 
 
+def table_classification(run: dict) -> str:
+    """RQ2: both classical conditions at both levels, and the level's routed-to-review
+    share broken out by cause.
+
+    Class level restricts to labels meeting the training-example floor AND records
+    genuinely carrying a class-level code -- a division-only code (``cpv.labelled_at``)
+    is not a class and scoring it would credit the model for predicting that a buyer left
+    the record unclassified. The two exclusions are reported apart because they are
+    different failures: one is a rare category, the other is a category that does not
+    exist for that record.
+    """
+    order = ["division", "class"]
+    condition_label = {"tfidf_svm": "TF-IDF + SVM", "embedding_logreg": "Embedding + LogReg"}
+    rows = ["Level & Condition & Macro F1 & Weighted F1 & Acc. & Routed to review \\\\\n\\hline\n"]
+    for level in order:
+        if level not in run["metrics"]["levels"]:
+            continue
+        result = run["metrics"]["levels"][level]
+        routed = result["test_routed_to_review"]
+        for name in ("tfidf_svm", "embedding_logreg"):
+            if name not in result["conditions"]:
+                continue
+            c = result["conditions"][name]
+            rows.append(
+                f"{level.capitalize()} & {_esc(condition_label.get(name, name))} & "
+                f"{c['macro_f1']:.3f} & {c['weighted_f1']:.3f} & {c['accuracy']:.3f} & "
+                f"{routed:.1%} \\\\\n"
+            )
+    caption_parts = [
+        "Category assignment, both classical conditions. Class level restricts to "
+        "labels meeting the training-example floor and records carrying a genuine "
+        "class-level code."
+    ]
+    if "class" in run["metrics"]["levels"]:
+        cls = run["metrics"]["levels"]["class"]
+        below_floor = cls["test_routed_to_review"] - cls["test_unspecified_at_level"]
+        caption_parts.append(
+            f"At class level {cls['test_routed_to_review']:.1%} of test records are "
+            f"routed to review: {cls['test_unspecified_at_level']:.1%} carry no class-level "
+            f"code at all, {below_floor:.1%} carry a label below the training floor."
+        )
+    return _wrap(
+        "".join(rows), " ".join(caption_parts), "tab:classification", run["run_id"], "llrrrr"
+    )
+
+
+def table_transfer(run: dict) -> str:
+    """External Validation: pair completeness (and recall, where a threshold exists) at
+    each severity, Corpus A carried to Corpus B unchanged.
+
+    **Not yet registered in BUILDERS.** The pair completeness gap this table reports
+    (0.985 -> 0.411 at severity 0) is not yet attributable between domain shift and the
+    block-size cap saturating on Corpus B's larger, more repetitive title set -- that
+    measurement is `run_blocking_cap.py`, still pending a ruling on what it says. Wire this
+    into BUILDERS once External Validation's prose is settled, so the table and the prose
+    it sits beside are decided together rather than the table shipping first.
+    """
+    rows = ["Sev. & Matcher & PC (A) & PC (B) & PC gap & R (A) & R (B) \\\\\n\\hline\n"]
+    for row in run["metrics"]["paired"]:
+        def fmt(x, spec=".3f"):
+            return "---" if x is None else f"{x:{spec}}"
+
+        flag = " *" if row.get("corpus_b_positives_are_identical") else ""
+        rows.append(
+            f"{row['severity']} & {_esc(row['matcher'])} & "
+            f"{fmt(row['pair_completeness_corpus_a'])} & "
+            f"{fmt(row['pair_completeness_corpus_b'])} & "
+            f"{fmt(row['pair_completeness_gap'], '+.3f')} & "
+            f"{fmt(row['recall_corpus_a'])} & "
+            f"{fmt(row['recall_corpus_b'])}{flag} \\\\\n"
+        )
+    caption = (
+        "External validation: thresholds and blocking fitted once on Corpus A dev at "
+        "severity 0, carried unchanged to both corpora at every severity. * marks the "
+        "severity-0 Corpus B recall as an identity artefact -- its positives are "
+        "byte-identical degraded copies at that severity -- reported for completeness and "
+        "not as a transfer result."
+    )
+    return _wrap("".join(rows), caption, "tab:transfer", run["run_id"], "lccccc")
+
+
 BUILDERS = {
     "run_blocking": {"T3_blocking.tex": table_blocking},
+    "run_classify": {"T6_classification.tex": table_classification},
+    # "run_transfer": {"T9_transfer.tex": table_transfer},  # pending: see table_transfer docstring
     "run_profile": {
         "T1_corpus_a.tex": table_corpus_a,
         "T1_corpus_b.tex": table_corpus_b,

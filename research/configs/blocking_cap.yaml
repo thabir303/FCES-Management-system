@@ -1,0 +1,33 @@
+# What the block-size cap costs, on each corpus (§6.8; attribution for amendment 9's
+# transfer figure).
+#
+# Committed; runners take no tuning flags.
+#
+# The transfer comparison reports pair completeness 0.985 on Corpus A against 0.411 on
+# Corpus B under one configuration carried across unchanged. That gap is uninterpretable
+# until it is known how much of it is the KEY failing on procurement text and how much is
+# the absolute size cap binding on a corpus an order of magnitude larger and far more
+# repetitive. `largest_block` sits exactly on the cap for Corpus B at every severity, which
+# is what a binding guard looks like.
+
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: data/processed/corpus_a_abtbuy_pairs.parquet
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+divisions: ["30", "31", "32", "33", "38", "42", "43", "44"]
+
+# Severity 0.0 only. That is where Corpus B's positives are byte-identical, so any pair
+# that fails to block fails for a MECHANICAL reason — a dropped gram or a title too short
+# to yield `min_overlap` grams — and not because degradation destroyed the shared text.
+# It is the one condition where the reading is unambiguous.
+severities: [0.0]
+seed: 0
+
+# `null` means no cap at all. It may exhaust memory or wall-clock on Corpus B: the overlap
+# product is over every retained gram, and the high-frequency grams are exactly the ones a
+# cap removes. Where it breaks is recorded rather than fought.
+max_block_sizes: [500, 2000, 10000, null]
+
+scheme: sorted_ngrams
+n: 3
+mode: per_gram
+min_overlap: 8
