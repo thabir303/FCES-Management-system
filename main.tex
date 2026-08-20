@@ -659,11 +659,36 @@ automation that produces it cannot be reported as though it were free.
 
 Both sides are therefore reported at every operating point: the precision
 of the accepted set, and the number and proportion of true duplicates
-discarded by confident rejection without reaching review. The second is
-reported in absolute terms as well as as a rate, since a faculty
-deciding whether to adopt the pipeline is choosing how many undetected
-duplicates to accept in exchange for how much review it avoids, and that
-trade is legible in counts and not in percentages.
+discarded by confident rejection without reaching review. The second is reported in absolute terms as well as as a rate, since a
+faculty deciding whether to adopt the pipeline is choosing how many
+undetected duplicates to accept in exchange for how much review it
+avoids, and that trade is legible in counts and not in percentages.
+
+A floor stated as one number does not demand the same thing of the two
+rules, and the asymmetry is a consequence of the class balance rather
+than of the design. Duplicates are a small minority of candidate pairs,
+so accepting every pair would yield a precision close to the positive
+rate and a floor well above it demands a large lift. Rejecting every pair
+would yield a purity close to one minus that rate, so the same floor
+demands almost nothing of the reject rule: it is satisfied by performing
+slightly better than discarding the entire corpus. The nominal symmetry
+of a single floor therefore conceals a rule that binds tightly on one
+side and barely at all on the other, and the duplicates lost to confident
+rejection are the price of that slack. A design intended to bound the
+loss directly would constrain the number of duplicates in the rejected
+set, and not its purity.
+
+The operating point consequently fixes a ceiling on recall before any
+adjudication occurs. Only pairs that are accepted outright or that reach
+the band remain reachable, so the duplicates discarded by confident
+rejection cap what the pipeline can find however capable the adjudicator.
+That ceiling is reported with every operating point and the measured
+recall is reported against it, because the gap between them separates two
+different failures: the shortfall below the ceiling is attributable to
+the adjudicator, and the ceiling itself to the choice of floor. Where the
+measured recall sits close to its ceiling, improving the adjudicator has
+little left to recover and the leverage lies in the operating point
+instead.
 Residual manual effort is reported as the count and proportion of records
 the pipeline routes to review, and total effort is expressed as that
 count multiplied by a per record handling time and not fixed by a single
