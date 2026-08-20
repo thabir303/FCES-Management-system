@@ -6,13 +6,18 @@
 
 Exit **code 2** = quota spent = success. **Never clear `.cache/llm`** — it makes replay
 free. Verify by **live (non-cache) ledger rows today**; CPU runners do not substitute.
-**Missed: 2** (2026-08-16, 2026-08-19). **904 of 1,209 banked** (127+282+800). Report
-missed days and the projected finish in the first line of each session.
+**Missed: 2** (2026-08-16, 2026-08-19). **1,204 of 1,209 banked, 5 remain** — finishes on
+tomorrow's run. Report missed days and the projected finish in the first line of each session.
 Volatile handoff — update after every §11 task. Hard cap 60 lines.
 
 ## Current task
-**Waiting on three supervisor rulings** (measurement done, nothing applied): the
-Methodology cuts; whether `build_cf` is fixed; what the cap sweep says about the transfer.
+**Waiting on two supervisor rulings**: the revised Methodology cut ledger (target now
+~230, not 200); what the cap sweep says about transfer attribution (running, no output yet).
+
+**`build_cf` fixed and confirmed 2026-08-20.** Negatives now remap onto degraded copies
+`(i::a, j::b)`. Resolution 983/983 at every severity (was 0/943); noise parity within
+0.002–0.015 of positives (was inverted: negatives flat 0.000 vs positives 0.665–0.801).
+Regression test `test_degrade.py::TestBuildCfNoiseParity` pins both properties.
 
 **C7.** Division macro F1 0.759 tfidf / 0.709 embed; class **0.560** / 0.410 over 74 genuine
 classes, **25.8% routed to review**. TF-IDF wins 69 of 74. 4431 ("Wire products") collision
@@ -26,30 +31,25 @@ attributable** (Corpus B saturates `max_block_size=500`). Recall transfer **unme
 
 ## Blocked or waiting on the supervisor
 
-- **`build_cf` is broken and confounded — measured, not asserted.** Negatives resolve
-  **0/943** in the degraded frame (the Corpus B sweep crashes), and sit **0.000** from
-  source at every severity against positives at 0.665 (sev 0.25) / 0.801 (sev 0.5). Scores
-  invert: at sev 0.25 positives mean **0.169**, negatives **0.673**. No valid recall figure
-  until fixed.
-- **Page budget: cut ~200 lines.** Methodology is 463 of 839 (55%); eight cuts total −71,
-  rest from Introduction (117), Related Work (76), Corpus A/B prose. **Open:**
-  separator-blindness in `normalise_key`.
+- **Page budget target is ~230** (bibliography was omitted from the first count). 8
+  approved cuts −71; supervisor took 6 of 9 outside candidates for −98 more (−169 total);
+  revised ledger owed from Corpus B prose (346–403), Study Design (305–323), Partitioning
+  (614–628). **Open:** separator-blindness in `normalise_key`.
 
 ## Next tasks
 
-1. **System, stopping at the ruled line** — schema incl. six review-queue logging fields,
-   asset CRUD + list/detail, bulk import wizard, review queue. QR, floor plan, reminders,
-   role UI, audit browser are 14 Sep: not before the report ships.
-2. **RQ2 language-model condition** — class n=350 (ruled); division n **still uncosted**,
-   needs `RagFewShotLLMClassifier` built to measure rather than estimate.
-3. **`run_costs.py` does not exist** — T8_cost has no runner, record or builder.
+1. **T6_classification** builder written (`df3907d`); generation pending a genuinely
+   clean `run_classify` re-run (the prior "clean" record was mistaken — in progress).
+2. **T9_transfer** builder written, unwired until the cap sweep rules on 0.985→0.411.
+3. **`run_costs.py` / T8_cost** — build after the cascade completes (tomorrow).
+4. System build to the ruled line; RQ2 division-level LLM condition, still uncosted.
 
 ## Gotchas that are not plan amendments
 
-- **`make_tables.py` builds only T1_* and T3**; T4/T6/T8/T9 lack builders, and it refuses
-  any run made against a dirty tree — an uncommitted `main.tex` marks every run.
-- **`run_dedup` exits 2 on quota before `write_run`**, so no run record exists yet; T4
-  arrives on the first day the whole sweep replays from cache.
+- **`make_tables.py` refuses the whole build if the latest `run_blocking` record is dirty**
+  (`run_blocking-...-15338713`, pre-existing) — call a builder function directly, not `main()`.
+- **`run_dedup` exits 2 on quota before `write_run`**; T4 needs a day where all 1,209 pairs
+  are cached and only the live remainder completes inside quota — a cleared cache costs it.
 - Quota: 200k/day → **~300 adjudications/day** at 638 tok; RQ2 is 784 tok/record at k=12,
   ~1,421 with all 74 codes. TeX at `/Library/TeX/texbin`; `make paper` prepends it.
   **`make data` is a real break** — no `build_taxonomy.py`.
@@ -57,4 +57,4 @@ attributable** (Corpus B saturates `max_block_size=500`). Recall transfer **unme
   key failure, not capping. Naive floor **0.000 on Corpus A** at every severity.
 
 ## Last verified
-**2026-08-20** — `make paper` clean, 8 pages; `make test` 478 + 5 skipped, 29 annotation.
+**2026-08-20** — `make paper` clean, 8 pages; `research/tests` 486 + 7 skipped.
