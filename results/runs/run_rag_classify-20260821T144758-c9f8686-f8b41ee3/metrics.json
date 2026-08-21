@@ -84,6 +84,13 @@
   "k_examples": 5,
   "level": "division",
   "llm_sample_seed": 0,
+  "measured_cost": {
+    "binding_limit": "tokens",
+    "calls_per_day": 123.22303369098069,
+    "days_to_reach_n300": 2.4346097560975606,
+    "mean_tokens_per_call": 1623.0731707317073,
+    "n_calls": 41
+  },
   "n_dev": 22451,
   "n_supported_labels": 8,
   "n_test_full": 3962,
