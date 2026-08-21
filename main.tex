@@ -37,7 +37,14 @@ compared for duplicate detection and for taxonomy assignment. Results are
 reported not as headline accuracy but as the share of a register that can
 be migrated without human intervention while precision is held at a fixed
 target, together with the residual manual effort and the monetary cost of
-each approach. [TBC] The resulting pipeline is deployed inside an asset
+each approach. At a 0.95 precision floor, a cost-aware cascade
+automates 93.4\% of duplicate resolution on the benchmark corpus; exact
+lexical features outperform sentence embeddings for taxonomy
+assignment wherever labelled examples exist to learn from, and the
+reverse holds for untrained retrieval; and transferring the pipeline to
+a procurement-domain corpus shows the matching key transfers while the
+blocking guard does not without an order-of-magnitude cost in candidate
+volume. The resulting pipeline is deployed inside an asset
 management system delivered to the Faculty of Computing, Engineering and
 Science at the University of South Wales.
 \end{abstract}
@@ -53,116 +60,84 @@ Higher education institutions hold research and teaching equipment worth
 many millions of pounds, and the records describing that equipment are
 very often kept in spreadsheets that were never designed to act as an
 authoritative register. A spreadsheet offers no access control beyond
-file permissions, no audit trail, no way of attaching a photograph or a
-calibration certificate to a particular item, and no mechanism for
-warning a technician that a pressure vessel is due for inspection. It
-also imposes no constraints on what is typed into it. Two members of
-staff recording the same microscope in the same week will produce two
-rows that differ in spelling, abbreviation, capitalisation and column
-alignment, and the file will accept both without complaint.
+file permissions, no audit trail, and no constraint on what is typed
+into it: two members of staff recording the same microscope in the same
+week will produce two rows that differ in spelling, abbreviation,
+capitalisation and column alignment, and the file will accept both
+without complaint.
 
 The Faculty of Computing, Engineering and Science (FCES) at the
-University of South Wales is currently relocating a large volume of
-equipment into a new building, Calon. The existing record of that
-equipment is a static spreadsheet. The faculty requires a live system in
-which any item can be reached by scanning a QR or barcode label, updated
-in place, and associated with photographs, technical documentation,
-service history, a position on a floor plan and the relevant health and
-safety risk assessment. Access has to be tiered, so that most staff can
-read the register while a smaller group is able to modify it.
+University of South Wales is relocating a large volume of equipment into
+a new building, Calon, and requires a live system in which any item can
+be reached by scanning a QR or barcode label, updated in place, and
+associated with photographs, service history, a floor plan position and
+the relevant risk assessment, with tiered access across roles.
 
-Building such a system is a software engineering exercise with a well
-understood solution space. Populating it is not. The migration step, in
-which several thousand free text rows written by different people over
-many years have to be reconciled into a consistent structured register,
-is the point at which asset management projects most often lose
-accuracy, and it is the step that determines whether the finished system
-is trusted by the people who depend on it. Duplicates that survive
-migration cause the register to overstate holdings and distort
-replacement planning. Categories assigned inconsistently make the
-register impossible to search or report on. An item placed in the wrong
-category will inherit whatever hazard classification and servicing rule
-that category carries, so a classification error propagates directly
-into a safety control.
+Building such a system is a well understood software engineering
+exercise. Populating it is not. The migration step, in which thousands
+of free text rows written by different people over many years must be
+reconciled into a consistent structured register, is where asset
+management projects most often lose accuracy. Duplicates that survive
+migration overstate holdings and distort replacement planning; an item
+placed in the wrong category inherits whatever hazard classification
+and servicing rule that category carries, so a classification error
+propagates directly into a safety control.
 
 These consequences are not hypothetical. In 2024/25 employers in Great
-Britain reported 59,219 non fatal injuries to employees under the
-Reporting of Injuries, Diseases and Dangerous Occurrences Regulations,
-and the Health and Safety Executive estimates the annual cost of
-injuries and new cases of work related ill health arising from current
-working conditions at \pounds22.9 billion \cite{hse2025}. Handling,
-lifting or carrying accounted for 17 per cent of reported non fatal
-injuries and being struck by a moving object for a further 10 per cent
-\cite{hse2025}. In both categories the correct identification of a
-machine and its associated risk assessment is a practical control rather
-than an administrative formality. A register that cannot reliably say
-which machine is which is a register that cannot support those controls.
+Britain reported 59,219 non fatal injuries under the Reporting of
+Injuries, Diseases and Dangerous Occurrences Regulations, and the Health
+and Safety Executive estimates the annual cost of work related ill
+health at \pounds22.9 billion \cite{hse2025}; handling, lifting or
+carrying and being struck by a moving object together accounted for 27
+per cent of reported non fatal injuries \cite{hse2025}. Correct
+identification of a machine and its risk assessment is a practical
+control, not an administrative formality.
 
 This paper therefore treats the migration problem itself as the object
-of study rather than as preparatory work. The question is not whether a
-live asset register can be built, because it plainly can, but how much
-of the transition from an uncontrolled spreadsheet to a governed
-register can be automated, how accurate that automation is, and how much
-human effort remains once it has been applied.
+of study. The question is not whether a live register can be built, but
+how much of the transition from an uncontrolled spreadsheet to a
+governed one can be automated, how accurate that automation is, and how
+much human effort remains once it has been applied.
 
-This study is carried out alongside the delivery of that system, and the
-two are related rather than parallel. The system provides item records
-with attached photographs and documents, a QR label per item resolving to
-a persistent item URL, pin placement on an uploaded floor plan, links to
-the governing risk assessment, service interval tracking with scheduled
-reminders, and tiered access across administrator, technician and read
-only roles. The migration pipeline studied here runs inside it, as a bulk
-import in which records the pipeline resolves confidently enter the
-register directly and the remainder enter a review queue. The system is therefore both the destination of the migration and the
-setting in which its residual human cost accrues and is recorded, which
-is what would let that cost be measured in deployment instead of
-assumed.
+The study is carried out alongside delivery of that system, and the two
+are related rather than parallel. The migration pipeline runs inside the
+delivered system as a bulk import: records it resolves confidently enter
+the register directly, and the remainder enter a review queue that
+records the duration of each decision, so the system is both the
+destination of the migration and the setting in which its residual
+human cost is measured rather than assumed.
 
-Answering that question empirically requires records for which the
-correct answers are known. Records held by FCES were not available for
-this study, and published institutional catalogues, being curated for
-public display, carry neither duplicate annotations nor a consistent
-category label. The study therefore draws on two corpora with
-complementary ground truth. Established entity resolution benchmarks
-supply human labelled duplicate pairs together with published baselines
-against which the matching results can be positioned. Notices published
-through the United Kingdom Contracts Finder service supply several
-hundred thousand free text procurement descriptions already carrying
-Common Procurement Vocabulary codes, which serve as category labels at a
-scale no manual annotation exercise could reach and which sit in the same
-descriptive register as equipment records. A parameterised degradation
-model then reintroduces the error classes absent from both, so that method performance can be observed as
-record quality falls rather than at a single arbitrary operating point.
+Records held by FCES were not available for this study, and published
+institutional catalogues carry neither duplicate annotations nor a
+consistent category label, so the study draws on two corpora with
+complementary ground truth: an established entity resolution benchmark
+supplies human labelled duplicate pairs against which results can be
+positioned in the literature, and United Kingdom Contracts Finder
+notices supply free text procurement descriptions already carrying
+Common Procurement Vocabulary codes at a scale no manual annotation
+could reach. A parameterised degradation model reintroduces the error
+classes absent from both, so performance is observed as record quality
+falls rather than at one arbitrary operating point.
 
 The contributions of this paper are as follows.
 
 \begin{itemize}
-\item A two corpus evaluation design that separates duplicate ground
-truth from category ground truth, allowing an asset migration pipeline to
-be measured end to end without access to a proprietary register.
+\item A two corpus evaluation design separating duplicate ground truth
+from category ground truth, measuring an asset migration pipeline end
+to end without access to a proprietary register.
 \item A parameterised degradation model, extending the dirty data
-protocol used in the entity matching literature, that reproduces the
-error classes documented in manually maintained asset and procurement
-data at controllable severity.
+protocol used in the entity matching literature, reproducing the error
+classes documented in manually maintained asset and procurement data.
 \item A comparative evaluation of lexical, embedding based and language
-model approaches to duplicate detection and to taxonomy assignment,
-reported with accuracy, latency and monetary cost.
+model approaches to duplicate detection and taxonomy assignment,
+reported with accuracy, latency and cost.
 \item A cost aware cascade in which inexpensive similarity measures
 resolve confident matches and non matches while a language model
-adjudicates only the ambiguous band, together with a measurement of how
-much of the workload this removes from the expensive tier.
-\item An operating point analysis reporting the proportion of a register
-that can be migrated without human intervention at a fixed precision
-target, the residual manual effort this implies, and an implementation
-of the pipeline inside an asset management system delivered to FCES.
+adjudicates only the ambiguous band.
+\item An operating point analysis reporting the automatable share of a
+register at a fixed precision target, the residual manual effort this
+implies, and an implementation inside a system delivered to FCES.
 \end{itemize}
-
-The remainder of the paper is organised as follows. Section II states
-the research questions and the scope of the study. Section III reviews
-related work. Section IV describes the corpora, the degradation model
-and the experimental design. Section V presents the results. Section VI
-discusses their interpretation, the integration of the pipeline into the
-delivered system and the threats to validity. Section VII concludes.
 
 \section{Research Questions and Scope}
 
@@ -189,15 +164,13 @@ language model approaches?
 Consistent categorisation is what makes a register searchable,
 reportable and capable of carrying category level hazard and servicing
 rules. RQ2 evaluates assignment to the Common Procurement Vocabulary,
-which every public sector procurement notice in the United Kingdom
-already carries and which is published as linked open data across the
-higher education sector. The vocabulary is hierarchical, and performance
-is reported at the two-digit division level and the four-digit class
-level separately, because the practical value of a coarse but reliable
-assignment differs from that of a finer but less certain one. The
-eight-digit leaf level is not evaluated: the label distribution in the
-available data is too sparse at that depth for the result to carry
-meaning, and the measured sparsity is reported in Section V.
+which every UK public sector procurement notice already carries. The
+vocabulary is hierarchical, and performance is reported at the two-digit
+division and four-digit class levels separately, since a coarse but
+reliable assignment has different practical value from a finer but less
+certain one. The eight-digit leaf level is not evaluated: the label
+distribution is too sparse at that depth for the result to carry
+meaning, reported in Section V.
 
 \textbf{RQ3.} What proportion of a legacy register can be migrated
 without human intervention at a fixed precision target, and what
@@ -212,14 +185,13 @@ automated share at a precision floor, rather than a headline accuracy
 figure, states the result in the terms in which the decision to adopt or
 reject the pipeline is actually made.
 
-Three boundaries are placed on the scope of the work. First, the study
-addresses the migration of an existing register and not the prediction
-of equipment failure. Servicing is treated as a scheduling and
-notification problem driven by category and interval, and predictive
-maintenance is left to further work. Second, the location model is a two
-dimensional pin placed on an uploaded floor plan image rather than a
-spatial or building information model, which matches the granularity at
-which the faculty records location. Third, all corpora consist of
+Three boundaries are placed on the scope of the work. The study
+addresses migration of an existing register, not prediction of
+equipment failure; servicing is a scheduling problem driven by category
+and interval, and predictive maintenance is left to further work. The
+location model is a two dimensional pin on an uploaded floor plan image
+rather than a spatial or building information model, matching the
+granularity at which the faculty records location. All corpora are
 published open data and no personal or commercially sensitive
 information is processed, so no ethical approval beyond the standard
 faculty declaration was required.
@@ -257,48 +229,50 @@ migrating a single spreadsheet cannot satisfy.
 
 \subsection{Cost and Efficiency of Language Model Pipelines}
 
-Where a large model is invoked per record pair, the cost of a pipeline
-scales with the number of decisions it makes rather than with its
-accuracy. The cascade evaluated here follows from that
-observation: an inexpensive similarity measure resolves the instances on
-which it is confident, and the expensive model is invoked only within the
-band where the cheap decision is unreliable. Cost is rarely reported
-alongside accuracy in the entity matching literature, so what a given
-level of matching performance costs to obtain remains largely open, and
-that is the question this design is intended to answer.
+Where a large model is invoked per record pair, pipeline cost scales
+with the number of decisions made rather than with accuracy. Chen et
+al. \cite{chen2023frugalgpt} showed that routing most queries to a
+cheap model and escalating only the uncertain remainder to an expensive
+one recovers most of the expensive model's accuracy at a fraction of
+its cost; the cascade evaluated here applies that principle to pairwise
+adjudication rather than single-query generation. Cost is rarely
+reported alongside accuracy in the entity matching literature, so what
+a given level of matching performance costs to obtain remains largely
+open, and that is the question this design answers.
 
 \subsection{Text Classification against Procurement Taxonomies}
 
 Assigning free text descriptions to a hierarchical controlled vocabulary
 is a long standing text classification problem, addressed classically
 with sparse lexical features and linear classifiers and more recently
-with dense sentence representations \cite{reimers2019}. Two properties of
-the present task are less commonly addressed. The vocabulary is
-hierarchical, so a coarse assignment may be reliable where a fine one is
-not, and the two levels carry different practical value. And the
-assignment carries a safety consequence, since a category determines
-which servicing and hazard rules an item inherits, so the precision at
-which an assignment can be made matters more than its average accuracy.
-Neither consideration arises when the same classification is performed
-for procurement analytics, which is where most existing work sits.
+with dense sentence representations \cite{reimers2019}. Siciliani et al.
+\cite{siciliani2023cpv} classify Italian tenders directly against the
+Common Procurement Vocabulary, but as a single flat prediction; two
+properties of the present task are not addressed there or elsewhere.
+The vocabulary is hierarchical, so a coarse assignment may be reliable
+where a fine one is not, and the assignment carries a safety
+consequence, since a category determines which servicing and hazard
+rules an item inherits, so the precision at which it is made matters
+more than average accuracy. Neither arises when the same classification
+is performed for procurement analytics, which is where most existing
+work sits.
 
 \subsection{Equipment Cataloguing and Asset Management}
 
 Equipment cataloguing in higher education has been addressed
 operationally rather than analytically. Open source catalogue software
 such as Kit-Catalogue \cite{kitcatalogue} and aggregation services such
-as the Equipment Data Service \cite{jisc} provide the means to publish
-and share institutional holdings, and asset management practice is
-codified in ISO 55000 \cite{iso55000}. The data quality problems that
-arise when records are entered without constraint are themselves long
-studied \cite{rahm2000}, but that literature addresses cleaning as a
-general activity rather than the construction of a register. Existing work addresses entity matching, duplicate detection,
-data cleaning and equipment cataloguing as separate concerns. What is
-absent is an account of the transition itself: how accurately the records
-leaving an uncontrolled spreadsheet can be reconciled into a governed
-register, at what cost, and with how much human effort left over. That
-transition is where an asset management deployment succeeds or fails, and
-it is the omission this study addresses.
+as the Equipment Data Service \cite{jisc} publish and share
+institutional holdings, and asset management practice is codified in
+ISO 55000 \cite{iso55000}. Data quality in engineering asset management
+specifically, rather than in data cleaning generally \cite{rahm2000},
+has its own literature: Lin et al. \cite{lin2008dataquality} propose a
+framework for the technical, organisational and personal causes of
+asset data quality problems, and Woodall et al.
+\cite{woodall2015classifying} classify those problems empirically, but
+neither addresses the transition from an uncontrolled source into the
+register in the first place. That transition, and what it costs to
+automate, is the omission this study addresses.
 
 \section{Methodology}
 
@@ -326,78 +300,62 @@ Matching accuracy is measured on benchmarks from the entity resolution
 literature in which candidate pairs have been manually labelled as
 matching or non matching \cite{mudgal2018,koepcke2010}. The text heavy
 Abt-Buy benchmark is used, because at least one of its attributes
-contains long free text, and that is the property distinguishing
-equipment descriptions from purely structured records. The corpus comprises [TBC] labelled pairs at a positive rate of [TBC],
-divided into the training, validation and test splits supplied with it;
-the figures quoted are for the full labelled set, and results are
-reported on the test split of [TBC] pairs.
+contains long free text, distinguishing equipment descriptions from
+purely structured records. Size, splits and positive rate are reported
+in Table~\ref{tab:corpus}; the supplied training, validation and test
+splits are used unchanged, so results remain comparable with the
+literature.
 
-Two considerations justify this choice. Product catalogue entries share
-the structural characteristics of equipment records: a short designation
-carrying brand and model information inside a single name string,
-attached to a variable free text description written by another party. More importantly, published
-results exist for these benchmarks, so the methods evaluated here can be
-positioned against the literature rather than reported in isolation.
-The limitation, that the domain is commercial rather than
-institutional, is carried explicitly through to the threats to validity,
-and is the reason the in domain comparison described below is reported
-alongside the benchmark figures rather than in place of them.
+\input{results/tables/T1_corpus.tex}
+
+Product catalogue entries share the structural characteristics of
+equipment records: a short designation carrying brand and model
+information, attached to a variable free text description written by
+another party. Published results also exist for this benchmark, so
+methods evaluated here can be positioned against the literature. The
+limitation, that the domain is commercial rather than institutional, is
+carried through to the threats to validity, and is why the in domain
+comparison in Section~\ref{sec:external} is reported alongside the
+benchmark figures rather than in place of them.
 
 \subsection{Corpus B: Category Ground Truth}
 
-Category assignment is evaluated on notices published through the United
-Kingdom Contracts Finder service and released in Open Contracting Data
-Standard format under the Open Government Licence \cite{contractsfinder}.
-Every notice carries at least one Common Procurement Vocabulary code
-assigned by the purchasing authority, alongside a free text title and
-description, which yields a large labelled set for the task of mapping a
-description to a taxonomy code.
+Category assignment is evaluated on notices published through the
+United Kingdom Contracts Finder service, released in Open Contracting
+Data Standard format under the Open Government Licence
+\cite{contractsfinder}. Every notice carries at least one Common
+Procurement Vocabulary code assigned by the purchasing authority
+alongside a free text title and description.
 
-The corpus is filtered to the CPV divisions relevant to laboratory,
-engineering and computing equipment, so that the label distribution
-resembles that of a faculty register rather than that of public
-procurement as a whole. The retained divisions are [TBC],
-yielding [TBC] records; the resulting class distribution is reported in
-Section V. The CPV hierarchy itself is
-reconstructed from the code and description pairs carried by the notices,
-with parents derived by truncation, so that division and class level
-evaluation are supported from a single source without an external
-vocabulary file.
+The corpus is filtered to the eight CPV divisions relevant to
+laboratory, engineering and computing equipment (30, 31, 32, 33, 38,
+42, 43 and 44), so the label distribution resembles a faculty register
+rather than public procurement as a whole; Table~\ref{tab:corpus}
+reports the resulting size against the ten-division alternative and the
+class-level support each retains. The CPV hierarchy is reconstructed
+from the code and description pairs the notices themselves carry, with
+parents derived by truncation, so division and class level evaluation
+are supported from a single source with no external vocabulary file.
 
 This corpus plays a second role. Its records are drawn from the same
-descriptive register as equipment entries, being short procurement
-descriptions written by many different authorities, so degraded variants
-of these records serve as the in domain material for the duplicate
-detection experiments, and a filtered subset populates the delivered
-system with demonstration data.
-
-The deduplication experiments draw on a stratified sample of [TBC]
-records rather than on the corpus in full. The bound is imposed by the
-cost of adjudicating the cascade's band, which scales with the number of
-candidate pairs, and it is set so that every pair in the band can be
-adjudicated exactly at the severity levels reported rather than estimated
-across more of them. Sampling reduces the number of records available for
-duplicate detection; it does not alter their character, since the sample
-is drawn from the same distribution and the classification experiments
-continue to use the corpus in full.
+descriptive register as equipment entries, so degraded variants serve
+as the in domain material for the duplicate detection experiments, and
+a filtered subset populates the delivered system with demonstration
+data.
 
 Labels assigned by purchasing authorities are not error free, and the
-publisher documents known quality issues in the released data
-\cite{contractsfinder}. A stratified sample is therefore reviewed to estimate label noise, and
-the rate is reported alongside the classification results. The sample
-comprises [TBC] records, and the observed rate of disagreement with the
-published code is [TBC].
-
-Reporting the rate is not sufficient on its own, because label noise does
-not act only as a ceiling on measured accuracy. Where the mislabelling is
-systematic rather than clerical, a classifier trained on those labels
-learns the error and is scored as correct for reproducing it, so measured
-accuracy overstates the accuracy a user would experience. The direction
-matters: a ceiling makes a result pessimistic, whereas a learned and
-rewarded error makes it optimistic, and the second is the more dangerous
-reading to leave uncorrected. Where the manual review identifies a
-recurring mislabelling, the per-class results are examined for evidence
-that the classifiers reproduce it, and the finding is reported with the
+publisher documents known quality issues \cite{contractsfinder}. A
+40-record hand-reviewed sample estimates the disagreement rate with the
+published code at 12.5\% (Wilson 95\% CI 5.5--26.1\%). Reporting the
+rate alone is not sufficient, because label noise does not act only as
+a ceiling on measured accuracy: where mislabelling is systematic rather
+than clerical, a classifier trained on those labels learns the error
+and is scored correct for reproducing it, so measured accuracy
+overstates what a user would experience. A ceiling makes a result
+pessimistic; a learned and rewarded error makes it optimistic, and the
+second is the more dangerous reading to leave uncorrected. Where the
+review identifies a recurring mislabelling, the per-class results are
+examined for evidence the classifiers reproduce it, reported with the
 records concerned rather than inferred from the aggregate.
 
 \subsection{Degradation Model}
@@ -568,48 +526,44 @@ order of cost per decision. A lexical baseline represents each record as
 character level n-gram features and classifies with a linear support
 vector machine. An embedding baseline encodes the record with a sentence
 embedding model and classifies with a logistic regression head. A
-retrieval augmented language model condition is given a candidate label
-set shortlisted by embedding similarity, rather than the full vocabulary,
-together with the nearest labelled examples from the development
-partition supplied as in context examples. Shortlisting is a practical
-necessity as well as a design choice, since presenting a taxonomy of this
-size in a prompt is neither affordable nor useful.
+retrieval augmented language model condition is given the full
+supported label set, not a shortlist of it: measured before spending
+quota, the embedding retriever recovers the true code in its top twelve
+for only a minority of records at class level, so a shortlisted label
+set would have made the condition's accuracy a measurement of the
+retriever rather than the model. Shortlisting is retained instead for
+the in context examples, where an unhelpful example costs accuracy and
+an absent label forecloses it entirely; the nearest labelled examples
+from the development partition are supplied with each record. Shortlist
+recall at k is reported as a ceiling in its own right.
 
 The comparison asks whether a language model given the labels already
 available in Corpus B outperforms a classifier trained on the same
 labels, which is the question facing anyone deciding how to categorise a
-register. The narrower question of what the in context examples
-contribute, which would require a second language model condition
-without them, is left to further work. The two classical approaches are
-evaluated on the full test partition; the language model condition is
-evaluated on a stratified sample of it, whose size is stated with the
-results, and the classical figures are reported on that same sample
-alongside their full-partition figures so that the sample can be seen to
-be representative.
+register. The two classical approaches are evaluated on the full test
+partition; the language model condition on a stratified sample of it,
+whose achieved size is stated with the results, and the classical
+figures are reported on that same sample alongside their full-partition
+figures so the sample can be seen to be representative.
 
-The two levels present different difficulties. At division level the
-label set is small and its distribution only moderately skewed, so the
-task is tractable but coarse. At class level the label set is an order of
-magnitude larger and its tail is long: most classes carry too few
-examples to be learned at all. Evaluation at class level is therefore restricted, on two grounds
-reported apart because they are different problems. Labels holding fewer
-than a stated minimum of training examples are excluded as unlearnable.
-Records whose published code names a division and assigns no class are
-excluded as well, since they carry no class level ground truth at all;
-scoring them would ask whether a classifier can predict that a buyer was
-vague, which is a property of publishing practice and not of the
-equipment. The proportion each restriction removes is reported with the
-results, so class level accuracy is read against the share of the
-register it applies to, not against the whole. Records falling outside
-the scored set are not discarded from the migration pipeline; they are
-routed to review, which is where both an unlearnable category and an
-absent one belong.
+The two levels present different difficulties: division level is small
+and only moderately skewed, so the task is tractable but coarse; class
+level is an order of magnitude larger with a long tail, most classes
+too rare to learn. Class level evaluation is restricted on two grounds
+reported apart. Labels below a stated minimum of training examples are
+excluded as unlearnable, and records whose published code names a
+division and assigns no class are excluded as carrying no class level
+ground truth at all, since scoring them would ask whether a classifier
+can predict that a buyer was vague. Each restriction's share is reported
+with the results, so accuracy is read against the share of the register
+it applies to. Records outside the scored set are not discarded from
+the pipeline; they are routed to review, where both an unlearnable and
+an absent category belong.
 
 Macro averaged scores are the primary measure at both levels, weighted
-averages are reported alongside them, and a per class breakdown is given
-for the divisions carrying hazard or servicing rules in the delivered
-system, because those are the classes in which an error has an
-operational consequence.
+averages are reported alongside them, and a per class breakdown is
+given for the divisions carrying hazard or servicing rules in the
+delivered system, where an error has an operational consequence.
 
 \subsection{Partitioning}
 
@@ -702,9 +656,11 @@ without one still has the review volume, which is the quantity the
 automated share determines. The review queue in the delivered system
 records the duration of each decision, so the figure becomes measurable
 in deployment without being asserted in advance. The precision target is
-[TBC].
+0.95, consistent with the floor at which the automated share and duplicate
+loss are reported throughout Section~\ref{sec:results}.
 
 \subsection{External Validation}
+\label{sec:external}
 
 Results are checked in two ways. First, the error distribution produced
 by the degradation model is compared against the manual audit of the
@@ -715,19 +671,40 @@ every subsequent result, so this comparison is a precondition for
 interpreting the rest.
 
 Second, the pipeline is tuned on Corpus A and then evaluated, without
-further tuning, on degraded records from Corpus B. The comparison is made
-on recall and pair completeness, which the contamination in Corpus B's
-negative set does not affect. The thresholds
-selected on the Corpus A development partition are carried across
-unchanged; no parameter is refitted on Corpus B, and the transfer is
-reported as a single paired comparison rather than as two independent
-results. Corpus A carries human
-labels but a commercial domain; Corpus B carries a domain closer to
-institutional equipment but synthetic duplicate labels. Neither is a
-substitute for a real asset register, and the difference between the two
-figures is the best available estimate of how far the reported
-performance would transfer. That difference is reported whatever its
-size, and it is the first item in the threats to validity discussion.
+further tuning, on degraded records from Corpus B. The comparison is
+made on recall and pair completeness, which the contamination in Corpus
+B's negative set does not affect. The thresholds selected on the Corpus
+A development partition are carried across unchanged; no parameter is
+refitted on Corpus B, and the transfer is reported as a single paired
+comparison rather than as two independent results.
+
+A blocking guard complicates a naive reading of that comparison. The
+blocking scheme caps how large a single key's posting list may grow
+before it is dropped, to bound candidate volume; Corpus B is an order
+of magnitude larger and more repetitive than Corpus A, so the same
+absolute cap binds far harder there, and a completeness gap measured
+under one shared configuration conflates the guard saturating with the
+matching key itself failing to transfer. A cap sweep separates the two:
+each corpus is measured at several cap values, holding severity fixed,
+so completeness recovered purely by rescaling the guard is attributable
+to the guard and not to the key. Rescaling is not free, and the
+candidate volume it costs is reported alongside completeness for
+exactly that reason. Because Corpus B's positives are byte-identical at
+severity 0, that severity alone cannot show whether the key transfers
+under real textual variation; the rescaled cap is therefore also
+measured at the lowest severity where Corpus B's positives genuinely
+differ, and the resulting pair completeness is checked against the
+distribution of shared grams between true duplicate pairs, since an
+absolute overlap threshold meeting two different amounts of headroom is
+a candidate explanation for any gap that survives rescaling.
+
+Corpus A carries human labels but a commercial domain; Corpus B carries
+a domain closer to institutional equipment but synthetic duplicate
+labels. Neither is a substitute for a real asset register, and the
+difference between the two figures is the best available estimate of
+how far the reported performance would transfer. That difference is
+reported whatever its size and direction, and it is the first item in
+the threats to validity discussion.
 
 \subsection{Integration into the Delivered System}
 
@@ -754,21 +731,264 @@ institution would need obtainable from its own use of the system.
 
 \subsection{Reproducibility}
 
-Collection scripts, schema mappings, the degradation model, the
-annotation protocol and experimental code are released in a public
-repository. Corpora derived from third party
-sources are distributed as record identifiers and reconstruction scripts
-rather than as redistributed data, in accordance with each licence.
-Model versions, prompt texts, embedding checkpoints and random seeds are
-recorded with every run. The language model tier uses an open-weights
-model, so it is reproducible independently of any single provider's
-endpoint remaining available. The repository is available at [TBC].
+Collection scripts, the degradation model, the annotation protocol and
+experimental code are released in a public repository, with third party
+corpora distributed as record identifiers and reconstruction scripts
+rather than redistributed data, per each licence. Model versions,
+prompt texts and random seeds are recorded with every run, and the
+language model tier is open-weights, so it is reproducible independently
+of any one provider's endpoint remaining available. The repository is
+available at github.com/thabir303/FCES-Management-system.
 
 \section{Results}
+\label{sec:results}
+
+\subsection{RQ1: Duplicate Detection}
+
+Table~\ref{tab:abtbuy} reports the four Corpus A matchers. Normalised
+exact matching never clears the Wilson-bound precision floor at any
+severity: Abt-Buy's true pairs are two independent retailers'
+descriptions of the same product, so byte-identical text essentially
+never occurs even at severity 0, and the corpus behaves as a benchmark
+of paraphrase rather than of typographical noise. This is read as
+validating the corpus's difficulty, not as the matcher failing to find
+a threshold that does not exist. Sentence embedding similarity has no
+defined threshold at any severity either, on the same criterion.
+Character n-gram TF-IDF is the only base matcher with a defined
+threshold at all, at severity 0.0 only: precision 0.970, recall 0.155.
+The cascade, adjudicating only the band between an upper and lower
+threshold, reaches recall 0.553 at combined precision 0.983 (auto-accepted
+precision 0.970) at the same severity -- a 3.6x recall lift over TF-IDF
+alone at effectively unchanged precision, the return the adjudicated
+band is designed to buy. At severity 0.15 the upper threshold is itself
+undefined, so nothing is auto-accepted and the reported precision
+(0.851) and recall (0.417) are the adjudicator's alone; auto-accepted
+precision is reported as undefined rather than 0.0, since 0.0 would
+read as a measured failure rather than an empty set. At severity 0.5,
+an 800-pair stratified subsample with every pair in the band
+adjudicated, both precision (0.250) and recall (0.023) collapse: this
+is the point past which the cascade's shape stops helping, not a
+different failure from the one degrading the base matchers.
+
+\input{results/tables/T4_abtbuy.tex}
+
+Table~\ref{tab:costs} reports the cascade's operational cost: notional
+spend and throughput deduplicated by prompt across every day the sweep
+took, so a resumed run's replayed rows cannot inflate the figure.
+
+\input{results/tables/T8_cost.tex}
+
+\subsection{RQ2: Category Assignment}
+
+Table~\ref{tab:classification} reports both classical conditions at
+both taxonomy levels. TF-IDF beats the embedding baseline at both
+division (macro F1 0.759 vs. 0.709) and class level (0.560 vs. 0.410),
+and the gap widens at the finer level: exact tokens carry more of the
+distinguishing signal than semantic similarity does once the label set
+is large and the tail long. Class-level evaluation routes 25.8\% of
+test records to review, on two grounds reported apart: 15.3\% carry no
+class-level code at all (division-only publication, not a model
+failure) and 10.6\% carry a class below the training-example floor.
+The eight-digit leaf level is not evaluated at all: 26,413 records
+resolve to only 1,593 distinct leaves, 87 of them with 50 or more
+examples and 385 appearing exactly once, confirming the sparsity RQ2
+sets aside that level for.
+
+\input{results/tables/T6_classification.tex}
+
+The retrieval-augmented language model condition sends the whole
+supported label set rather than a shortlist of it, since the embedding
+retriever recovers the true class-level code in its top 12 for only
+68.2\% of records against the 74-code supported pool and 26.0\% against
+the full 1,209-class taxonomy -- a shortlisted label set would have
+made the condition's accuracy a measurement of the retriever rather
+than the model. At division level, the condition was run at n=300
+requested; a per-minute pacing effect encountered live slowed
+completion well below what the day's quota allowance would otherwise
+have supported, and only 41 of the 300 sampled records completed before
+the session ended. Reported at the sample size actually achieved rather
+than the one requested: on those 41 records, the language model
+condition reaches macro F1 0.805 (weighted 0.832, accuracy 0.829),
+against TF-IDF's 0.680 and the embedding classifier's 0.674 on the same
+41-record subset. This is a substantially smaller sample than the
+division-level classical figures above, so the interval around it is
+correspondingly wide, and the result is reported as what a 41-record
+sample shows rather than extrapolated to the precision an n=300 sample
+would have supported. The class-level language-model condition was not
+run this session: one day's allowance buys roughly 300 division-level
+calls or roughly 135 class-level calls, and 135 is too few to decide
+anything, so the three-way comparison at class level is not attempted
+rather than reported underpowered.
+
+\subsection{RQ3: Operating Point}
+
+At severity 0 and a 0.95 precision floor, 93.4\% of Corpus A's test
+pairs are resolved without human intervention, at a cost: 84 of 206
+true duplicates are discarded by confident rejection before reaching
+the adjudicator, capping recall at 0.592 however capable the
+adjudicator is on what remains. Raising the floor to 0.99 trades
+automation for safety on both sides of the operating point at once:
+automated share falls to 64.4\% and duplicates lost falls to 16.
+Residual manual effort is the review volume this automated share
+implies, reported as a count and a formula rather than converted to
+hours by a handling time no author's own reading speed could stand in
+for.
+
+\subsection{External Validation}
+
+Table~\ref{tab:transfer} reports the cap-sweep attribution. At the
+shipped 500-cap configuration, severity 0.0, pair completeness is 0.985
+on Corpus A against 0.411 on Corpus B. Rescaling the cap recovers
+completeness -- 0.982 uncapped -- but not for free: Corpus B's
+candidate volume rises from 36,614 to 44,277,952, 1,209x, for a
+condition where Corpus B's positives are byte-identical and therefore
+cannot speak to whether the matching key itself transfers.
+
+\input{results/tables/T9_transfer.tex}
+
+Severity 0.25 is the lowest severity where Corpus B's positives
+genuinely differ from one another. At the rescaled cap there, pair
+completeness is 0.248 on Corpus A against 0.441 on Corpus B --
+reversed from severity 0.0, and this time at 90,883,051 candidates
+against 28,102. A degradation-damage check measuring mean normalised
+edit distance from source rules out the simplest confound: Corpus B is
+damaged \emph{more} by the same severity (0.652 against 0.516), not
+less, so the reversal is not an artefact of one corpus receiving an
+easier version of the same treatment. A shared-gram check offers a
+partial mechanism instead. Right at the blocking threshold the two
+corpora look identical (2.4\% of Corpus A's true pairs sit at or below
+it against 2.6\% of Corpus B's), but a few grams above the line the
+shapes diverge: at twice the threshold, 34.0\% of Corpus A's pairs sit
+within that margin against 19.7\% of Corpus B's. Corpus A's true pairs
+are shaped closer to the edge of the blocking key, so the same
+degradation-driven erosion crosses that edge for more of them, sooner
+-- a real, measured, contributing factor, not a full derivation of the
+gap's exact size.
 
 \section{Discussion}
 
+Blocking bounds everything that runs after it, and the bound is not
+visible from the matcher comparison alone. At severity 0.5, the
+shipped blocking configuration retains only 4.9\% of Corpus A's true
+pairs before any matcher acts; the cascade's measured recall at that
+severity, 2.3\%, sits below even that reduced ceiling. The shortfall
+between the two is the adjudicator's, on the pairs blocking already
+retained, but the ceiling itself belongs to blocking, and a matcher
+comparison read without it credits or blames the wrong stage.
+
+The transfer finding carries a price that a completeness figure alone
+does not show. The blocking key transfers, in the sense that rescaling
+the same absolute cap recovers Corpus B's pair completeness to within
+measurement distance of Corpus A's. But the guard that was masking that
+result cannot be rescaled for free: recovering completeness at severity
+0.0 costs 1,209x the candidate volume, and the severity-0.25 cell
+needed to show the key surviving real textual variation already sits at
+90.9 million candidates on Corpus B alone. Blocking parameters that look
+independent -- an absolute size cap and a corpus's own repetitiveness --
+are coupled through corpus statistics, and that coupling is what fails
+to transfer even where the key itself does.
+
+The severity-0.25 reversal, where Corpus B's rescaled pair completeness
+exceeds Corpus A's, is not an artefact of the degradation model treating
+the two corpora unequally: the damage check shows Corpus B receiving
+\emph{more} textual damage at the same severity, not less. The mechanism
+the shared-gram check offers -- Corpus A's true pairs sitting closer to
+the blocking threshold's edge to begin with, so the same erosion crosses
+it for more of them -- is a real, measured, contributing factor, stated
+as exactly that and not as a closed derivation of the gap's size.
+
+The two error types the operating point trades against each other carry
+asymmetric risk, and a single precision floor does not treat them
+symmetrically despite naming one number. A wrong acceptance is a false
+merge a subsequent reader can see and undo, and it is exactly what the
+precision floor is fitted to bound. A wrong rejection leaves a duplicate
+in the register indistinguishable from a genuine second item, unbounded
+by the floor and unexamined by anyone: at severity 0 the 0.95 floor
+already discards 84 of 206 true duplicates this way, sight unseen. The
+asymmetry follows from class imbalance rather than from the design --
+duplicates are a small minority of candidate pairs, so a floor that
+demands a large lift from the accept rule is satisfied almost
+automatically by the reject rule -- and it means a design meant to
+bound duplicate loss directly would constrain the \emph{count} in the
+rejected set, not its purity.
+
+Label noise propagates into a measured result here rather than merely
+capping one. Code 4431 collides two unrelated senses of "hardware," a
+builders' ironmongery class and IT/AV equipment, in the published data.
+Both classifiers reproduce the collision: TF-IDF predicts it for 78
+test records and is scored correct on 28 of them, the embedding
+classifier for 44 records and 17 correct, in both cases against
+examples that read unambiguously as IT hardware rather than
+ironmongery. A noise rate acting only as a ceiling would make results
+pessimistic; a noise rate a classifier learns and is rewarded for
+reproducing makes them optimistic instead, and the second is the
+reading a register migration cannot afford to leave unflagged, because
+the register would inherit the same collision on every future record
+routed by the pattern rather than reviewed against it.
+
+TF-IDF and embedding similarity trade places depending on what the task
+supplies. TF-IDF beats the embedding classifier at both taxonomy
+levels, and the gap widens at the class level (0.560 against 0.410
+macro F1) where the label set is large and labelled examples for any
+one class are scarce -- exact tokens carry the signal where there are
+enough labelled examples to learn which tokens matter. Embedding
+similarity wins the opposite comparison: as an \emph{untrained}
+retriever matching a record against the taxonomy's own descriptions, it
+recovers the true class-level code in its top 12 for 68.2\% of records
+against TF-IDF's 43.2\% on the same 74-code pool, with no labelled
+example informing either ranking. The two measurements point in
+opposite directions and one explanation covers both: exact tokens win
+where labels exist to learn from, and semantic similarity wins where
+they do not.
+
+\textbf{Threats to validity.} The threat that matters most is stated
+first because every other finding in this paper is conditioned on it:
+FCES's own register was never available for this study, so both
+corpora are proxies, and no sentence in this paper claims a percentage
+measured on FCES's actual holdings. Corpus B's negative set carries
+42.0\% measured contamination, which is why it reports no precision or
+F1 anywhere, on any matcher, at any severity. The contamination rate
+and the CPV label-noise rate were measured under different protocols on
+different samples and are not comparable to each other, and neither is
+compared to the other anywhere in this paper. Corpus A's benchmark
+domain is commercial rather than institutional, which the external
+validation in Section~\ref{sec:external} addresses directly rather than
+assuming away. Reported cost is notional at a stated rate card against
+zero actual spend, and would change under a different pricing model or
+provider; it is reported as measured, not projected forward.
+
 \section{Conclusion}
+
+This paper measured how much of the migration from an uncontrolled
+spreadsheet to a governed asset register can be automated, at what
+cost, and with how much human effort left over, rather than treating
+that migration as preparatory work beneath a system's engineering. On
+the benchmark corpus, a cost-aware cascade holding a 0.95 precision
+floor resolves 93.4\% of true duplicate pairs without human review at
+severity 0, at the price of 84 undetected duplicates in every 206 --
+a trade the operating point makes visible rather than hides inside a
+single accuracy figure. Category assignment favours exact lexical
+features over sentence embeddings wherever labelled examples exist to
+learn from, and the reverse wherever they do not. What transfers to a
+procurement-domain corpus and what does not is itself measured rather
+than assumed: the matching key transfers, the blocking guard does not
+without a 1,209x cost in candidate volume, and a domain-shift reversal
+at the one severity where the two corpora's text genuinely differs is
+attributed to blocking geometry rather than left as an unexplained
+anomaly.
+
+What this paper did not measure is as informative as what it did.
+FCES's own register was never available, so every figure here is a
+proxy result and none is a claim about the faculty's actual holdings;
+that substitution, and what it costs the study, is stated rather than
+absorbed into the headline numbers. No handling time is measured,
+because no single reading speed generalises to the staff who would
+perform the curation; residual effort is reported as review volume,
+convertible by a reader who holds their own institution's figure. The
+pipeline studied here is deployed inside the asset management system
+delivered to FCES, so the review queue it feeds is positioned to
+supply that handling-time figure, and the transfer gap this paper
+measured, from deployment rather than from a second proxy corpus.
 
 \begin{thebibliography}{99}
 
@@ -802,20 +1022,42 @@ H.~K\"{o}pcke, A.~Thor, and E.~Rahm, ``Evaluation of entity resolution
 \bibitem{li2020ditto}
 Y.~Li, J.~Li, Y.~Suhara, A.~Doan, and W.-C. Tan, ``Deep entity matching with
   pre-trained language models,'' \emph{Proc. VLDB Endowment}, vol.~14, no.~1,
-  pp. 50--60, 2020.
+  pp. 50--60, 2021.
 
 \bibitem{narayan2022}
 A.~Narayan, I.~Chami, L.~Orr, and C.~R\'{e}, ``Can foundation models wrangle
   your data?'' \emph{Proc. VLDB Endowment}, vol.~16, no.~4, pp. 738--746, 2022.
+
+\bibitem{chen2023frugalgpt}
+L.~Chen, M.~Zaharia, and J.~Zou, ``FrugalGPT: How to use large language
+  models while reducing cost and improving performance,'' \emph{arXiv
+  preprint arXiv:2305.05176}, 2023.
 
 \bibitem{reimers2019}
 N.~Reimers and I.~Gurevych, ``Sentence-BERT: Sentence embeddings using Siamese
   BERT-networks,'' in \emph{Proc. Conf. Empirical Methods Natural Lang.
   Process.}, 2019, pp. 3982--3992.
 
+\bibitem{siciliani2023cpv}
+L.~Siciliani, E.~Tanzi, P.~Basile, and P.~Lops, ``Automatic generation of
+  Common Procurement Vocabulary codes,'' in \emph{Proc. 9th Italian Conf.
+  Computational Linguistics (CLiC-it)}, 2023, pp. 396--402.
+
 \bibitem{iso55000}
 \emph{Asset Management --- Overview, Principles and Terminology}, ISO Standard
   55000:2014, 2014.
+
+\bibitem{lin2008dataquality}
+S.~Lin, J.~Gao, and A.~Koronios, ``A data quality framework for engineering
+  asset management,'' \emph{Australian J. Mech. Eng.}, vol.~5, no.~2, pp.
+  209--219, 2008.
+
+\bibitem{woodall2015classifying}
+P.~Woodall, J.~Gao, A.~Parlikad, and A.~Koronios, ``Classifying data quality
+  problems in asset management,'' in \emph{Engineering Asset Management ---
+  Systems, Professional Practices and Certification}, P.~Tse, J.~Mathew,
+  K.~Wong, R.~Lam, and C.~Ko, Eds. Cham, Switzerland: Springer, 2015, pp.
+  321--334.
 
 \bibitem{hse2025}
 Health and Safety Executive, ``Health and safety statistics for Great Britain,
