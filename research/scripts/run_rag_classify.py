@@ -30,9 +30,15 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from fcesreg.classify import EmbeddingLogRegClassifier, RagFewShotLLMClassifier, TfidfSvmClassifier
+from fcesreg.classify import (
+    ClassificationResult,
+    EmbeddingLogRegClassifier,
+    RagFewShotLLMClassifier,
+    TfidfSvmClassifier,
+    _parse_classification,
+)
 from fcesreg.cpv import label_series, supported_labels
-from fcesreg.llm import LLMClient
+from fcesreg.llm import DailyQuotaExhausted, LLMClient
 from fcesreg.metrics import macro_weighted_f1
 from fcesreg.paths import repo_root, results_path
 from fcesreg.runs import capture_env, new_run_id, write_run
@@ -55,6 +61,58 @@ def stratified_sample(frame: pd.DataFrame, label_col: pd.Series, n: int, seed: i
         take.append(idx)
     positions = np.sort(np.concatenate(take)) if take else np.array([], dtype=int)
     return frame.iloc[positions].reset_index(drop=True)
+
+
+def predict_whatever_completed(
+    rag: RagFewShotLLMClassifier, sample: pd.DataFrame
+) -> tuple[ClassificationResult, pd.DataFrame]:
+    """Same contract as ``rag.predict(sample)``, except a mid-batch ``DailyQuotaExhausted``
+    is not fatal: whatever ``complete_many`` finished before the quota ran out is real,
+    already-paid-for work, and reporting it at its own (smaller) sample size is honest in a
+    way that either crashing outright or padding it back up to the requested n would not be.
+
+    Mirrors ``run_dedup.py``'s handling of the same exception around the cascade -- the
+    runner catches it, the library class does not, exactly the split ``adjudicate.py`` and
+    ``run_dedup.py`` already establish.
+    """
+    try:
+        return rag.predict(sample), sample
+    except DailyQuotaExhausted as e:
+        record_ids = sample["record_id"].tolist()
+        completed_positions = []
+        codes: list[str] = []
+        for position, record_id in enumerate(record_ids):
+            custom_id = f"{position}|{record_id}"
+            response = e.completed.get(custom_id)
+            if response is None:
+                continue
+            try:
+                code, _runner_up = _parse_classification(
+                    response.text, custom_id, rag._label_set
+                )
+            except Exception as parse_exc:
+                # Already in best-effort partial recovery; a response that came back
+                # malformed here is the same "not a random sample of the band" concern
+                # adjudicate.py raises on -- but crashing the whole partial report over one
+                # bad reply among an otherwise-real batch is the wrong failure mode now.
+                # Excluded and named, not silently dropped.
+                print(f"  excluding {custom_id}: {parse_exc}")
+                continue
+            completed_positions.append(position)
+            codes.append(code)
+        partial_sample = sample.iloc[completed_positions].reset_index(drop=True)
+        result = ClassificationResult(
+            codes=codes,
+            scores=np.ones(len(codes), dtype=np.float64),
+            alternatives=[[] for _ in codes],
+        )
+        print(
+            f"  *** QUOTA EXHAUSTED MID-BATCH *** {len(codes)} of {len(sample)} requested "
+            f"records actually completed before the daily allowance ran out. Reporting at "
+            f"n={len(codes)}, not the requested n={len(sample)} -- do not treat this as a "
+            f"failure to fix; it is what today's allowance bought."
+        )
+        return result, partial_sample
 
 
 def score(name: str, truth: np.ndarray, predicted: np.ndarray, ordered: list[str]) -> dict:
@@ -114,9 +172,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     rag.fit(dev_ok, level)
     print(f"rag_fewshot_llm: predicting {len(sample)} records, condition={cfg['condition']!r}...")
-    rag_result = rag.predict(sample)
+    rag_result, completed_sample = predict_whatever_completed(rag, sample)
+    partial = len(completed_sample) < len(sample)
 
-    sample_labels = label_series(sample, level).to_numpy()
+    # The classical conditions are scored on the SAME subset the language model actually
+    # answered, not the full requested sample -- a partial run must compare like for like,
+    # not silently widen the classical conditions' n past what the LLM condition achieved.
+    sample_labels = label_series(completed_sample, level).to_numpy()
     conditions_on_sample: dict = {}
     conditions_on_sample["rag_fewshot_llm"] = score(
         "rag_fewshot_llm", sample_labels, np.asarray(rag_result.codes), ordered
@@ -128,9 +190,10 @@ def main(argv: list[str] | None = None) -> int:
         model = factory()
         model.fit(dev_ok, level)
 
-        predicted_sample = model.predict(sample)
+        predicted_sample = model.predict(completed_sample)
         conditions_on_sample[name] = score(
-            f"{name} (n={len(sample)})", sample_labels, np.asarray(predicted_sample.codes), ordered
+            f"{name} (n={len(completed_sample)})", sample_labels,
+            np.asarray(predicted_sample.codes), ordered,
         )
 
         predicted_full = model.predict(test_ok)
@@ -138,13 +201,19 @@ def main(argv: list[str] | None = None) -> int:
             f"{name} (full)", full_labels, np.asarray(predicted_full.codes), ordered
         )
 
+    if partial:
+        print(f"\n*** PARTIAL RUN: {len(completed_sample)} of {len(sample)} requested "
+              f"records completed before the daily quota ran out ***")
+
     metrics = {
         "level": level,
         "n_supported_labels": len(labels),
         "n_dev": len(dev_ok),
         "n_test_full": len(test_ok),
         "n_test_sample_requested": cfg["llm_sample_n"],
-        "n_test_sample_actual": len(sample),
+        "n_test_sample_drawn": len(sample),
+        "n_test_sample_completed": len(completed_sample),
+        "partial_run": partial,
         "llm_sample_seed": cfg["llm_sample_seed"],
         "k_examples": cfg["k_examples"],
         "condition": cfg["condition"],

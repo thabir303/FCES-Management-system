@@ -10,6 +10,8 @@ the real run happens; if it does, the test was checking the wrong thing.
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -17,7 +19,9 @@ import pytest
 
 from fcesreg import embed as embed_mod
 from fcesreg.classify import ClassificationFailed, RagFewShotLLMClassifier, rag_prompt
-from fcesreg.llm import LLMClient, RateCard
+from fcesreg.llm import LLMClient, Limits, RateCard
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 
 @pytest.fixture
@@ -250,3 +254,61 @@ class TestRagPrompt:
         assert prompt.index("ex title") < prompt.index("target title")
         assert "code: 30" in prompt
         assert prompt.rstrip().endswith("code:")
+
+
+class TestPartialCompletion:
+    """The real n=300 run is very unlikely to fit inside the remaining daily quota (verbose
+    Corpus B examples plus a reasoning model's hidden chain-of-thought tokens push real cost
+    to roughly 2x the cascade's per-call average). `predict_whatever_completed` in
+    `run_rag_classify.py` is what stands between that and either a crash that loses a
+    finished run record, or reporting an n that was never actually achieved -- checked here
+    against a scripted DailyQuotaExhausted, not discovered for the first time against the
+    real budget-constrained run.
+    """
+
+    def test_normal_completion_returns_every_record_unchanged(self, stub_encoder, tmp_path):
+        from run_rag_classify import predict_whatever_completed
+
+        replies = [{"code": "30", "runner_up": "33", "reason": "x"}] * 3
+        client = make_llm_client(tmp_path, replies)
+        clf = RagFewShotLLMClassifier(client, taxonomy(), k_examples=1)
+        clf.fit(train(), "division")
+        sample = target(3)
+        result, completed = predict_whatever_completed(clf, sample)
+        assert len(result.codes) == 3
+        assert len(completed) == 3
+
+    def test_quota_exhaustion_mid_batch_returns_only_what_completed(self, stub_encoder, tmp_path):
+        from run_rag_classify import predict_whatever_completed
+
+        # First two succeed; the third would need more tokens than the day has left.
+        replies = [
+            {"code": "30", "runner_up": "33", "reason": "x"},
+            {"code": "33", "runner_up": "30", "reason": "x"},
+        ]
+        client = make_llm_client(
+            tmp_path, replies,
+            limits=Limits(tokens_per_day=900, tokens_per_minute=10_000, requests_per_day=100),
+        )
+        clf = RagFewShotLLMClassifier(client, taxonomy(), k_examples=1, max_tokens=5)
+        clf.fit(train(), "division")
+        sample = target(3)
+        result, completed = predict_whatever_completed(clf, sample)
+        assert len(result.codes) == 2
+        assert len(completed) == 2
+        assert result.codes == ["30", "33"]
+        # The record ids that actually completed, in original order.
+        assert completed["record_id"].tolist() == sample["record_id"].tolist()[:2]
+
+    def test_completed_scores_and_alternatives_still_shaped_correctly(self, stub_encoder, tmp_path):
+        from run_rag_classify import predict_whatever_completed
+
+        replies = [{"code": "30", "runner_up": "33", "reason": "x"}]
+        client = make_llm_client(
+            tmp_path, replies,
+            limits=Limits(tokens_per_day=500, tokens_per_minute=10_000, requests_per_day=100),
+        )
+        clf = RagFewShotLLMClassifier(client, taxonomy(), k_examples=1, max_tokens=5)
+        clf.fit(train(), "division")
+        result, completed = predict_whatever_completed(clf, target(3))
+        assert len(result.scores) == len(result.codes) == len(result.alternatives) == len(completed)
