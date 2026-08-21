@@ -61,48 +61,45 @@ def _wrap(body: str, caption: str, label: str, run_id: str, spec: str) -> str:
     )
 
 
-def table_corpus_a(run: dict) -> str:
-    m = run["metrics"]["corpus_a_abtbuy"]
-    rows = [
-        "Partition & Pairs & Positive & Positive rate \\\\\n\\hline\n",
-    ]
+def table_corpus(run: dict) -> str:
+    """Both corpora's size and split, merged into one exhibit (supervisor ruling: five
+    tables not eleven). Corpus A's unit is a labelled pair; Corpus B's is a record, split
+    by division set rather than train/valid/test since the adopted set is the point being
+    shown. The two blocks share columns loosely (n, a held-out count, a rate) rather than
+    exactly, documented in the caption rather than forced into an artificial match.
+    """
+    a = run["metrics"]["corpus_a_abtbuy"]
+    b = run["metrics"]["corpus_b_contractsfinder"]
+    adopted = b["adopted_division_set"]
+
+    rows = ["Corpus & Unit & n & Held out & Rate \\\\\n\\hline\n"]
     for split in ("train", "valid", "test"):
-        s = m["splits"][split]
+        s = a["splits"][split]
         rows.append(
-            f"{split} & {s['n_pairs']:,} & {s['n_positive']:,} & "
-            f"{100 * s['positive_rate']:.1f}\\% \\\\\n"
+            f"A: {split} & pairs & {s['n_pairs']:,} & --- & "
+            f"{100 * s['positive_rate']:.1f}\\% positive \\\\\n"
         )
-    rows.append("\\hline\n")
     rows.append(
-        f"total & {m['n_pairs']:,} & "
-        f"{sum(s['n_positive'] for s in m['splits'].values()):,} & "
-        f"{100 * m['positive_rate_overall']:.1f}\\% \\\\\n"
+        f"A: total & pairs & {a['n_pairs']:,} & --- & "
+        f"{100 * a['positive_rate_overall']:.1f}\\% positive \\\\\n"
     )
-    caption = (
-        f"Corpus A (Abt-Buy): {m['n_records']:,} records "
-        f"({m['n_records_table_a']:,} + {m['n_records_table_b']:,}) and the supplied "
-        f"labelled pairs, used as given."
-    )
-    return _wrap("".join(rows), caption, "tab:corpus_a", run["run_id"], "lrrr")
-
-
-def table_corpus_b(run: dict) -> str:
-    m = run["metrics"]["corpus_b_contractsfinder"]
-    adopted = m["adopted_division_set"]
-    rows = ["Division set & Records & Dev & Test & Classes $\\geq$50 & Coverage \\\\\n\\hline\n"]
-    for name, d in m["division_sets"].items():
+    rows.append("\\hline\n")
+    for name, d in b["division_sets"].items():
         lvl = d["levels"]["class"]
         mark = " (adopted)" if name == adopted else ""
         rows.append(
-            f"{len(d['divisions'])} divisions{mark} & {d['n_records']:,} & "
-            f"{d['n_dev']:,} & {d['n_test']:,} & {lvl['n_labels_supported']} & "
-            f"{100 * lvl['coverage_of_dev']:.1f}\\% \\\\\n"
+            f"B: {len(d['divisions'])} div.{mark} & records & {d['n_records']:,} & "
+            f"{d['n_test']:,} test & {100 * lvl['coverage_of_dev']:.1f}\\% cov. \\\\\n"
         )
     caption = (
-        f"Corpus B (Contracts Finder): corpus size and CPV class support with and "
-        f"without divisions 39 and 48. Temporal split at {m['split']['cutoff']}."
+        f"Corpus A (Abt-Buy): {a['n_records']:,} records "
+        f"({a['n_records_table_a']:,} + {a['n_records_table_b']:,}), supplied splits used "
+        f"as given, rate is the positive share of pairs. Corpus B (Contracts Finder): "
+        f"records by retained division set, temporal split at {b['split']['cutoff']}, "
+        f"rate is class-level label coverage of the development partition at "
+        f"$\\geq$50 training examples."
     )
-    return _wrap("".join(rows), caption, "tab:corpus_b", run["run_id"], "lrrrrr")
+    return _wrap("".join(rows), caption, "tab:corpus", run["run_id"], "llrrr")
 
 
 def table_discard(run: dict) -> str:
@@ -233,6 +230,52 @@ def table_blocking(run: dict) -> str:
     return _wrap("".join(rows), caption, "tab:blocking", run["run_id"], "llrrrr")
 
 
+def table_abtbuy(run: dict) -> str:
+    """T4_abtbuy: RQ1, the matcher comparison on Corpus A, including the cascade.
+
+    ``run["metrics"]["free_matchers"]`` is the full factorial (matcher x severity x seed);
+    rows here are averaged over seeds, one row per (matcher, severity). Cascade rows come
+    from ``run["metrics"]["cascade"]`` separately, since it runs a single seed at three
+    severities rather than the free matchers' full factorial, and its precision splits into
+    an auto-accepted figure and a combined one -- reported as two columns rather than
+    collapsed into one, since collapsing would attribute the adjudicator's error rate to a
+    threshold that never saw those pairs.
+    """
+    import pandas as pd
+
+    rows = ["Matcher & Sev. & P & R & F1 \\\\\n\\hline\n"]
+    free = pd.DataFrame(run["metrics"]["free_matchers"])
+    for matcher in free["matcher"].unique():
+        block = free[free["matcher"] == matcher]
+        for severity, g in block.groupby("severity"):
+            # threshold is None where no score met the Wilson-bound precision target on
+            # dev -- nothing was accepted, which is a different statement from "accepted
+            # everything and scored 0". Distinguished rather than shown as a measured 0.000.
+            if g["threshold"].isna().all():
+                rows.append(f"{_esc(matcher)} & {severity} & \\multicolumn{{3}}{{c}}{{no threshold}} \\\\\n")
+            else:
+                rows.append(
+                    f"{_esc(matcher)} & {severity} & {g['precision'].mean():.3f} & "
+                    f"{g['recall'].mean():.3f} & {g['f1'].mean():.3f} \\\\\n"
+                )
+    rows.append("\\hline\n")
+    for row in run["metrics"]["cascade"]:
+        auto = row.get("precision_auto_accepted")
+        auto_s = "---" if auto is None else f"{auto:.3f}"
+        rows.append(
+            f"cascade & {row['severity']} & {row['precision']:.3f} ({auto_s} auto) & "
+            f"{row['recall']:.3f} & {row['f1']:.3f} \\\\\n"
+        )
+    caption = (
+        "Corpus A matcher comparison, precision/recall/F1 averaged over seeds (free "
+        "matchers) or single-seed with every band pair adjudicated (cascade). Cascade "
+        "precision is combined output; auto is the auto-accepted portion alone, which the "
+        "threshold selection constrains and the combined figure does not. Severity 0.5 is "
+        "an 800-pair stratified subsample, not the full band."
+    )
+    return _wrap("".join(rows), caption, "tab:abtbuy", run["run_id"], "lcccc")
+
+
 def table_classification(run: dict) -> str:
     """RQ2: both classical conditions at both levels, and the level's routed-to-review
     share broken out by cause.
@@ -338,17 +381,18 @@ def table_transfer(run: dict) -> str:
 
 
 BUILDERS = {
-    "run_blocking": {"T3_blocking.tex": table_blocking},
+    # T3_blocking dropped as a table (supervisor ruling: five tables not eleven); its
+    # numbers that matter for prose are folded into T9_transfer or stated inline.
     "run_classify": {"T6_classification.tex": table_classification},
-    # "run_transfer": {"T9_transfer.tex": table_transfer},  # pending: see table_transfer docstring
-    # "run_costs": {"T8_cost.tex": table_costs},  # pending: see table_costs docstring
+    "run_transfer_attribution": {"T9_transfer.tex": table_transfer},
+    "run_costs": {"T8_cost.tex": table_costs},
+    "run_dedup": {"T4_abtbuy.tex": table_abtbuy},
     "run_profile": {
-        "T1_corpus_a.tex": table_corpus_a,
-        "T1_corpus_b.tex": table_corpus_b,
-        "T1_discard.tex": table_discard,
-        "T1_leaf_sparsity.tex": table_leaf_sparsity,
-        "T1_label_support.tex": table_label_support,
-        "T1_division_choice.tex": table_division_choice,
+        "T1_corpus.tex": table_corpus,
+        # T1_discard, T1_leaf_sparsity, T1_label_support, T1_division_choice dropped as
+        # tables (supervisor ruling): each is a single number or short list that reads
+        # fine in a sentence. The builder functions stay, for anyone regenerating the
+        # figure to check a prose number against.
     },
 }
 
