@@ -1,0 +1,16 @@
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: data/processed/corpus_a_abtbuy_pairs.parquet
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+divisions:
+- '30'
+- '31'
+- '32'
+- '33'
+- '38'
+- '42'
+- '43'
+- '44'
+min_overlap: 8
+n: 3
+seed: 0
+severity: 0.0
