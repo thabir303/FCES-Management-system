@@ -302,7 +302,7 @@ def table_classification(run: dict) -> str:
             rows.append(
                 f"{level.capitalize()} & {_esc(condition_label.get(name, name))} & "
                 f"{c['macro_f1']:.3f} & {c['weighted_f1']:.3f} & {c['accuracy']:.3f} & "
-                f"{routed:.1%} \\\\\n"
+                f"{100 * routed:.1f}\\% \\\\\n"
             )
     caption_parts = [
         "Category assignment, both classical conditions. Class level restricts to "
@@ -313,9 +313,10 @@ def table_classification(run: dict) -> str:
         cls = run["metrics"]["levels"]["class"]
         below_floor = cls["test_routed_to_review"] - cls["test_unspecified_at_level"]
         caption_parts.append(
-            f"At class level {cls['test_routed_to_review']:.1%} of test records are "
-            f"routed to review: {cls['test_unspecified_at_level']:.1%} carry no class-level "
-            f"code at all, {below_floor:.1%} carry a label below the training floor."
+            f"At class level {100 * cls['test_routed_to_review']:.1f}\\% of test records "
+            f"are routed to review: {100 * cls['test_unspecified_at_level']:.1f}\\% carry "
+            f"no class-level code at all, {100 * below_floor:.1f}\\% carry a label below "
+            "the training floor."
         )
     return _wrap(
         "".join(rows), " ".join(caption_parts), "tab:classification", run["run_id"], "llrrrr"
@@ -336,7 +337,7 @@ def table_costs(run: dict) -> str:
     rows = ["Sev. & Band & Adjudicated/Pairs & USD/1000 & Tokens/1000 \\\\\n\\hline\n"]
     for row in m["band"]:
         rows.append(
-            f"{row['severity']} & {row['band_fraction']:.1%} & "
+            f"{row['severity']} & {100 * row['band_fraction']:.1f}\\% & "
             f"{row['n_adjudicated']}/{row['n_pairs']} & "
             f"{row['usd_per_1000']:.4f} & {row['tokens_per_1000']:.0f} \\\\\n"
         )
