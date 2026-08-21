@@ -1,0 +1,58 @@
+{
+  "condition": "rq2_incontext",
+  "conditions_on_full_partition": {
+    "embedding_logreg": {
+      "accuracy": 0.7511357900050479,
+      "labels_without_support": 0,
+      "macro_f1": 0.7094798148408883,
+      "n_items": 3962,
+      "n_labels": 8,
+      "weighted_f1": 0.7488378190436703
+    },
+    "tfidf_svm": {
+      "accuracy": 0.782180716809692,
+      "labels_without_support": 0,
+      "macro_f1": 0.7593311184428958,
+      "n_items": 3962,
+      "n_labels": 8,
+      "weighted_f1": 0.781234224160103
+    }
+  },
+  "conditions_on_sample": {
+    "embedding_logreg": {
+      "accuracy": 0.7560975609756098,
+      "labels_without_support": 0,
+      "macro_f1": 0.6742424242424243,
+      "n_items": 41,
+      "n_labels": 8,
+      "weighted_f1": 0.7518477457501848
+    },
+    "rag_fewshot_llm": {
+      "accuracy": 0.8292682926829268,
+      "labels_without_support": 0,
+      "macro_f1": 0.8048130764163373,
+      "n_items": 41,
+      "n_labels": 8,
+      "weighted_f1": 0.8319643947427616
+    },
+    "tfidf_svm": {
+      "accuracy": 0.6829268292682927,
+      "labels_without_support": 0,
+      "macro_f1": 0.6799960003764352,
+      "n_items": 41,
+      "n_labels": 8,
+      "weighted_f1": 0.6861779436540836
+    }
+  },
+  "k_examples": 5,
+  "level": "division",
+  "llm_sample_seed": 0,
+  "n_dev": 22451,
+  "n_supported_labels": 8,
+  "n_test_full": 3962,
+  "n_test_sample_completed": 41,
+  "n_test_sample_drawn": 298,
+  "n_test_sample_requested": 300,
+  "partial_reason": "per-minute pacing slowed to ~1 call/25min after a token-window accounting fix made pacing more conservative on retries; recovered by reading the 41 already-cached live completions directly rather than re-issuing requests",
+  "partial_run": true
+}
