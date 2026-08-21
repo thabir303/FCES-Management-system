@@ -20,6 +20,7 @@ visible rather than hidden inside a number that looks like the full-partition fi
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -37,6 +38,7 @@ from fcesreg.classify import (
     TfidfSvmClassifier,
     _parse_classification,
 )
+from fcesreg.costs import summarise_costs, throughput_per_day
 from fcesreg.cpv import label_series, supported_labels
 from fcesreg.llm import DailyQuotaExhausted, LLMClient
 from fcesreg.metrics import macro_weighted_f1, wilson_interval
@@ -277,6 +279,23 @@ def main(argv: list[str] | None = None) -> int:
     }
     if partial:
         metrics["completed_subset_check"] = _subsample_check(sample, completed_sample, level)
+
+    ledger = [json.loads(line) for line in results_path("ledger.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    summaries = summarise_costs(ledger, conditions={cfg["condition"]})
+    if cfg["condition"] in summaries:
+        cost = summaries[cfg["condition"]]
+        throughput = throughput_per_day(
+            mean_tokens=cost.mean_tokens,
+            tokens_per_day=llm_cfg["limits"]["tokens_per_day"],
+            requests_per_day=llm_cfg["limits"]["requests_per_day"],
+        )
+        metrics["measured_cost"] = {
+            "n_calls": cost.n_calls,
+            "mean_tokens_per_call": cost.mean_tokens,
+            "calls_per_day": throughput["calls_per_day"],
+            "binding_limit": throughput["binding_limit"],
+            "days_to_reach_n300": 300 / throughput["calls_per_day"],
+        }
     out = write_run(run_id, params=cfg, metrics=metrics, env=env)
     print(f"\nwrote {out}")
     return 0
