@@ -1,0 +1,4 @@
+# CPV label noise disagreement rate (PROJECT_PLAN.md line 1469). Committed; runners take
+# no tuning flags.
+
+sample_path: annotation/labels/cpv_label_noise.jsonl

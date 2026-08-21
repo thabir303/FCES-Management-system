@@ -310,38 +310,31 @@ def table_costs(run: dict) -> str:
 
 
 def table_transfer(run: dict) -> str:
-    """External Validation: pair completeness (and recall, where a threshold exists) at
-    each severity, Corpus A carried to Corpus B unchanged.
+    """External Validation: the cap-sweep attribution, per corpus per cap per severity.
 
-    **Not yet registered in BUILDERS.** The pair completeness gap this table reports
-    (0.985 -> 0.411 at severity 0) is not yet attributable between domain shift and the
-    block-size cap saturating on Corpus B's larger, more repetitive title set -- that
-    measurement is `run_blocking_cap.py`, still pending a ruling on what it says. Wire this
-    into BUILDERS once External Validation's prose is settled, so the table and the prose
-    it sits beside are decided together rather than the table shipping first.
+    A reader cannot recover a 1,209x candidate-volume cost from reduction ratios sitting
+    near 1 on either side, so candidates is reported directly rather than RR alone. This
+    table answers "what does rescaling the guard cost", not "does the matcher rank the same
+    way" -- that comparison lives in T4_abtbuy's Corpus A panel and T3_blocking's Corpus B
+    panel, unaffected by any of this.
     """
-    rows = ["Sev. & Matcher & PC (A) & PC (B) & PC gap & R (A) & R (B) \\\\\n\\hline\n"]
-    for row in run["metrics"]["paired"]:
-        def fmt(x, spec=".3f"):
-            return "---" if x is None else f"{x:{spec}}"
-
-        flag = " *" if row.get("corpus_b_positives_are_identical") else ""
+    rows = ["Corpus & Sev. & Cap & PC & Candidates & Dropped \\\\\n\\hline\n"]
+    for row in run["metrics"]["rows"]:
+        short = "A (Abt-Buy)" if row["corpus"] == "corpus_a" else "B (Contracts Finder)"
+        cap = "none" if row["cap"] is None else f"{row['cap']:,}"
         rows.append(
-            f"{row['severity']} & {_esc(row['matcher'])} & "
-            f"{fmt(row['pair_completeness_corpus_a'])} & "
-            f"{fmt(row['pair_completeness_corpus_b'])} & "
-            f"{fmt(row['pair_completeness_gap'], '+.3f')} & "
-            f"{fmt(row['recall_corpus_a'])} & "
-            f"{fmt(row['recall_corpus_b'])}{flag} \\\\\n"
+            f"{short} & {row['severity']} & {cap} & {row['pair_completeness']:.3f} & "
+            f"{row['n_candidates']:,} & {row['blocks_dropped']:,} \\\\\n"
         )
     caption = (
-        "External validation: thresholds and blocking fitted once on Corpus A dev at "
-        "severity 0, carried unchanged to both corpora at every severity. * marks the "
-        "severity-0 Corpus B recall as an identity artefact -- its positives are "
-        "byte-identical degraded copies at that severity -- reported for completeness and "
-        "not as a transfer result."
+        "Block-size cap sweep, severity 0.0 (Corpus B positives byte-identical there) and "
+        "the rescaled cap at severity 0.25 (the condition where they genuinely differ). "
+        "Corpus B candidate volume: 36,614 (cap 500) to 44,277,952 (uncapped) at severity "
+        "0.0 -- 1,209x for a completeness gain from 0.411 to 0.982. At severity 0.25, cap "
+        "10,000: Corpus B pair completeness (0.441) exceeds Corpus A's (0.248), reversed "
+        "from severity 0.0, at 90,883,051 candidates against 28,102 for Corpus A."
     )
-    return _wrap("".join(rows), caption, "tab:transfer", run["run_id"], "lccccc")
+    return _wrap("".join(rows), caption, "tab:transfer", run["run_id"], "lcccrr")
 
 
 BUILDERS = {
