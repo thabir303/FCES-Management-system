@@ -1,0 +1,38 @@
+cascade:
+  base: tfidf
+  condition: cascade
+  corpus: abtbuy
+  max_adjudications: 5000
+  max_tokens: 1024
+  seed: 0
+  severities:
+  - 0.0
+  - 0.15
+  - 0.5
+  subsample:
+  - n: 800
+    seed: 0
+    severity: 0.5
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: data/processed/corpus_a_abtbuy_pairs.parquet
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+divisions:
+- '30'
+- '31'
+- '32'
+- '33'
+- '38'
+- '42'
+- '43'
+- '44'
+precision_target: 0.95
+seeds:
+- 0
+- 1
+- 2
+severities:
+- 0.0
+- 0.25
+- 0.5
+- 0.75
+- 1.0
