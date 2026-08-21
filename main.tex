@@ -805,20 +805,44 @@ made the condition's accuracy a measurement of the retriever rather
 than the model. At division level, the condition was run at n=300
 requested; a per-minute pacing effect encountered live slowed
 completion well below what the day's quota allowance would otherwise
-have supported, and only 41 of the 300 sampled records completed before
-the session ended. Reported at the sample size actually achieved rather
-than the one requested: on those 41 records, the language model
-condition reaches macro F1 0.805 (weighted 0.832, accuracy 0.829),
-against TF-IDF's 0.680 and the embedding classifier's 0.674 on the same
-41-record subset. This is a substantially smaller sample than the
-division-level classical figures above, so the interval around it is
-correspondingly wide, and the result is reported as what a 41-record
-sample shows rather than extrapolated to the precision an n=300 sample
-would have supported. The class-level language-model condition was not
-run this session: one day's allowance buys roughly 300 division-level
-calls or roughly 135 class-level calls, and 135 is too few to decide
-anything, so the three-way comparison at class level is not attempted
-rather than reported underpowered.
+have supported, and only 41 of the 298 drawn records completed before
+the session ended. The 41 are the leading portion of a stratified
+random draw (seed 0), not a reordered or hand-picked subset: position
+in the draw carries a $-0.085$ correlation with the record's release
+date, and the largest per-division share drift against the full
+298-record draw is 11 percentage points -- both consistent with n=41
+sampling noise rather than a biased prefix.
+
+Reported at the sample size actually achieved rather than the one
+requested, with Wilson 95\% intervals rather than the bare point
+estimates a comparison this size cannot support without them:
+\texttt{rag\_fewshot\_llm} reaches accuracy 0.829 [0.687, 0.915] (macro
+F1 0.805), against \texttt{embedding\_logreg}'s 0.756 [0.607, 0.862]
+(macro F1 0.674) and \texttt{tfidf\_svm}'s 0.683 [0.530, 0.804] (macro
+F1 0.680), all on the same 41-record subset. All three intervals
+overlap; at this sample size the comparison does not separate the
+three conditions.
+
+A second check uses \texttt{tfidf\_svm}'s own known value: scored on
+the full 3,962-record test partition it reaches accuracy 0.782 and
+macro F1 0.759, 9.9 and 7.9 percentage points above what the same
+classifier scores on the 41-record subsample. The language model's
+apparent macro F1 margin over \texttt{tfidf\_svm} (12.5 points) is only
+around 1.6 times the drift already visible in a condition whose true
+value is known -- a difference this size is not distinguishable from
+sampling variation at n=41.
+
+What the n=41 run does establish: the pipeline runs end to end against
+the live endpoint, and its cost is measured at 1,623 tokens per call,
+giving roughly 123 calls a day against the 200,000-token daily
+allowance. A properly powered n=300 division-level comparison would
+take about 2.4 days of quota at that rate -- affordable in principle,
+not within the single day's allowance available this session, which is
+why it did not complete. The class-level condition's larger label
+listing (74 codes against 8) raises the per-call cost further, so the
+135 calls/day estimated for it in advance was already optimistic; a
+three-way comparison at class level remains not attempted, on the same
+grounds as before.
 
 \subsection{RQ3: Operating Point}
 
