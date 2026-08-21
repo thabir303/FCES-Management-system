@@ -1,9 +1,0 @@
-{
-  "disagreement_rate": 0.125,
-  "disagreement_rate_ci_lower": 0.05459500250945401,
-  "disagreement_rate_ci_upper": 0.261121198388511,
-  "n": 40,
-  "n_agree": 33,
-  "n_disagree": 5,
-  "n_unsure": 2
-}
