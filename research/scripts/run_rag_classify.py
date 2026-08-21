@@ -39,7 +39,7 @@ from fcesreg.classify import (
 )
 from fcesreg.cpv import label_series, supported_labels
 from fcesreg.llm import DailyQuotaExhausted, LLMClient
-from fcesreg.metrics import macro_weighted_f1
+from fcesreg.metrics import macro_weighted_f1, wilson_interval
 from fcesreg.paths import repo_root, results_path
 from fcesreg.runs import capture_env, new_run_id, write_run
 from run_classify import load_partitions, restrict
@@ -117,14 +117,55 @@ def predict_whatever_completed(
 
 def score(name: str, truth: np.ndarray, predicted: np.ndarray, ordered: list[str]) -> dict:
     scored = macro_weighted_f1(truth, predicted, ordered)
+    n = len(truth)
+    correct = int((truth == predicted).sum())
+    point, lower, upper = wilson_interval(correct, n)
     print(f"  {name:<18} macro {scored['macro_f1']:.3f}  weighted {scored['weighted_f1']:.3f}  "
-          f"acc {scored['accuracy']:.3f}  (n={len(truth)})")
-    return {k: v for k, v in scored.items() if k != "per_class"}
+          f"acc {scored['accuracy']:.3f} [{lower:.3f}, {upper:.3f}]  (n={n})")
+    result = {k: v for k, v in scored.items() if k != "per_class"}
+    result["accuracy_wilson_95"] = {"point": point, "lower": lower, "upper": upper}
+    return result
+
+
+def _subsample_check(drawn: pd.DataFrame, completed: pd.DataFrame, level: str) -> dict:
+    """Whether the completed subset looks like a random draw from ``drawn`` or a biased
+    prefix of it. ``predict_whatever_completed``/``predict_cached_only`` both fill
+    ``completed`` in the order the sample frame lists records, which is the order
+    ``stratified_sample`` leaves them in (ascending original position, not drawn order) --
+    if that position correlated with something the frame is sorted by, "completed" would be
+    a biased slice of "drawn" rather than a smaller random sample of it. This measures that
+    directly rather than asserting it.
+    """
+    check: dict = {}
+    drawn_labels = label_series(drawn, level).value_counts(normalize=True)
+    completed_labels = label_series(completed, level).value_counts(normalize=True)
+    check["label_share_max_abs_diff"] = float(
+        (drawn_labels - completed_labels.reindex(drawn_labels.index).fillna(0.0)).abs().max()
+    )
+    if "release_date" in drawn.columns:
+        positions = np.arange(len(drawn))
+        dates = pd.to_datetime(drawn["release_date"]).astype("int64").to_numpy()
+        check["position_vs_date_correlation"] = float(np.corrcoef(positions, dates)[0, 1])
+        check["drawn_date_range"] = [
+            str(pd.to_datetime(drawn["release_date"]).min().date()),
+            str(pd.to_datetime(drawn["release_date"]).max().date()),
+        ]
+        check["completed_date_range"] = [
+            str(pd.to_datetime(completed["release_date"]).min().date()),
+            str(pd.to_datetime(completed["release_date"]).max().date()),
+        ]
+    return check
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--config", type=Path, required=True)
+    p.add_argument(
+        "--cache-only", action="store_true",
+        help="score only requests already in the LLM cache; never calls the network or "
+             "waits on pacing. For recomputing a run's statistics (e.g. after a partial "
+             "run) without any further quota risk.",
+    )
     args = p.parse_args(argv)
 
     cfg = yaml.safe_load(args.config.read_text(encoding="utf-8"))
@@ -171,8 +212,21 @@ def main(argv: list[str] | None = None) -> int:
         k_examples=cfg["k_examples"], max_tokens=cfg["max_tokens"],
     )
     rag.fit(dev_ok, level)
-    print(f"rag_fewshot_llm: predicting {len(sample)} records, condition={cfg['condition']!r}...")
-    rag_result, completed_sample = predict_whatever_completed(rag, sample)
+    print(f"rag_fewshot_llm: predicting {len(sample)} records, condition={cfg['condition']!r}, "
+          f"cache_only={args.cache_only}...")
+    if args.cache_only:
+        rag_result, completed_sample = rag.predict_cached_only(sample)
+        partial_reason = (
+            "recomputed from cache only (--cache-only); no network call attempted, so this "
+            "cannot advance n beyond whatever a prior live run already completed and cached"
+        )
+    else:
+        rag_result, completed_sample = predict_whatever_completed(rag, sample)
+        partial_reason = (
+            "per-minute pacing slowed to ~1 call/25min after a token-window accounting fix "
+            "made pacing more conservative on retries; recovered by reading the already-"
+            "cached live completions directly rather than re-issuing requests"
+        )
     partial = len(completed_sample) < len(sample)
 
     # The classical conditions are scored on the SAME subset the language model actually
@@ -214,12 +268,15 @@ def main(argv: list[str] | None = None) -> int:
         "n_test_sample_drawn": len(sample),
         "n_test_sample_completed": len(completed_sample),
         "partial_run": partial,
+        "partial_reason": partial_reason if partial else None,
         "llm_sample_seed": cfg["llm_sample_seed"],
         "k_examples": cfg["k_examples"],
         "condition": cfg["condition"],
         "conditions_on_sample": conditions_on_sample,
         "conditions_on_full_partition": conditions_on_full,
     }
+    if partial:
+        metrics["completed_subset_check"] = _subsample_check(sample, completed_sample, level)
     out = write_run(run_id, params=cfg, metrics=metrics, env=env)
     print(f"\nwrote {out}")
     return 0

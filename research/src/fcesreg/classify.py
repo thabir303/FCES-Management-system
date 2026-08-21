@@ -39,7 +39,7 @@ from sklearn.svm import LinearSVC
 
 from fcesreg.cpv import label_series
 from fcesreg.embed import embed
-from fcesreg.llm import LLMClient, LLMRequest
+from fcesreg.llm import LLMClient, LLMRequest, cache_key
 from fcesreg.schema import text_of
 
 __all__ = [
@@ -309,30 +309,31 @@ class RagFewShotLLMClassifier:
             for row in order
         ]
 
-    def predict(self, records: pd.DataFrame) -> ClassificationResult:
-        if self._schema is None:
-            raise RuntimeError("fit() before predict()")
-
+    def _build_requests(self, records: pd.DataFrame) -> list[LLMRequest]:
         texts = text_of(records).tolist()
         query_embeddings = embed(texts)
         examples_per_record = self._nearest_examples(query_embeddings)
 
-        requests = []
         record_ids = records["record_id"].tolist() if "record_id" in records else [
             str(i) for i in range(len(records))
         ]
-        for position, (text, examples) in enumerate(zip(texts, examples_per_record)):
-            requests.append(
-                LLMRequest(
-                    custom_id=f"{position}|{record_ids[position]}",
-                    system=self._system_prompt,
-                    prompt=rag_prompt(examples, text),
-                    max_tokens=self.max_tokens,
-                    json_schema=self._schema,
-                    condition=self.condition,
-                )
+        return [
+            LLMRequest(
+                custom_id=f"{position}|{record_ids[position]}",
+                system=self._system_prompt,
+                prompt=rag_prompt(examples, text),
+                max_tokens=self.max_tokens,
+                json_schema=self._schema,
+                condition=self.condition,
             )
+            for position, (text, examples) in enumerate(zip(texts, examples_per_record))
+        ]
 
+    def predict(self, records: pd.DataFrame) -> ClassificationResult:
+        if self._schema is None:
+            raise RuntimeError("fit() before predict()")
+
+        requests = self._build_requests(records)
         results = self.client.complete_many(requests)
 
         codes: list[str] = []
@@ -353,6 +354,40 @@ class RagFewShotLLMClassifier:
             alternatives.append([(runner_up, 0.5)] if runner_up and runner_up != code else [])
 
         return ClassificationResult(codes=codes, scores=scores, alternatives=alternatives)
+
+    def predict_cached_only(self, records: pd.DataFrame) -> tuple[ClassificationResult, pd.DataFrame]:
+        """Same contract as :meth:`predict` restricted to requests already in the cache.
+
+        Never calls the network and never waits on pacing -- it reads
+        ``self.client._read_cache`` directly, exactly the recovery this module needed once
+        already (per-minute pacing had collapsed mid-run and re-issuing the request list
+        risked hours of additional waiting for nothing the cache didn't already hold).
+        Records with no cached completion are silently excluded from the returned frame, the
+        same "not a failure to fix, it is what today's allowance bought" contract
+        ``predict_whatever_completed`` in ``run_rag_classify.py`` applies after a live
+        exhaustion -- this is that same recovery, without ever attempting the network first.
+        """
+        if self._schema is None:
+            raise RuntimeError("fit() before predict_cached_only()")
+
+        requests = self._build_requests(records)
+        codes: list[str] = []
+        completed_positions: list[int] = []
+        for position, request in enumerate(requests):
+            key = cache_key(self.client.model, request.system, request.prompt, request.json_schema)
+            payload = self.client._read_cache(key)
+            if payload is None:
+                continue
+            code, _runner_up = _parse_classification(payload["text"], request.custom_id, self._label_set)
+            codes.append(code)
+            completed_positions.append(position)
+
+        result = ClassificationResult(
+            codes=codes,
+            scores=np.ones(len(codes), dtype=np.float64),
+            alternatives=[[] for _ in codes],
+        )
+        return result, records.iloc[completed_positions].reset_index(drop=True)
 
 
 def _parse_classification(text: str, custom_id: str, label_set: list[str]) -> tuple[str, str]:
