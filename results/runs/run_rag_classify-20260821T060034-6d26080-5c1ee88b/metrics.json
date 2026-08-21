@@ -1,0 +1,55 @@
+{
+  "condition": "rq2_probe",
+  "conditions_on_full_partition": {
+    "embedding_logreg": {
+      "accuracy": 0.7511357900050479,
+      "labels_without_support": 0,
+      "macro_f1": 0.7094798148408883,
+      "n_items": 3962,
+      "n_labels": 8,
+      "weighted_f1": 0.7488378190436703
+    },
+    "tfidf_svm": {
+      "accuracy": 0.782180716809692,
+      "labels_without_support": 0,
+      "macro_f1": 0.7593311184428958,
+      "n_items": 3962,
+      "n_labels": 8,
+      "weighted_f1": 0.781234224160103
+    }
+  },
+  "conditions_on_sample": {
+    "embedding_logreg": {
+      "accuracy": 0.75,
+      "labels_without_support": 4,
+      "macro_f1": 0.3333333333333333,
+      "n_items": 4,
+      "n_labels": 8,
+      "weighted_f1": 0.6666666666666666
+    },
+    "rag_fewshot_llm": {
+      "accuracy": 1.0,
+      "labels_without_support": 4,
+      "macro_f1": 0.5,
+      "n_items": 4,
+      "n_labels": 8,
+      "weighted_f1": 1.0
+    },
+    "tfidf_svm": {
+      "accuracy": 0.75,
+      "labels_without_support": 4,
+      "macro_f1": 0.3333333333333333,
+      "n_items": 4,
+      "n_labels": 8,
+      "weighted_f1": 0.6666666666666666
+    }
+  },
+  "k_examples": 5,
+  "level": "division",
+  "llm_sample_seed": 0,
+  "n_dev": 22451,
+  "n_supported_labels": 8,
+  "n_test_full": 3962,
+  "n_test_sample_actual": 4,
+  "n_test_sample_requested": 5
+}
