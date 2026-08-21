@@ -25,6 +25,7 @@ the network except through an injected adjudicator-style client.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
@@ -38,6 +39,7 @@ from sklearn.svm import LinearSVC
 
 from fcesreg.cpv import label_series
 from fcesreg.embed import embed
+from fcesreg.llm import LLMClient, LLMRequest
 from fcesreg.schema import text_of
 
 __all__ = [
@@ -46,6 +48,8 @@ __all__ = [
     "ClassificationResult",
     "TfidfSvmClassifier",
     "EmbeddingLogRegClassifier",
+    "RagFewShotLLMClassifier",
+    "ClassificationFailed",
     "Shortlister",
     "EmbeddingShortlister",
     "TfidfShortlister",
@@ -53,6 +57,9 @@ __all__ = [
     "shortlist_codes",
     "taxonomy_text",
 ]
+
+#: code length per level, e.g. taxonomy["cpv_code"].str.len() == 2 for divisions.
+_CODE_LENGTH = {"division": 2, "class": 4}
 
 #: The two levels evaluated. Leaf (8-digit) is deliberately absent — see the module
 #: docstring and §4.2. Note the 4-digit level is a CPV *class*; the official *group* is
@@ -167,6 +174,209 @@ class EmbeddingLogRegClassifier:
             probabilities, np.asarray(self.model.classes_), _N_ALTERNATIVES
         )
         return ClassificationResult(codes=codes, scores=scores, alternatives=alternatives)
+
+
+class ClassificationFailed(RuntimeError):
+    """A record came back missing or unparseable.
+
+    Raised rather than defaulted, for the same reason ``adjudicate.AdjudicationFailed`` is:
+    a default is a measurement the model did not make, and the records that fail to parse
+    are not a random sample of the test set.
+    """
+
+
+def _render_example(text: str, code: str) -> str:
+    return f"record: {text}\ncode: {code}"
+
+
+def _render_target(text: str) -> str:
+    return f"record: {text}\ncode:"
+
+
+def rag_prompt(examples: Sequence[tuple[str, str]], target_text: str) -> str:
+    """The user turn: retrieved few-shot examples, then the record to classify.
+
+    Public because the cost probe prices this exact text (mirrors
+    ``adjudicate.render_prompt``).
+    """
+    blocks = [_render_example(text, code) for text, code in examples]
+    blocks.append(_render_target(target_text))
+    return "\n\n".join(blocks)
+
+
+class RagFewShotLLMClassifier:
+    """RQ2's language-model condition: the whole label set, few-shot examples retrieved by
+    embedding similarity to the training set (amendment 13).
+
+    **Retrieval narrows the examples, never the label set.** Amendment 13 measured that a
+    shortlisted label set drops the true code often enough to make the condition's accuracy
+    a measurement of the retriever rather than the model, so the fixed code list for
+    ``level`` is sent in full in the system prompt and constrained via the response schema's
+    ``enum`` — the endpoint cannot return a code outside it. What retrieval selects instead
+    is the ``k_examples`` nearest labelled training records by embedding similarity, so the
+    model sees examples relevant to the record in front of it rather than a fixed few-shot
+    set repeated for every call.
+
+    **No calibrated confidence.** The endpoint returns a code and a runner-up, not a
+    probability distribution over the label set the way a calibrated classifier does, and a
+    self-reported numeric confidence from a language model is not a measurement (§ project
+    standing rule: unmeasured is not estimated). ``scores`` is therefore an ORDER marker,
+    not a probability: 1.0 for the returned code, 0.5 for the runner-up if one differs from
+    it. Do not compare these scores against ``TfidfSvmClassifier``/``EmbeddingLogRegClassifier``
+    scores as if they were on the same scale.
+
+    Every call goes through ``LLMClient``'s cache, ledger and quota governance, exactly as
+    ``adjudicate.LLMAdjudicator`` does — this class is the classification-shaped sibling of
+    that one, and reuses the same fail-loud parsing discipline.
+    """
+
+    name = "rag_fewshot_llm"
+
+    def __init__(
+        self,
+        client: LLMClient,
+        taxonomy: pd.DataFrame,
+        condition: str = "rq2_incontext",
+        k_examples: int = 5,
+        max_tokens: int = 150,
+    ):
+        self.client = client
+        self.taxonomy = taxonomy
+        self.condition = condition
+        self.k_examples = k_examples
+        self.max_tokens = max_tokens
+
+        self._level: str | None = None
+        self._train_text: list[str] = []
+        self._train_labels: np.ndarray | None = None
+        self._train_embeddings: np.ndarray | None = None
+        self._label_set: list[str] = []
+        self._system_prompt: str = ""
+        self._schema: dict | None = None
+
+    def fit(self, train: pd.DataFrame, level: str) -> None:
+        if level not in _CODE_LENGTH:
+            raise ValueError(f"level must be one of {tuple(_CODE_LENGTH)}, got {level!r}")
+        self._level = level
+        self._train_text = text_of(train).tolist()
+        self._train_labels = label_series(train, level).to_numpy()
+        self._train_embeddings = embed(self._train_text)
+
+        # The label set is whatever the caller's `train` actually carries at this level --
+        # callers restrict this to the supported set upstream (fcesreg.cpv.supported_labels),
+        # the same restriction the classical conditions are scored under, so the three
+        # conditions face the same label set rather than the language model facing a wider
+        # or narrower one.
+        self._label_set = sorted(set(self._train_labels))
+
+        code_length = _CODE_LENGTH[level]
+        rows = self.taxonomy[self.taxonomy["cpv_code"].str.len() == code_length]
+        descriptions = dict(zip(rows["cpv_code"], rows["cpv_description"].fillna("")))
+        listing = "\n".join(
+            f"{code}: {descriptions.get(code, '')}" for code in self._label_set
+        )
+        self._system_prompt = (
+            "You classify a procurement or asset record under exactly one Common "
+            "Procurement Vocabulary (CPV) code from this fixed list:\n"
+            f"{listing}\n\n"
+            "You are shown labelled examples before the record to classify. Reply with a "
+            "JSON object and nothing else: "
+            '{"code": "<best code from the list>", '
+            '"runner_up": "<second-best code from the list>", '
+            '"reason": "<one short sentence>"}. '
+            "code and runner_up must both be codes from the list above, and must differ "
+            "from each other."
+        )
+        self._schema = {
+            "name": "cpv_classification",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "code": {"type": "string", "enum": self._label_set},
+                    "runner_up": {"type": "string", "enum": self._label_set},
+                    "reason": {"type": "string"},
+                },
+                "required": ["code", "runner_up", "reason"],
+                "additionalProperties": False,
+            },
+        }
+
+    def _nearest_examples(self, query_embeddings: np.ndarray) -> list[list[tuple[str, str]]]:
+        similarity = query_embeddings @ self._train_embeddings.T
+        order = np.argsort(-similarity, axis=1)[:, : self.k_examples]
+        return [
+            [(self._train_text[j], str(self._train_labels[j])) for j in row]
+            for row in order
+        ]
+
+    def predict(self, records: pd.DataFrame) -> ClassificationResult:
+        if self._schema is None:
+            raise RuntimeError("fit() before predict()")
+
+        texts = text_of(records).tolist()
+        query_embeddings = embed(texts)
+        examples_per_record = self._nearest_examples(query_embeddings)
+
+        requests = []
+        record_ids = records["record_id"].tolist() if "record_id" in records else [
+            str(i) for i in range(len(records))
+        ]
+        for position, (text, examples) in enumerate(zip(texts, examples_per_record)):
+            requests.append(
+                LLMRequest(
+                    custom_id=f"{position}|{record_ids[position]}",
+                    system=self._system_prompt,
+                    prompt=rag_prompt(examples, text),
+                    max_tokens=self.max_tokens,
+                    json_schema=self._schema,
+                    condition=self.condition,
+                )
+            )
+
+        results = self.client.complete_many(requests)
+
+        codes: list[str] = []
+        scores = np.zeros(len(requests), dtype=np.float64)
+        alternatives: list[list[tuple[str, float]]] = []
+        for position, request in enumerate(requests):
+            response = results.get(request.custom_id)
+            if response is None:
+                raise ClassificationFailed(
+                    f"no reply for {request.custom_id}; the batch is incomplete and a "
+                    f"partial batch must not be reported as a whole one"
+                )
+            code, runner_up = _parse_classification(
+                response.text, request.custom_id, self._label_set
+            )
+            codes.append(code)
+            scores[position] = 1.0
+            alternatives.append([(runner_up, 0.5)] if runner_up and runner_up != code else [])
+
+        return ClassificationResult(codes=codes, scores=scores, alternatives=alternatives)
+
+
+def _parse_classification(text: str, custom_id: str, label_set: list[str]) -> tuple[str, str]:
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ClassificationFailed(
+            f"{custom_id}: reply was not JSON ({exc}); refusing to guess a code from "
+            f"{text[:120]!r}"
+        ) from exc
+    if not isinstance(parsed, dict) or "code" not in parsed:
+        raise ClassificationFailed(f"{custom_id}: reply carried no `code` field: {text[:120]!r}")
+    code = parsed["code"]
+    if code not in label_set:
+        raise ClassificationFailed(
+            f"{custom_id}: code {code!r} is not in the {len(label_set)}-code label set"
+        )
+    runner_up = parsed.get("runner_up")
+    if runner_up is not None and runner_up not in label_set:
+        raise ClassificationFailed(
+            f"{custom_id}: runner_up {runner_up!r} is not in the {len(label_set)}-code "
+            f"label set"
+        )
+    return code, runner_up
 
 
 def taxonomy_text(taxonomy: pd.DataFrame) -> list[str]:
