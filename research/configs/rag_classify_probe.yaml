@@ -1,0 +1,23 @@
+# Pre-flight validation, priced before spending real quota on the full RQ2 division run
+# (rag_classify.yaml). condition=rq2_probe is in fcesreg.costs.EXCLUDED_CONDITIONS, so this
+# never pollutes T8_cost or the reported RQ2 figure -- it exists purely to confirm the
+# schema and prompt survive contact with the real endpoint, and to measure real tokens/call
+# before sizing the full run against the day's remaining budget.
+#
+# Committed; runners take no tuning flags.
+
+corpus: data/processed/corpus_b_contractsfinder.parquet
+taxonomy: data/processed/cpv_taxonomy.parquet
+divisions: ["30", "31", "32", "33", "38", "42", "43", "44"]
+
+level: division
+min_examples: 50
+
+llm_sample_n: 5
+llm_sample_seed: 0
+
+k_examples: 5
+max_tokens: 150
+condition: rq2_probe
+
+llm_config: research/configs/llm.yaml
