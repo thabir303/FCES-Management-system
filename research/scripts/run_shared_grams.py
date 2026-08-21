@@ -50,9 +50,17 @@ def shared_gram_counts(records: pd.DataFrame, pairs: pd.DataFrame, n: int) -> np
     return np.array(counts)
 
 
+#: Beyond the threshold itself: the diagnostic question is not just "how many pairs are
+#: already below the line" (nearly identical between corpora at severity 0) but "how much
+#: mass sits close enough above the line that a little erosion pushes it under" -- that
+#: shape difference is what a single cutoff at min_overlap cannot show.
+_CUTOFFS = (8, 10, 12, 15, 16)
+
+
 def summarise(counts: np.ndarray, min_overlap: int) -> dict:
     if len(counts) == 0:
         return {"n": 0}
+    cutoffs = sorted(set(_CUTOFFS) | {min_overlap, 2 * min_overlap})
     return {
         "n": int(len(counts)),
         "median": float(np.median(counts)),
@@ -60,8 +68,7 @@ def summarise(counts: np.ndarray, min_overlap: int) -> dict:
         "q3": float(np.percentile(counts, 75)),
         "min": int(counts.min()),
         "max": int(counts.max()),
-        "share_at_or_below_min_overlap": float((counts <= min_overlap).mean()),
-        "share_at_or_below_2x_min_overlap": float((counts <= 2 * min_overlap).mean()),
+        "share_at_or_below": {c: float((counts <= c).mean()) for c in cutoffs},
     }
 
 
@@ -98,8 +105,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"severity {severity}, seed {seed}, n-gram {n}, min_overlap {min_overlap}\n")
     for name, summary in (("corpus_a", summary_a), ("corpus_b", summary_b)):
         print(f"{name}: n={summary['n']}  median={summary.get('median')}  "
-              f"q1={summary.get('q1')}  q3={summary.get('q3')}  "
-              f"share<=min_overlap={summary.get('share_at_or_below_min_overlap')}")
+              f"q1={summary.get('q1')}  q3={summary.get('q3')}")
+        for cutoff, share in summary.get("share_at_or_below", {}).items():
+            print(f"    share <= {cutoff:<3} A/B  {share:.3f}")
 
     metrics = {
         "severity": severity, "seed": seed, "n_gram": n, "min_overlap": min_overlap,
