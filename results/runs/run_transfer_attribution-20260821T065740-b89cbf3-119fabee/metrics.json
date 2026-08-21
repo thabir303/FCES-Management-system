@@ -1,0 +1,100 @@
+{
+  "degradation_damage_run_id": "run_degradation_damage-20260820T201109-08542ff-98086b49",
+  "rows": [
+    {
+      "blocks_dropped": 3,
+      "cap": 500,
+      "corpus": "corpus_a",
+      "largest_block": 490,
+      "n_candidates": 48194,
+      "pair_completeness": 0.9854368932038835,
+      "severity": 0.0
+    },
+    {
+      "blocks_dropped": 0,
+      "cap": 2000,
+      "corpus": "corpus_a",
+      "largest_block": 554,
+      "n_candidates": 58464,
+      "pair_completeness": 0.9854368932038835,
+      "severity": 0.0
+    },
+    {
+      "blocks_dropped": 0,
+      "cap": 10000,
+      "corpus": "corpus_a",
+      "largest_block": 554,
+      "n_candidates": 58464,
+      "pair_completeness": 0.9854368932038835,
+      "severity": 0.0
+    },
+    {
+      "blocks_dropped": 0,
+      "cap": null,
+      "corpus": "corpus_a",
+      "largest_block": 554,
+      "n_candidates": 58464,
+      "pair_completeness": 0.9854368932038835,
+      "severity": 0.0
+    },
+    {
+      "blocks_dropped": 665,
+      "cap": 500,
+      "corpus": "corpus_b",
+      "largest_block": 500,
+      "n_candidates": 36614,
+      "pair_completeness": 0.4109035840484604,
+      "severity": 0.0
+    },
+    {
+      "blocks_dropped": 136,
+      "cap": 2000,
+      "corpus": "corpus_b",
+      "largest_block": 1984,
+      "n_candidates": 1752266,
+      "pair_completeness": 0.8854114083796063,
+      "severity": 0.0
+    },
+    {
+      "blocks_dropped": 7,
+      "cap": 10000,
+      "corpus": "corpus_b",
+      "largest_block": 9962,
+      "n_candidates": 23598251,
+      "pair_completeness": 0.9793033821302373,
+      "severity": 0.0
+    },
+    {
+      "blocks_dropped": 0,
+      "cap": null,
+      "corpus": "corpus_b",
+      "largest_block": 16522,
+      "n_candidates": 44277952,
+      "pair_completeness": 0.9818273599192328,
+      "severity": 0.0
+    },
+    {
+      "blocks_dropped": 0,
+      "cap": 10000,
+      "corpus": "corpus_a",
+      "largest_block": 361,
+      "n_candidates": 28102,
+      "pair_completeness": 0.24757281553398058,
+      "severity": 0.25
+    },
+    {
+      "blocks_dropped": 8,
+      "cap": 10000,
+      "corpus": "corpus_b",
+      "largest_block": 9605,
+      "n_candidates": 90883051,
+      "pair_completeness": 0.4409389197375063,
+      "severity": 0.25
+    }
+  ],
+  "shared_grams_run_id": "run_shared_grams-20260821T053140-99c066f-8f088bce",
+  "source_runs": {
+    "severity_025_cell": "run_blocking_cap-20260820T183202-3223ff6-d081d1cc",
+    "severity_0_sweep": "run_blocking_cap-20260820T093302-a3c575e-ec340788"
+  }
+}

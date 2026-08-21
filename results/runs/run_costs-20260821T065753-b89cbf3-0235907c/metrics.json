@@ -1,0 +1,44 @@
+{
+  "band": [
+    {
+      "band_fraction": 0.0662839248434238,
+      "calls_per_1000": 693.1106471816285,
+      "n_adjudicated": 127,
+      "n_pairs": 1916,
+      "severity": 0.0,
+      "tokens_per_1000": 456231.732776618,
+      "usd_per_1000": 0.1356104123173278
+    },
+    {
+      "band_fraction": 0.14718162839248433,
+      "calls_per_1000": 693.1106471816285,
+      "n_adjudicated": 282,
+      "n_pairs": 1916,
+      "severity": 0.15,
+      "tokens_per_1000": 456231.732776618,
+      "usd_per_1000": 0.1356104123173278
+    },
+    {
+      "band_fraction": 1.0,
+      "calls_per_1000": 1660.0,
+      "n_adjudicated": 800,
+      "n_pairs": 800,
+      "severity": 0.5,
+      "tokens_per_1000": 1092675.0,
+      "usd_per_1000": 0.32478693750000004
+    }
+  ],
+  "condition": "cascade",
+  "dedup_run_id": "run_dedup-20260821T051431-ea950b6-3331991b",
+  "mean_latency_ms": 1263.2793674698796,
+  "mean_tokens_per_call": 658.2379518072289,
+  "n_calls": 1328,
+  "n_replayed_rows": 8796,
+  "throughput_per_day": {
+    "binding_limit": "tokens",
+    "calls_per_day": 303.84148992152285,
+    "calls_per_day_if_tokens_bound": 303.84148992152285,
+    "requests_per_day": 1000.0
+  },
+  "usd_one_clean_run": 0.25982955
+}
