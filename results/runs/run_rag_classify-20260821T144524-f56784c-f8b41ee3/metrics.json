@@ -1,0 +1,95 @@
+{
+  "completed_subset_check": {
+    "completed_date_range": [
+      "2025-01-10",
+      "2025-12-29"
+    ],
+    "drawn_date_range": [
+      "2025-01-10",
+      "2025-12-30"
+    ],
+    "label_share_max_abs_diff": 0.11147487313799312,
+    "position_vs_date_correlation": -0.08545846698264077
+  },
+  "condition": "rq2_incontext",
+  "conditions_on_full_partition": {
+    "embedding_logreg": {
+      "accuracy": 0.7511357900050479,
+      "accuracy_wilson_95": {
+        "lower": 0.737434180630181,
+        "point": 0.7511357900050479,
+        "upper": 0.7643508807907458
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.7094798148408883,
+      "n_items": 3962,
+      "n_labels": 8,
+      "weighted_f1": 0.7488378190436703
+    },
+    "tfidf_svm": {
+      "accuracy": 0.782180716809692,
+      "accuracy_wilson_95": {
+        "lower": 0.7690580583588277,
+        "point": 0.782180716809692,
+        "upper": 0.7947567141724247
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.7593311184428958,
+      "n_items": 3962,
+      "n_labels": 8,
+      "weighted_f1": 0.781234224160103
+    }
+  },
+  "conditions_on_sample": {
+    "embedding_logreg": {
+      "accuracy": 0.7560975609756098,
+      "accuracy_wilson_95": {
+        "lower": 0.6065666377742431,
+        "point": 0.7560975609756098,
+        "upper": 0.8617499726190967
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.6742424242424243,
+      "n_items": 41,
+      "n_labels": 8,
+      "weighted_f1": 0.7518477457501848
+    },
+    "rag_fewshot_llm": {
+      "accuracy": 0.8292682926829268,
+      "accuracy_wilson_95": {
+        "lower": 0.6873738759959581,
+        "point": 0.8292682926829268,
+        "upper": 0.91474748022405
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.8048130764163373,
+      "n_items": 41,
+      "n_labels": 8,
+      "weighted_f1": 0.8319643947427616
+    },
+    "tfidf_svm": {
+      "accuracy": 0.6829268292682927,
+      "accuracy_wilson_95": {
+        "lower": 0.5301580035565572,
+        "point": 0.6829268292682927,
+        "upper": 0.8043538610101142
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.6799960003764352,
+      "n_items": 41,
+      "n_labels": 8,
+      "weighted_f1": 0.6861779436540836
+    }
+  },
+  "k_examples": 5,
+  "level": "division",
+  "llm_sample_seed": 0,
+  "n_dev": 22451,
+  "n_supported_labels": 8,
+  "n_test_full": 3962,
+  "n_test_sample_completed": 41,
+  "n_test_sample_drawn": 298,
+  "n_test_sample_requested": 300,
+  "partial_reason": "recomputed from cache only (--cache-only); no network call attempted, so this cannot advance n beyond whatever a prior live run already completed and cached",
+  "partial_run": true
+}
