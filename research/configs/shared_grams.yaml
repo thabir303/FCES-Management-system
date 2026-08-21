@@ -1,0 +1,23 @@
+# Does the reversal come from an absolute min_overlap meeting two different amounts of
+# headroom? (supervisor ruling, 2026-08-21.)
+#
+# Committed; runners take no tuning flags.
+#
+# Corpus B's true pairs at severity 0 are two degraded copies of ONE source, so before
+# degradation they share every gram; Corpus A's are two independently-written descriptions
+# of the same product by two different retailers, sharing far fewer grams to begin with.
+# min_overlap=8 is an ABSOLUTE count. If Corpus A's true pairs sit close to that line while
+# Corpus B's sit far above it, degradation pushes A below the line long before B, and the
+# reversal follows with no domain story required. Measures the distribution of shared
+# 3-gram counts over true duplicate pairs at severity 0, both corpora -- same n-gram scheme
+# blocking uses (fcesreg.blocking._grams, n=3), same min_overlap=8.
+
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: data/processed/corpus_a_abtbuy_pairs.parquet
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+divisions: ["30", "31", "32", "33", "38", "42", "43", "44"]
+
+severity: 0.0
+seed: 0
+n: 3
+min_overlap: 8
