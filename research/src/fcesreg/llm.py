@@ -704,6 +704,15 @@ class LLMClient:
                     raise DailyQuotaExhausted("429 with no requests remaining today")
                 if attempt == self.max_retries:
                     raise LLMError(f"rate limited after {self.max_retries} retries")
+                # The endpoint just said the per-minute budget is spent right now, which the
+                # rolling window above disagreed with -- it only ever learns about tokens
+                # from a 200's `usage` block, so a burst of failed attempts (this one
+                # included) is invisible to it and it keeps believing there is headroom that
+                # is not there. Recording the estimate here, not the real usage (a 429 body
+                # carries none), is a deliberately conservative guess: it costs an
+                # occasionally-too-long wait, never a false "safe to send" that produces
+                # another 429.
+                self._token_window.append((self._monotonic(), estimated))
                 # Honour retry-after rather than retrying blindly; fall back to a widening
                 # backoff only when the header is absent.
                 self._sleep(_retry_after(headers, default=2.0 * (attempt + 1)))
@@ -729,6 +738,14 @@ class LLMClient:
                         f"times in a row for one request; this is the pathological case, "
                         f"not the transient one: {body!r}"
                     )
+                # A real generation ran (`failed_generation` in the body is the model's
+                # actual, non-conforming output) and real tokens were almost certainly
+                # billed against the per-minute budget even though the response carries no
+                # `usage` block to confirm it. Same conservative recording as the 429 case,
+                # same reason: silence here is what let this go unnoticed until a run with
+                # enough calls made the gap between the client's belief and the server's
+                # count large enough to produce a real 429.
+                self._token_window.append((self._monotonic(), estimated))
                 self._sleep(1.0 * (attempt + 1))
                 continue
 

@@ -386,6 +386,28 @@ class TestStructuredOutputFailures:
             client.complete("sys", "p", json_schema={"type": "object"})
         assert transport.calls == 0
 
+    def test_a_failed_generation_still_records_against_the_per_minute_window(self, tmp_path):
+        # The bug this closes: a 200's `usage` was the only thing that ever fed the rolling
+        # window, so a burst of failed generations (each of which almost certainly cost real
+        # tokens server-side, `usage` block or not) was invisible to the client's own pacing
+        # -- it kept believing there was headroom the server did not agree it had.
+        transport = StubTransport(script=[self.FAILED])
+        client = make_client(tmp_path, transport, max_retries=3)
+        assert len(client._token_window) == 0
+        client.complete("sys", "p", max_tokens=20)
+        # The failed attempt's estimate, then the successful retry's real usage.
+        assert len(client._token_window) == 2
+
+
+class TestRateLimitAlsoRecordsTheWindow:
+    def test_a_429_records_the_estimate_before_retrying(self, tmp_path):
+        rate_limited = (429, {"error": "slow down"}, {"x-ratelimit-remaining-requests": "500"})
+        transport = StubTransport(script=[rate_limited])
+        client = make_client(tmp_path, transport, max_retries=3)
+        client.complete("sys", "p", max_tokens=20)
+        # The 429 attempt's estimate, then the successful retry's real usage.
+        assert len(client._token_window) == 2
+
 
 class TestQuotaGovernance:
     def test_daily_token_allowance_stops_before_the_request_is_issued(self, tmp_path):
