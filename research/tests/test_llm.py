@@ -516,3 +516,68 @@ class TestRequestShape:
         transport = StubTransport()
         make_client(tmp_path, transport).complete("sys", "p")
         assert transport.payloads[0]["temperature"] == 0.0
+
+
+class TestEstimateCountsTheSchema:
+    """A real 429 traced to this: RagFewShotLLMClassifier's schema constrains two fields to
+    an 8-code enum, adding real tokens the endpoint bills for on the wire (`response_format`)
+    but which `_estimate_tokens` never saw -- the client paced itself as if the request were
+    far smaller than the server did, and the server's own 429 was the only thing that
+    disagreed. adjudicate.VERDICT_SCHEMA has no enum and is small enough that the gap was
+    invisible until a schema with real size showed up.
+    """
+
+    def test_a_schema_raises_the_estimate_over_no_schema(self, tmp_path):
+        client = make_client(tmp_path)
+        bare = client._estimate_tokens("sys", "prompt text", max_tokens=50)
+        big_schema = {
+            "name": "cpv_classification",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "code": {"type": "string", "enum": [f"code{i}" for i in range(8)]},
+                    "runner_up": {"type": "string", "enum": [f"code{i}" for i in range(8)]},
+                    "reason": {"type": "string"},
+                },
+                "required": ["code", "runner_up", "reason"],
+                "additionalProperties": False,
+            },
+        }
+        with_schema = client._estimate_tokens("sys", "prompt text", 50, big_schema)
+        assert with_schema > bare
+
+    def test_no_schema_matches_the_bare_estimate_exactly(self, tmp_path):
+        # Backward compatible: a call with no schema (the common case, and every call this
+        # module made before RagFewShotLLMClassifier existed) is estimated identically to
+        # before this fix.
+        client = make_client(tmp_path)
+        assert client._estimate_tokens("sys", "prompt", 50) == client._estimate_tokens(
+            "sys", "prompt", 50, None
+        )
+
+    def test_a_large_schema_triggers_more_pacing_wait_than_a_small_one(self, tmp_path):
+        # The behavioural consequence, not just the arithmetic: given the same tight
+        # tokens-per-minute budget, a request whose real size includes a large schema must
+        # wait longer (or refuse sooner) than the same text with no schema at all, because
+        # the server is billing for the schema whether or not the client counts it.
+        clock = FakeClock()
+        client = make_client(
+            tmp_path, clock=clock, limits=Limits(tokens_per_minute=200, requests_per_day=100)
+        )
+        client._token_window.append((clock.monotonic(), 190))  # window nearly full
+
+        small = client._estimate_tokens("sys", "p", max_tokens=5)
+        client._wait_for_quota(small)
+        waited_without_schema = sum(clock.slept)
+
+        clock2 = FakeClock()
+        client2 = make_client(
+            tmp_path, clock=clock2, limits=Limits(tokens_per_minute=200, requests_per_day=100)
+        )
+        client2._token_window.append((clock2.monotonic(), 190))
+        big_schema = {"name": "x", "schema": {"enum": [f"c{i}" for i in range(50)]}}
+        large = client2._estimate_tokens("sys", "p", max_tokens=5, json_schema=big_schema)
+        client2._wait_for_quota(large)
+        waited_with_schema = sum(clock2.slept)
+
+        assert waited_with_schema >= waited_without_schema

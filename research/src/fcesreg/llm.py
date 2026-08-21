@@ -567,13 +567,26 @@ class LLMClient:
                 tokens_per_day=self.limits.tokens_per_day,
             )
 
-    def _estimate_tokens(self, system: str, prompt: str, max_tokens: int) -> int:
+    def _estimate_tokens(
+        self, system: str, prompt: str, max_tokens: int,
+        json_schema: dict[str, Any] | None = None,
+    ) -> int:
         """A pacing estimate only. The ledger always records measured counts.
 
         Four characters per token is crude, but it is used solely to decide how long to wait,
         and waiting slightly too long costs time while waiting too little costs a 429.
+
+        **``json_schema`` counts too.** It rides in ``response_format`` on the wire and the
+        endpoint bills it as part of the request, but it is not part of ``system`` or
+        ``prompt`` -- omitting it here undercounts real usage silently rather than loudly.
+        For ``adjudicate``'s two-field schema with no enum this was negligible and the gap
+        went unnoticed; a classification schema constraining `code`/`runner_up` to an N-code
+        enum (twice, once per field) is not, and the client paced itself as if the request
+        were far smaller than the server saw, which the server then corrected with a real
+        429 no amount of clean code on this side avoids without counting it here.
         """
-        return (len(system) + len(prompt)) // 4 + max_tokens
+        schema_chars = len(json.dumps(json_schema)) if json_schema is not None else 0
+        return (len(system) + len(prompt) + schema_chars) // 4 + max_tokens
 
     def _wait_for_quota(self, estimated_tokens: int) -> None:
         if self.observed.remaining_requests == 0:
@@ -629,7 +642,7 @@ class LLMClient:
     def _call(
         self, system: str, prompt: str, max_tokens: int, json_schema: dict[str, Any] | None
     ) -> dict[str, Any]:
-        estimated = self._estimate_tokens(system, prompt, max_tokens)
+        estimated = self._estimate_tokens(system, prompt, max_tokens, json_schema)
         payload: dict[str, Any] = {
             "model": self.model,
             "messages": [
