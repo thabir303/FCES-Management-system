@@ -300,7 +300,8 @@ implicit.
 Matching accuracy is measured on benchmarks from the entity resolution
 literature in which candidate pairs have been manually labelled as
 matching or non matching \cite{mudgal2018,koepcke2010}. The text heavy
-Abt-Buy benchmark is used, because at least one of its attributes
+Abt-Buy benchmark \cite{koepcke2010,leipzigdbs} is used, because at
+least one of its attributes
 contains long free text, distinguishing equipment descriptions from
 purely structured records. Size, splits and positive rate are reported
 in Table~\ref{tab:corpus}; the supplied training, validation and test
@@ -321,10 +322,10 @@ benchmark figures rather than in place of them.
 
 \subsection{Corpus B: Category Ground Truth}
 
-Category assignment is evaluated on notices published through the
-United Kingdom Contracts Finder service, released in Open Contracting
-Data Standard format under the Open Government Licence
-\cite{contractsfinder}. Every notice carries at least one Common
+Category assignment is evaluated on notices published through the UK
+Contracts Finder service in Open Contracting Data Standard format,
+containing public sector information licensed under the Open
+Government Licence v3.0 \cite{contractsfinder}. Every notice carries at least one Common
 Procurement Vocabulary code assigned by the purchasing authority
 alongside a free text title and description.
 
@@ -1008,7 +1009,7 @@ P.~Christen, \emph{Data Matching: Concepts and Techniques for Record Linkage,
 \bibitem{papadakis2020}
 G.~Papadakis, D.~Skoutas, E.~Thanos, and T.~Palpanas, ``Blocking and filtering
   techniques for entity resolution: A survey,'' \emph{ACM Comput. Surv.},
-  vol.~53, no.~2, 2020.
+  vol.~53, no.~2, 2021.
 
 \bibitem{rahm2000}
 E.~Rahm and H.~H. Do, ``Data cleaning: Problems and current approaches,''
@@ -1023,6 +1024,10 @@ S.~Mudgal \emph{et~al.}, ``Deep learning for entity matching: A design space
 H.~K\"{o}pcke, A.~Thor, and E.~Rahm, ``Evaluation of entity resolution
   approaches on real-world match problems,'' \emph{Proc. VLDB Endowment},
   vol.~3, no.~1, pp. 484--493, 2010.
+
+\bibitem{leipzigdbs}
+Database Group Leipzig, ``Benchmark datasets for entity resolution.''
+  [Online]. Available: dbs.uni-leipzig.de/research/projects/benchmark-datasets-for-entity-resolution
 
 \bibitem{li2020ditto}
 Y.~Li, J.~Li, Y.~Suhara, A.~Doan, and W.-C. Tan, ``Deep entity matching with
@@ -1074,8 +1079,8 @@ Jisc, ``Equipment data service.'' [Online]. Available:
 
 \bibitem{contractsfinder}
 Cabinet Office, ``Contracts Finder: Open Contracting Data Standard release
-  packages,'' Open Government Licence v3.0. [Online]. Available:
-  https://www.gov.uk/contracts-finder
+  packages,'' OGL v3.0, nationalarchives.gov.uk/doc/open-government-licence/version/3/.
+  [Online]. Available: https://www.gov.uk/contracts-finder
 
 \bibitem{kitcatalogue}
 Loughborough University, ``Kit-Catalogue: Open source equipment cataloguing
