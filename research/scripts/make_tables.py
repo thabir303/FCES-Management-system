@@ -234,8 +234,12 @@ def table_abtbuy(run: dict) -> str:
     """T4_abtbuy: RQ1, the matcher comparison on Corpus A, including the cascade.
 
     ``run["metrics"]["free_matchers"]`` is the full factorial (matcher x severity x seed);
-    rows here are averaged over seeds, one row per (matcher, severity). Cascade rows come
-    from ``run["metrics"]["cascade"]`` separately, since it runs a single seed at three
+    rows here are averaged over seeds, one row per (matcher, severity) that actually admits
+    a threshold. A (matcher, severity) with no threshold contributes nothing to the table
+    body -- it is a finding stated once in the caption, not a row repeated per combination,
+    since a table where fourteen of fifteen base-matcher rows read "no threshold" spends
+    its rows saying the same thing fourteen times. Cascade rows come from
+    ``run["metrics"]["cascade"]`` separately, since it runs a single seed at three
     severities rather than the free matchers' full factorial, and its precision splits into
     an auto-accepted figure and a combined one -- reported as two columns rather than
     collapsed into one, since collapsing would attribute the adjudicator's error rate to a
@@ -245,19 +249,23 @@ def table_abtbuy(run: dict) -> str:
 
     rows = ["Matcher & Sev. & P & R & F1 \\\\\n\\hline\n"]
     free = pd.DataFrame(run["metrics"]["free_matchers"])
+    n_combinations = 0
+    n_with_threshold = 0
     for matcher in free["matcher"].unique():
         block = free[free["matcher"] == matcher]
         for severity, g in block.groupby("severity"):
+            n_combinations += 1
             # threshold is None where no score met the Wilson-bound precision target on
             # dev -- nothing was accepted, which is a different statement from "accepted
-            # everything and scored 0". Distinguished rather than shown as a measured 0.000.
+            # everything and scored 0". Omitted from the table rather than shown as a
+            # measured 0.000; the omission itself is reported in the caption below.
             if g["threshold"].isna().all():
-                rows.append(f"{_esc(matcher)} & {severity} & \\multicolumn{{3}}{{c}}{{no threshold}} \\\\\n")
-            else:
-                rows.append(
-                    f"{_esc(matcher)} & {severity} & {g['precision'].mean():.3f} & "
-                    f"{g['recall'].mean():.3f} & {g['f1'].mean():.3f} \\\\\n"
-                )
+                continue
+            n_with_threshold += 1
+            rows.append(
+                f"{_esc(matcher)} & {severity} & {g['precision'].mean():.3f} & "
+                f"{g['recall'].mean():.3f} & {g['f1'].mean():.3f} \\\\\n"
+            )
     rows.append("\\hline\n")
     for row in run["metrics"]["cascade"]:
         auto = row.get("precision_auto_accepted")
@@ -266,12 +274,16 @@ def table_abtbuy(run: dict) -> str:
             f"cascade & {row['severity']} & {row['precision']:.3f} ({auto_s} auto) & "
             f"{row['recall']:.3f} & {row['f1']:.3f} \\\\\n"
         )
+    n_no_threshold = n_combinations - n_with_threshold
     caption = (
         "Corpus A matcher comparison, precision/recall/F1 averaged over seeds (free "
         "matchers) or single-seed with every band pair adjudicated (cascade). Cascade "
         "precision is combined output; auto is the auto-accepted portion alone, which the "
         "threshold selection constrains and the combined figure does not. Severity 0.5 is "
-        "an 800-pair stratified subsample, not the full band."
+        "an 800-pair stratified subsample, not the full band. "
+        f"{n_no_threshold} of the {n_combinations} base-matcher/severity combinations admit "
+        "no threshold reaching the 0.95 precision floor on dev and are omitted from the "
+        "body above -- no score at any recall meets it, not a measured value of zero."
     )
     return _wrap("".join(rows), caption, "tab:abtbuy", run["run_id"], "lcccc")
 
@@ -334,7 +346,9 @@ def table_costs(run: dict) -> str:
     """
     m = run["metrics"]
     latency = "n/a" if m["mean_latency_ms"] is None else f"{m['mean_latency_ms']:.0f}"
-    rows = ["Sev. & Band & Adjudicated/Pairs & USD/1000 & Tokens/1000 \\\\\n\\hline\n"]
+    rows = [
+        "Sev. & Band & Adjudicated/Pairs & USD/1000 adj. & Tokens/1000 adj. \\\\\n\\hline\n"
+    ]
     for row in m["band"]:
         rows.append(
             f"{row['severity']} & {100 * row['band_fraction']:.1f}\\% & "
