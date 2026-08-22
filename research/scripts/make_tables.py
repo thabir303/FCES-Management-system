@@ -93,11 +93,10 @@ def table_corpus(run: dict) -> str:
         )
     caption = (
         f"Corpus A (Abt-Buy): {a['n_records']:,} records "
-        f"({a['n_records_table_a']:,} + {a['n_records_table_b']:,}), supplied splits used "
-        f"as given, rate is the positive share of pairs. Corpus B (Contracts Finder): "
-        f"records by retained division set, temporal split at {b['split']['cutoff']}, "
-        f"rate is class-level label coverage of the development partition at "
-        f"$\\geq$50 training examples."
+        f"({a['n_records_table_a']:,} + {a['n_records_table_b']:,}), supplied splits. "
+        f"Corpus B (Contracts Finder): records by retained division set, temporal split at "
+        f"{b['split']['cutoff']}. Rate: positive share of pairs (A); class-level coverage "
+        f"of the development partition at $\\geq$50 training examples (B)."
     )
     return _wrap("".join(rows), caption, "tab:corpus", run["run_id"], "llrrr")
 
@@ -249,19 +248,15 @@ def table_abtbuy(run: dict) -> str:
 
     rows = ["Matcher & Sev. & P & R & F1 \\\\\n\\hline\n"]
     free = pd.DataFrame(run["metrics"]["free_matchers"])
-    n_combinations = 0
-    n_with_threshold = 0
     for matcher in free["matcher"].unique():
         block = free[free["matcher"] == matcher]
         for severity, g in block.groupby("severity"):
-            n_combinations += 1
             # threshold is None where no score met the Wilson-bound precision target on
             # dev -- nothing was accepted, which is a different statement from "accepted
             # everything and scored 0". Omitted from the table rather than shown as a
             # measured 0.000; the omission itself is reported in the caption below.
             if g["threshold"].isna().all():
                 continue
-            n_with_threshold += 1
             rows.append(
                 f"{_esc(matcher)} & {severity} & {g['precision'].mean():.3f} & "
                 f"{g['recall'].mean():.3f} & {g['f1'].mean():.3f} \\\\\n"
@@ -274,16 +269,12 @@ def table_abtbuy(run: dict) -> str:
             f"cascade & {row['severity']} & {row['precision']:.3f} ({auto_s} auto) & "
             f"{row['recall']:.3f} & {row['f1']:.3f} \\\\\n"
         )
-    n_no_threshold = n_combinations - n_with_threshold
     caption = (
         "Corpus A matcher comparison, precision/recall/F1 averaged over seeds (free "
         "matchers) or single-seed with every band pair adjudicated (cascade). Cascade "
-        "precision is combined output; auto is the auto-accepted portion alone, which the "
-        "threshold selection constrains and the combined figure does not. Severity 0.5 is "
-        "an 800-pair stratified subsample, not the full band. "
-        f"{n_no_threshold} of the {n_combinations} base-matcher/severity combinations admit "
-        "no threshold reaching the 0.95 precision floor on dev and are omitted from the "
-        "body above -- no score at any recall meets it, not a measured value of zero."
+        "precision is combined output; auto is the auto-accepted portion alone. Severity "
+        "0.5 is an 800-pair stratified subsample, not the full band. Omitted rows have no "
+        "threshold reaching the 0.95 precision floor on dev, not a measured zero."
     )
     return _wrap("".join(rows), caption, "tab:abtbuy", run["run_id"], "lcccc")
 
@@ -316,23 +307,12 @@ def table_classification(run: dict) -> str:
                 f"{c['macro_f1']:.3f} & {c['weighted_f1']:.3f} & {c['accuracy']:.3f} & "
                 f"{100 * routed:.1f}\\% \\\\\n"
             )
-    caption_parts = [
+    caption = (
         "Category assignment, both classical conditions. Class level restricts to "
         "labels meeting the training-example floor and records carrying a genuine "
-        "class-level code."
-    ]
-    if "class" in run["metrics"]["levels"]:
-        cls = run["metrics"]["levels"]["class"]
-        below_floor = cls["test_routed_to_review"] - cls["test_unspecified_at_level"]
-        caption_parts.append(
-            f"At class level {100 * cls['test_routed_to_review']:.1f}\\% of test records "
-            f"are routed to review: {100 * cls['test_unspecified_at_level']:.1f}\\% carry "
-            f"no class-level code at all, {100 * below_floor:.1f}\\% carry a label below "
-            "the training floor."
-        )
-    return _wrap(
-        "".join(rows), " ".join(caption_parts), "tab:classification", run["run_id"], "llrrrr"
+        "class-level code; routed-to-review figures are broken out by cause in the text."
     )
+    return _wrap("".join(rows), caption, "tab:classification", run["run_id"], "llrrrr")
 
 
 def table_costs(run: dict) -> str:
@@ -361,8 +341,7 @@ def table_costs(run: dict) -> str:
         f"calls only, throughput "
         f"{m['throughput_per_day']['calls_per_day']:.0f}/day bound by "
         f"{_esc(m['throughput_per_day']['binding_limit'])}. \\$0.00 actual spend; USD is "
-        "notional at the ledger's rate card. Band fraction and pair counts from "
-        f"{_esc(m['dedup_run_id'])}."
+        "notional at the ledger's rate card."
     )
     return _wrap("".join(rows), caption, "tab:costs", run["run_id"], "lrrrr")
 
@@ -385,12 +364,11 @@ def table_transfer(run: dict) -> str:
             f"{row['n_candidates']:,} & {row['blocks_dropped']:,} \\\\\n"
         )
     caption = (
-        "Block-size cap sweep, severity 0.0 (Corpus B positives byte-identical there) and "
-        "the rescaled cap at severity 0.25 (the condition where they genuinely differ). "
-        "Corpus B candidate volume: 36,614 (cap 500) to 44,277,952 (uncapped) at severity "
-        "0.0 -- 1,209x for a completeness gain from 0.411 to 0.982. At severity 0.25, cap "
-        "10,000: Corpus B pair completeness (0.441) exceeds Corpus A's (0.248), reversed "
-        "from severity 0.0, at 90,883,051 candidates against 28,102 for Corpus A."
+        "Block-size cap sweep, both corpora, at severity 0.0 (Corpus B positives "
+        "byte-identical there) and the rescaled cap at severity 0.25, where the two "
+        "corpora's blocking behaviour diverges. PC is pair completeness; candidates and "
+        "blocks dropped are reported directly since reduction ratio alone does not convey "
+        "the volume cost of rescaling the cap."
     )
     return _wrap("".join(rows), caption, "tab:transfer", run["run_id"], "lcccrr")
 
