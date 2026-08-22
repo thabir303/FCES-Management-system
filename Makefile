@@ -86,7 +86,14 @@ paper:
 	@PATH="$(TEXBIN):$$PATH"; \
 	 pdflatex -interaction=nonstopmode -halt-on-error main.tex >/dev/null && \
 	 pdflatex -interaction=nonstopmode -halt-on-error main.tex >/dev/null && \
-	 echo "paper: clean build, $$(pdfinfo main.pdf 2>/dev/null | awk '/^Pages/{print $$2}') pages" || \
+	 { \
+	   worst=$$(grep -oE 'Overfull \\hbox \([0-9.]+pt too wide\)' main.log | grep -oE '[0-9.]+' | sort -rn | head -1); \
+	   if [ -n "$$worst" ] && awk -v w="$$worst" 'BEGIN{exit !(w>10)}'; then \
+	     echo "paper: BUILD FAILED — overfull \\hbox of $${worst}pt exceeds the 10pt line (see main.log); -halt-on-error does not catch this, a table running off the page still 'builds clean' without this check"; \
+	     exit 1; \
+	   fi; \
+	   echo "paper: clean build, $$(pdfinfo main.pdf 2>/dev/null | awk '/^Pages/{print $$2}') pages"; \
+	 } || \
 	 { echo "paper: BUILD FAILED — see main.log"; exit 1; }
 
 dev:
