@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from fcesapi.routers import assets, auth, categories, imports
+from fcesapi.routers import assets, attachments, audit, auth, categories, floorplans, imports, labels, service
 
 
 def create_app() -> FastAPI:
@@ -26,6 +26,12 @@ def create_app() -> FastAPI:
     app.include_router(assets.router, prefix="/api/v1")
     app.include_router(categories.router, prefix="/api/v1")
     app.include_router(imports.router, prefix="/api/v1")
+    app.include_router(attachments.router, prefix="/api/v1")
+    app.include_router(floorplans.router, prefix="/api/v1")
+    app.include_router(labels.router, prefix="/api/v1")
+    app.include_router(labels.public_router)
+    app.include_router(service.router, prefix="/api/v1")
+    app.include_router(audit.router, prefix="/api/v1")
 
     return app
 
