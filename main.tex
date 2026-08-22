@@ -809,10 +809,10 @@ allowance, and only 41 of 298 drawn records completed. The completed
 subset is a random prefix of a seeded draw, verified against
 publication date and label share (correlation $-0.085$, largest
 label-share drift 11 points). With Wilson 95\% intervals:
-\texttt{rag\_fewshot\_llm} 0.829 [0.687, 0.915] (macro F1 0.805),
-\texttt{embedding\_logreg} 0.756 [0.607, 0.862] (0.674),
-\texttt{tfidf\_svm} 0.683 [0.530, 0.804] (0.680); all three overlap, so
-n=41 does not separate the conditions. \texttt{tfidf\_svm}'s known
+the language model condition reaches accuracy 0.829 [0.687, 0.915]
+(macro F1 0.805), the embedding classifier 0.756 [0.607, 0.862]
+(0.674), and TF-IDF 0.683 [0.530, 0.804] (0.680); all three overlap,
+so n=41 does not separate the conditions. TF-IDF's known
 full-partition value (accuracy 0.782, macro F1 0.759) sits 9.9 and 7.9
 points above its subsample value, and the language model's 12.5-point
 margin is only around 1.6 times that drift -- not distinguishable from
