@@ -300,7 +300,7 @@ def table_classification(run: dict) -> str:
     exist for that record.
     """
     order = ["division", "class"]
-    condition_label = {"tfidf_svm": "TF-IDF + SVM", "embedding_logreg": "Embedding + LogReg"}
+    condition_label = {"tfidf_svm": "TF-IDF+SVM", "embedding_logreg": "Embedding+LogReg"}
     rows = ["Level & Condition & Macro F1 & Weighted F1 & Acc. & Rev. \\% \\\\\n\\hline\n"]
     for level in order:
         if level not in run["metrics"]["levels"]:
