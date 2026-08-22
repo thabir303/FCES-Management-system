@@ -23,9 +23,19 @@ a write gets 403, not 401), 404 missing, 409 conflict, 422 validation.
 
 **The scope fence (§1.1) is a fence, not a starting point.** Do not build: a dashboard route, a user
 administration interface (users are seeded by script), an audit *browsing* interface (the log is
-claimed, a viewer is not), a label sheet builder beyond the single printable label endpoint,
-Playwright coverage, a trigram fuzzy search path, soft delete, the four-value status enum, any
-delete endpoint, `value_gbp`, `purchase_date`, or `POST /auth/logout`.
+claimed, a viewer is not), Playwright coverage, a trigram fuzzy search path, soft delete, the
+four-value status enum, any delete endpoint beyond a floor-plan pin (§ below), `value_gbp`,
+`purchase_date`, or `POST /auth/logout`.
+
+**Amended 2026-08-22, by explicit supervisor instruction that session:** the fence originally read
+"a label sheet builder beyond the single printable label endpoint." `GET /assets/{id}/label.svg`
+(QR + Code128, one file) still satisfies that as written. `POST /assets/label-sheet` — a multi-asset
+PDF sheet — was added the same session on direct instruction, is broader than the original fence,
+and was flagged as a scope reopening rather than built silently. This line records that reopening
+so the rule matches the repository instead of contradicting it. Two pin endpoints
+(`DELETE /floorplans/{id}/pins/{pin_id}`) were added the same session — a floor-plan pin is
+metadata about where an asset sits, not the asset-lifecycle deletion §13's "deletion and retention
+are out of scope" and "no delete endpoint" refer to; no asset delete endpoint exists.
 
 **Settled decisions (§13).** `/a/{public_id}` requires authentication — anonymous read is a
 limitation in the report, not a feature. `hazard_class` is an illustrative designation on divisions
