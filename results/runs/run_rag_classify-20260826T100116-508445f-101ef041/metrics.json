@@ -1,0 +1,83 @@
+{
+  "condition": "rq2_probe",
+  "conditions_on_full_partition": {
+    "embedding_logreg": {
+      "accuracy": 0.7511357900050479,
+      "accuracy_wilson_95": {
+        "lower": 0.737434180630181,
+        "point": 0.7511357900050479,
+        "upper": 0.7643508807907458
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.7094798148408883,
+      "n_items": 3962,
+      "n_labels": 8,
+      "weighted_f1": 0.7488378190436703
+    },
+    "tfidf_svm": {
+      "accuracy": 0.782180716809692,
+      "accuracy_wilson_95": {
+        "lower": 0.7690580583588277,
+        "point": 0.782180716809692,
+        "upper": 0.7947567141724247
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.7593311184428958,
+      "n_items": 3962,
+      "n_labels": 8,
+      "weighted_f1": 0.781234224160103
+    }
+  },
+  "conditions_on_sample": {
+    "embedding_logreg": {
+      "accuracy": 0.875,
+      "accuracy_wilson_95": {
+        "lower": 0.5291118177871464,
+        "point": 0.875,
+        "upper": 0.9775825085499433
+      },
+      "labels_without_support": 1,
+      "macro_f1": 0.7083333333333333,
+      "n_items": 8,
+      "n_labels": 8,
+      "weighted_f1": 0.8333333333333333
+    },
+    "rag_fewshot_llm": {
+      "accuracy": 0.875,
+      "accuracy_wilson_95": {
+        "lower": 0.5291118177871464,
+        "point": 0.875,
+        "upper": 0.9775825085499433
+      },
+      "labels_without_support": 1,
+      "macro_f1": 0.7083333333333333,
+      "n_items": 8,
+      "n_labels": 8,
+      "weighted_f1": 0.8333333333333333
+    },
+    "tfidf_svm": {
+      "accuracy": 0.625,
+      "accuracy_wilson_95": {
+        "lower": 0.3057423946026273,
+        "point": 0.625,
+        "upper": 0.8631557141764027
+      },
+      "labels_without_support": 1,
+      "macro_f1": 0.5416666666666666,
+      "n_items": 8,
+      "n_labels": 8,
+      "weighted_f1": 0.625
+    }
+  },
+  "k_examples": 5,
+  "level": "division",
+  "llm_sample_seed": 777,
+  "n_dev": 22451,
+  "n_supported_labels": 8,
+  "n_test_full": 3962,
+  "n_test_sample_completed": 8,
+  "n_test_sample_drawn": 8,
+  "n_test_sample_requested": 8,
+  "partial_reason": null,
+  "partial_run": false
+}

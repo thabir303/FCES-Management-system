@@ -399,14 +399,55 @@ class TestStructuredOutputFailures:
         assert len(client._token_window) == 2
 
 
-class TestRateLimitAlsoRecordsTheWindow:
-    def test_a_429_records_the_estimate_before_retrying(self, tmp_path):
+class TestRateLimitDoesNotPolluteTheWindow:
+    """A 429 is a pre-flight rejection -- the gateway checks quota before the model runs, so
+    no generation happened and nothing was billed. An earlier version of this client recorded
+    the estimate into the window on a 429 anyway (a "deliberately conservative guess"); that
+    compounded instead of merely costing an occasional too-long wait, because each retry of
+    the same unresolved request appended another phantom entry, none of which are ever removed
+    once the request resolves -- these sat in the shared window for up to 60s, inflating
+    perceived usage for every other request queued behind this one. This is what
+    ``run_rag_classify.py``'s ``partial_reason`` names as the cause of the ~1-call/25min
+    collapse. Reverted: a 429 gets exactly the ``retry-after`` backoff and nothing else."""
+
+    def test_a_429_does_not_record_a_phantom_estimate(self, tmp_path):
         rate_limited = (429, {"error": "slow down"}, {"x-ratelimit-remaining-requests": "500"})
         transport = StubTransport(script=[rate_limited])
         client = make_client(tmp_path, transport, max_retries=3)
         client.complete("sys", "p", max_tokens=20)
-        # The 429 attempt's estimate, then the successful retry's real usage.
-        assert len(client._token_window) == 2
+        # Only the successful retry's real usage -- no phantom entry from the 429.
+        assert len(client._token_window) == 1
+
+    def test_repeated_429s_on_one_request_do_not_throttle_the_next_request(self, tmp_path):
+        """Reproduces the compounding scenario directly: request A needs two real 429s
+        before succeeding; request B immediately follows and needs none. Before the fix, A's
+        two orphaned phantom entries plus its real usage left the window holding 3x A's real
+        cost, forcing B to wait for phantom capacity that was never actually consumed."""
+        rate_limited = (429, {"error": "slow down"}, {"retry-after": "2", "x-ratelimit-remaining-requests": "500"})
+        clock = FakeClock()
+        transport = StubTransport(
+            script=[rate_limited, rate_limited],
+            input_tokens=1400, output_tokens=223,
+        )
+        client = make_client(
+            tmp_path, transport, clock=clock, max_retries=5,
+            limits=Limits(requests_per_minute=30, tokens_per_minute=8000, requests_per_day=1000, tokens_per_day=200_000),
+        )
+        system, prompt = "s" * 2800, "p" * 2800  # sized so the estimate ~= real usage (1623)
+
+        client.complete(system, prompt, max_tokens=223)  # request A: two 429s, then success
+        assert sum(tok for _, tok in client._token_window) == 1623, (
+            "the window must reflect only A's real (billed) usage, not its rejected attempts"
+        )
+
+        before = len(clock.slept)
+        client.complete(system, prompt + "b", max_tokens=223)  # request B: first try succeeds
+        b_wait = sum(clock.slept[before:])
+        # Only the requests-per-minute floor (60/30=2s) should apply -- not the ~56s a
+        # polluted window would force while waiting for a phantom entry to age out.
+        assert b_wait == pytest.approx(2.0, abs=0.1), (
+            f"B waited {b_wait}s -- expected only the requests-per-minute gap, not window pollution"
+        )
 
 
 class TestQuotaGovernance:

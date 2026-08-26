@@ -704,17 +704,21 @@ class LLMClient:
                     raise DailyQuotaExhausted("429 with no requests remaining today")
                 if attempt == self.max_retries:
                     raise LLMError(f"rate limited after {self.max_retries} retries")
-                # The endpoint just said the per-minute budget is spent right now, which the
-                # rolling window above disagreed with -- it only ever learns about tokens
-                # from a 200's `usage` block, so a burst of failed attempts (this one
-                # included) is invisible to it and it keeps believing there is headroom that
-                # is not there. Recording the estimate here, not the real usage (a 429 body
-                # carries none), is a deliberately conservative guess: it costs an
-                # occasionally-too-long wait, never a false "safe to send" that produces
-                # another 429.
-                self._token_window.append((self._monotonic(), estimated))
-                # Honour retry-after rather than retrying blindly; fall back to a widening
-                # backoff only when the header is absent.
+                # A 429 is a pre-flight rejection: the gateway checks quota before the model
+                # ever runs, so unlike the 400 json-invalid case below, no generation happened
+                # and no tokens were billed. An earlier version of this client recorded the
+                # estimate into the window here anyway, on the theory that it was a
+                # conservative guess costing only an occasional too-long wait. Measured
+                # (`run_degradation_examples`-style deterministic replay, see
+                # scratch verify_retry_pacing*.py) that this compounds instead: on every retry
+                # of the SAME still-unresolved request the estimate is appended again, and none
+                # of those phantom entries are ever removed once the request finally succeeds
+                # or gives up, so they sit in the shared window for up to 60s inflating perceived
+                # usage for every OTHER request queued behind this one. This is what
+                # `run_rag_classify.py`'s `partial_reason` already names as the cause of the
+                # ~1-call/25min collapse. `retry-after` (below) is the correct, targeted backoff
+                # for this one request; the window must not also carry a guess for a call that
+                # was rejected before it could consume anything.
                 self._sleep(_retry_after(headers, default=2.0 * (attempt + 1)))
                 continue
 
