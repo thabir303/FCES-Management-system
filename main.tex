@@ -317,8 +317,8 @@ demonstration data.
 
 Labels assigned by purchasing authorities are not error free, and the
 publisher documents known quality issues \cite{contractsfinder}. A
-40-record hand-reviewed sample estimates the disagreement rate with the
-published code at 12.5\% (Wilson 95\% CI 5.5--26.1\%). Reporting the
+200-record hand-reviewed sample estimates the disagreement rate with the
+published code at 17.4\% (Wilson 95\% CI 12.8--23.4\%). Reporting the
 rate alone is not sufficient, because label noise does not act only as
 a ceiling on measured accuracy: where mislabelling is systematic rather
 than clerical, a classifier trained on those labels learns the error
@@ -429,7 +429,12 @@ selected on the development partition and then fail on the held out data,
 which is the behaviour a precision floor exists to prevent. Requiring
 confidence rather than a favourable point estimate also scales the
 evidence demanded with the strictness of the target, which a fixed
-minimum on accepted pairs would not.
+minimum on accepted pairs would not. Measured on Corpus A at severity 0:
+selecting on the point estimate admits an embedding threshold supported
+by 54 development pairs that returns 0.917 precision on the held out
+split against the 0.95 target, where the confidence rule declines to
+select a threshold at all -- the cost of the stricter rule is a refusal,
+the cost of the looser one a target quietly missed.
 
 The target is not always attainable. Where no threshold on the base
 similarity reaches the required precision, the upper threshold is
@@ -770,8 +775,6 @@ Table~\ref{tab:costs} reports the cascade's operational cost: notional
 spend and throughput deduplicated by prompt across every day the sweep
 took, so a resumed run's replayed rows cannot inflate the figure.
 
-\input{results/tables/T8_cost.tex}
-
 \subsection{RQ2: Category Assignment}
 
 Table~\ref{tab:classification} reports both classical conditions at
@@ -790,6 +793,8 @@ sets aside that level for.
 
 \input{results/tables/T6_classification.tex}
 
+\input{results/tables/T8_cost.tex}
+
 The retrieval-augmented language model condition sends the whole
 supported label set rather than a shortlist of it, since the embedding
 retriever recovers the true class-level code in its top 12 for only
@@ -805,11 +810,15 @@ label-share drift 11 points). With Wilson 95\% intervals:
 the language model condition reaches accuracy 0.829 [0.687, 0.915]
 (macro F1 0.805), the embedding classifier 0.756 [0.607, 0.862]
 (0.674), and TF-IDF 0.683 [0.530, 0.804] (0.680); all three overlap,
-so n=41 does not separate the conditions. TF-IDF's known
-full-partition value (accuracy 0.782, macro F1 0.759) sits 9.9 and 7.9
-points above its subsample value, and the language model's 12.5-point
-margin is only around 1.6 times that drift -- not distinguishable from
-sampling variation.
+so n=41 does not separate the conditions. TF-IDF's known full-partition
+accuracy (0.782, macro F1 0.759) sits 9.9 points above its subsample
+accuracy, and the language model's 14.6-point accuracy margin over
+TF-IDF is only around 1.5 times that drift -- not distinguishable from
+sampling variation. A first partial re-run at n=167 supports this
+directly: the accuracy margin narrows to 6.6 points (macro F1 gap
+likewise 6.6, down from 12.5 at n=41) and TF-IDF's own drift from its
+full-partition accuracy falls to 4.0 points from 9.9 -- both shrinking
+exactly as sampling noise, not a real difference, would predict.
 
 The run measures its own cost: 1,623 tokens/call, 123 calls/day, 2.43
 days of quota to reach n=300 -- affordable in principle, not within
@@ -932,7 +941,12 @@ pessimistic; a noise rate a classifier learns and is rewarded for
 reproducing makes them optimistic instead, and the second is the
 reading a register migration cannot afford to leave unflagged, because
 the register would inherit the same collision on every future record
-routed by the pattern rather than reviewed against it.
+routed by the pattern rather than reviewed against it. The widened
+200-record review confirms this is not an isolated instance: the same
+class-4431 collision is its single largest disagreement type (7 of 34),
+followed by software or subscription licences published under a
+hardware-only equipment division (6 of 34) -- together over a third of
+all disagreements, not scattered anecdotes.
 
 TF-IDF and embedding similarity trade places depending on what the task
 supplies. TF-IDF beats the embedding classifier at both taxonomy
