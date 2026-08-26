@@ -1,0 +1,102 @@
+{
+  "completed_subset_check": {
+    "completed_date_range": [
+      "2025-01-10",
+      "2025-12-30"
+    ],
+    "drawn_date_range": [
+      "2025-01-10",
+      "2025-12-30"
+    ],
+    "label_share_max_abs_diff": 0.02841297271229354,
+    "position_vs_date_correlation": -0.08545846698264077
+  },
+  "condition": "rq2_incontext",
+  "conditions_on_full_partition": {
+    "embedding_logreg": {
+      "accuracy": 0.7511357900050479,
+      "accuracy_wilson_95": {
+        "lower": 0.737434180630181,
+        "point": 0.7511357900050479,
+        "upper": 0.7643508807907458
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.7094798148408883,
+      "n_items": 3962,
+      "n_labels": 8,
+      "weighted_f1": 0.7488378190436703
+    },
+    "tfidf_svm": {
+      "accuracy": 0.782180716809692,
+      "accuracy_wilson_95": {
+        "lower": 0.7690580583588277,
+        "point": 0.782180716809692,
+        "upper": 0.7947567141724247
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.7593311184428958,
+      "n_items": 3962,
+      "n_labels": 8,
+      "weighted_f1": 0.781234224160103
+    }
+  },
+  "conditions_on_sample": {
+    "embedding_logreg": {
+      "accuracy": 0.7604790419161677,
+      "accuracy_wilson_95": {
+        "lower": 0.6903565176086636,
+        "point": 0.7604790419161677,
+        "upper": 0.8188875534766252
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.7335115621481013,
+      "n_items": 167,
+      "n_labels": 8,
+      "weighted_f1": 0.7598545290579205
+    },
+    "rag_fewshot_llm": {
+      "accuracy": 0.8083832335329342,
+      "accuracy_wilson_95": {
+        "lower": 0.7420261477827131,
+        "point": 0.8083832335329342,
+        "upper": 0.8608720053412496
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.7940281948515726,
+      "n_items": 167,
+      "n_labels": 8,
+      "weighted_f1": 0.8089243738367529
+    },
+    "tfidf_svm": {
+      "accuracy": 0.7425149700598802,
+      "accuracy_wilson_95": {
+        "lower": 0.6712693164739519,
+        "point": 0.7425149700598802,
+        "upper": 0.8028544738468341
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.7282350289234781,
+      "n_items": 167,
+      "n_labels": 8,
+      "weighted_f1": 0.7416377130117641
+    }
+  },
+  "k_examples": 5,
+  "level": "division",
+  "llm_sample_seed": 0,
+  "measured_cost": {
+    "binding_limit": "tokens",
+    "calls_per_day": 130.12108273207522,
+    "days_to_reach_n300": 2.305544910179641,
+    "mean_tokens_per_call": 1537.0299401197606,
+    "n_calls": 167
+  },
+  "n_dev": 22451,
+  "n_supported_labels": 8,
+  "n_test_full": 3962,
+  "n_test_sample_completed": 167,
+  "n_test_sample_drawn": 298,
+  "n_test_sample_requested": 300,
+  "partial_reason": "per-minute pacing slowed to ~1 call/25min after a token-window accounting fix made pacing more conservative on retries; recovered by reading the already-cached live completions directly rather than re-issuing requests",
+  "partial_run": true
+}
