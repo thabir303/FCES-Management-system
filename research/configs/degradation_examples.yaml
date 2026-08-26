@@ -1,0 +1,18 @@
+# T-degradation: one real before/after example per error class, and the probability each
+# class fires at the three severities the paper actually sweeps (§1, supervisor ruling
+# 2026-08-26). Committed; runners take no tuning flags.
+#
+# Corpus B (Contracts Finder) only -- this is the corpus the degradation model is applied
+# to for the in-domain proxy material, and its records carry both title and description,
+# which every class needs to have something to act on.
+
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+divisions: ["30", "31", "32", "33", "38", "42", "43", "44"]
+
+# Isolated per class at severity 1.0 (DegradationConfig.rate = min(1, severity * multiplier),
+# multiplier 1 for the target class and 0 for every other -- guarantees the transformation
+# fires wherever it can, for a clean, undiluted before/after). The reported p(severity) table
+# is computed separately, from the actual severities and the default multiplier (1.0) that
+# run_dedup.py and run_transfer.py use in the real sweeps -- not from this severity-1.0 probe.
+seed: 0
+reported_severities: [0.15, 0.25, 0.5]
