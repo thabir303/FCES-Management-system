@@ -873,10 +873,23 @@ more human attention than the pair-level figure alone suggests: the
 record-level share falls to 39.3\% (565 of 1,437 automated, 872 to
 review) against a pair-level 64.4\%, and duplicates lost falls to 16.
 At this floor nothing is auto-accepted at all -- every automated
-decision is a confident rejection, none an acceptance. Residual manual
+decision is a confident rejection, none an acceptance. Figure~\ref{fig:review-lost}
+traces this trade-off across every attainable operating point, not only
+the two floors quoted above. Residual manual
 effort is the review volume this automated share implies, reported as
 a count and a formula rather than converted to hours by a handling
 time no author's own reading speed could stand in for.
+
+\begin{figure}[tb]
+\centering
+\includegraphics[width=\linewidth]{results/figures/F1_review_vs_lost.pdf}
+\caption{Manual review share against true duplicates lost, Corpus A
+severity 0, tfidf-based operating point curve; marked points are the
+0.95 and 0.99 floors reported above. Pair-level, as the record-level
+distinction in the text does not extend to this whole curve. Source:
+run\_operating\_point-20260826T211147-8896d09-945f8c5b.}
+\label{fig:review-lost}
+\end{figure}
 
 \subsection{External Validation}
 
