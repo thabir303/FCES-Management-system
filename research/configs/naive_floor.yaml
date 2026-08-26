@@ -1,0 +1,17 @@
+# Naive-vs-confidence-bound threshold selection on Corpus A (supervisor instruction,
+# 2026-08-26): re-measures the failure mode select_threshold's own docstring illustrates
+# with an invented example (dedup.py, "0.30 severity, 14 pairs" -- traced via git blame to
+# commit f7fe45f: that table is rhetorical, not a real measurement, and no run record
+# ever backed the specific accepted-pair counts). This does.
+#
+# Identical sweep to dedup.yaml's free-matcher sweep (same severities, seeds, corpus,
+# precision_target) so the naive and confidence-bound rules are compared on exactly the
+# same dev/test data, differing only in which rule selects the threshold. Zero quota,
+# CPU only. Committed; runners take no tuning flags.
+
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: data/processed/corpus_a_abtbuy_pairs.parquet
+
+severities: [0.0, 0.25, 0.5, 0.75, 1.0]
+seeds: [0, 1, 2]
+precision_target: 0.95

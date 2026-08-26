@@ -1,0 +1,13 @@
+corpus_a: /Users/tanvirhasanabir/Documents/FCES/data/processed/corpus_a_abtbuy.parquet
+corpus_a_pairs: /Users/tanvirhasanabir/Documents/FCES/data/processed/corpus_a_abtbuy_pairs.parquet
+precision_target: 0.95
+seeds:
+- 0
+- 1
+- 2
+severities:
+- 0.0
+- 0.25
+- 0.5
+- 0.75
+- 1.0
