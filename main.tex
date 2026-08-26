@@ -37,8 +37,10 @@ compared for duplicate detection and for taxonomy assignment. Results are
 reported not as headline accuracy but as the share of a register that can
 be migrated without human intervention while precision is held at a fixed
 target, together with the residual manual effort and the monetary cost of
-each approach. At a 0.95 precision floor, a cost-aware cascade
-automates 93.4\% of duplicate resolution on the benchmark corpus; exact
+each approach. At a 0.95 precision floor, a cost-aware cascade resolves
+83.0\% of comparison-eligible records without human review on the
+benchmark corpus (93.4\% of the underlying candidate-pair decisions),
+capping achievable duplicate recall at 0.592; exact
 lexical features outperform sentence embeddings for taxonomy
 assignment wherever labelled examples exist to learn from, and the
 reverse holds for untrained retrieval; and transferring the pipeline to
@@ -143,8 +145,10 @@ certain one. The eight-digit leaf level is not evaluated: the label
 distribution is too sparse at that depth for the result to carry
 meaning, reported in Section V.
 
-\textbf{RQ3.} What proportion of a legacy register can be migrated
-without human intervention at a fixed precision target, and what
+\textbf{RQ3.} What proportion of the records entering a legacy
+register's candidate duplicate comparisons can be migrated without
+human intervention at a fixed precision target -- alongside the
+proportion of the candidate-pair decisions themselves -- and what
 residual manual effort does the remainder represent?
 
 RQ3 converts the measurements produced by RQ1 and RQ2 into the quantity
@@ -574,9 +578,13 @@ is measured there.
 
 Operational measures are reported for every method: mean processing
 latency per record, monetary cost per thousand records for any method
-invoking a language model, and the automated share, defined as the
-proportion of records the pipeline resolves without human intervention
-while holding precision at or above the target specified in RQ3.
+invoking a language model, and the automated share held at the target
+specified in RQ3 -- for categorisation, the proportion of records the
+pipeline resolves without human intervention; for duplicate detection,
+the proportion of candidate-pair decisions resolved this way, reported
+alongside the proportion of the comparison-eligible records those
+pairs touch, since a record is not resolved until every pair it enters
+is.
 
 The language model used throughout, including the matching cascade's
 adjudicator, is openai/gpt-oss-120b, served through Groq's
@@ -828,17 +836,28 @@ remains not attempted for the same reason.
 
 \subsection{RQ3: Operating Point}
 
-At severity 0 and a 0.95 precision floor, 93.4\% of Corpus A's test
-pairs are resolved without human intervention, at a cost: 84 of 206
-true duplicates are discarded by confident rejection before reaching
-the adjudicator, capping recall at 0.592 however capable the
-adjudicator is on what remains. Raising the floor to 0.99 trades
-automation for safety on both sides of the operating point at once:
-automated share falls to 64.4\% and duplicates lost falls to 16.
-Residual manual effort is the review volume this automated share
-implies, reported as a count and a formula rather than converted to
-hours by a handling time no author's own reading speed could stand in
-for.
+At severity 0 and a 0.95 precision floor, 1,192 of the 1,437 records
+entering Corpus A's test-split candidate comparisons are resolved
+without human intervention (83.0\%, 245 to review); the same operating
+point resolves 93.4\% of the underlying candidate-pair decisions
+(1,789 of 1,916). The two shares differ because a record is not
+resolved until every pair it enters is, and both are shares of the
+comparison-eligible records blocking actually surfaces, not of a
+register's full holdings -- a record blocking never pairs with
+anything reaches the register unreviewed by construction, so a real
+register's share is at least this high. The remainder costs 84 of 206
+true duplicates, discarded by confident rejection before reaching the
+adjudicator, capping recall at 0.592 however capable the adjudicator
+is on what remains. Raising the floor to 0.99 trades automation for
+safety on both sides of the operating point at once, and costs far
+more human attention than the pair-level figure alone suggests: the
+record-level share falls to 39.3\% (565 of 1,437 automated, 872 to
+review) against a pair-level 64.4\%, and duplicates lost falls to 16.
+At this floor nothing is auto-accepted at all -- every automated
+decision is a confident rejection, none an acceptance. Residual manual
+effort is the review volume this automated share implies, reported as
+a count and a formula rather than converted to hours by a handling
+time no author's own reading speed could stand in for.
 
 \subsection{External Validation}
 
@@ -918,6 +937,21 @@ automatically by the reject rule -- and it means a design meant to
 bound duplicate loss directly would constrain the \emph{count} in the
 rejected set, not its purity.
 
+That asymmetry is sharper than the pair-level share alone shows. A
+record is not resolved until every candidate pair it enters is, so the
+register-level share is lower than the pair-level one, and the gap
+widens exactly where the floor is safest: 83.0\% of the 1,437
+comparison-eligible records against a pair-level 93.4\% at 0.95 (245
+records still reach review), and 39.3\% against 64.4\% at 0.99 (872
+records). Choosing the safer floor therefore costs far more human
+attention than the pair-level figures alone would suggest -- 872
+records to review against 245, not 64.4 against 93.4 -- for the same
+16-versus-84 duplicates saved. At 0.99 nothing is auto-accepted at
+all: every pair resolved without adjudication is a confident
+rejection, none a confident acceptance, so the safer floor does not
+merely automate less, it stops merging altogether and survives purely
+by discarding.
+
 Constructing hard negatives from the asset-relevant procurement domain
 failed for a reason that generalises: the publication model emits
 several notices per procurement with no identifier distinguishing a
@@ -968,7 +1002,12 @@ different samples and are not comparable to each other, and neither is
 compared to the other anywhere in this paper. Corpus A's benchmark
 domain is commercial rather than institutional, which the external
 validation in Section~\ref{sec:external} addresses directly rather than
-assuming away. Reported cost is notional at a stated rate card against
+assuming away. RQ3's record-level automated share is measured over the
+records Corpus A's blocking stage actually pairs, not over a real
+register's full holdings, and understates what a real register would
+see: a record blocking never surfaces generates no decision and
+reaches the register unreviewed by construction. Reported cost is
+notional at a stated rate card against
 zero actual spend, and would change under a different pricing model or
 provider; it is reported as measured, not projected forward. The
 contamination estimate's adjudicator is a language model distinct from
@@ -982,11 +1021,12 @@ This paper measured how much of the migration from an uncontrolled
 spreadsheet to a governed asset register can be automated, at what
 cost, and with how much human effort left over, rather than treating
 that migration as preparatory work beneath a system's engineering. On
-the benchmark corpus, a cost-aware cascade holding a 0.95 precision
-floor resolves 93.4\% of true duplicate pairs without human review at
-severity 0, at the price of 84 undetected duplicates in every 206 --
-a trade the operating point makes visible rather than hides inside a
-single accuracy figure. Category assignment favours exact lexical
+the benchmark corpus, a cost-aware cascade fitted to a 0.95 precision
+floor on the pairs it accepts outright resolves 83.0\% of
+comparison-eligible records without human review at severity 0 (93.4\%
+of the underlying candidate-pair decisions), at the price of 84
+undetected duplicates in every 206 -- a trade the operating point
+makes visible rather than hides inside a single accuracy figure. Category assignment favours exact lexical
 features over sentence embeddings wherever labelled examples exist to
 learn from, and the reverse wherever they do not. What transfers to a
 procurement-domain corpus and what does not is itself measured rather
