@@ -171,45 +171,45 @@ faculty declaration was required.
 
 \subsection{Record Linkage and Entity Resolution}
 
-The problem of deciding whether two records describe the same real world
-entity has a formal treatment dating to the probabilistic framework of
-Fellegi and Sunter \cite{fellegi1969}, which models the comparison of
-record pairs as a decision problem with configurable error rates.
-Subsequent work systematised the surrounding pipeline, in particular the
-blocking step that reduces the quadratic comparison space to a tractable
-candidate set, and the similarity measures applied within it
-\cite{christen2012,papadakis2020}. The blocking schemes evaluated here are drawn from this line of work. This literature is largely evaluated on bibliographic and
-commercial product data, and the question of how the methods behave on
-institutional asset records has received little attention.
+Deciding whether two records describe the same real world entity has a
+formal treatment in the probabilistic framework of Fellegi and Sunter
+\cite{fellegi1969}, modelling record-pair comparison as a decision
+problem with configurable error rates. Subsequent work systematised the
+surrounding pipeline: the blocking step reducing the quadratic
+comparison space to a tractable candidate set, and the similarity
+measures applied within it \cite{christen2012,papadakis2020}. The
+blocking schemes evaluated here are drawn from this line of work, which
+is largely evaluated on bibliographic and commercial product data; how
+the methods behave on institutional asset records has received little
+attention.
 
 \subsection{Learned Approaches to Entity Matching}
 
 Mudgal et al. \cite{mudgal2018} explored the design space of deep
 learning architectures for entity matching and established the benchmark
-suite on which most subsequent work reports. Their study also introduced
-a protocol for constructing dirty variants of structured datasets by
-relocating attribute values into a free text field, which is the closest
-published analogue to the column misalignment observed in manually
-maintained spreadsheets. Li et al. \cite{li2020ditto} showed that
-pre-trained language models applied as cross encoders improve on these
-architectures, and Narayan et al. \cite{narayan2022} reported that large
-foundation models perform competitively on data wrangling tasks without
-task specific training. These approaches assume a labelled training set
-drawn from the same distribution as the deployment data, an assumption a faculty
-migrating a single spreadsheet cannot satisfy.
+suite most subsequent work reports on. Their study also introduced a
+protocol for constructing dirty variants of structured datasets by
+relocating attribute values into a free text field -- the closest
+published analogue to the column misalignment in manually maintained
+spreadsheets. Li et al. \cite{li2020ditto} showed pre-trained language
+models applied as cross encoders improve on these architectures, and
+Narayan et al. \cite{narayan2022} reported large foundation models
+perform competitively on data wrangling without task specific training.
+These approaches assume a labelled training set drawn from the same
+distribution as the deployment data, an assumption a faculty migrating a
+single spreadsheet cannot satisfy.
 
 \subsection{Cost and Efficiency of Language Model Pipelines}
 
 Where a large model is invoked per record pair, pipeline cost scales
-with the number of decisions made rather than with accuracy. Chen et
-al. \cite{chen2023frugalgpt} showed that routing most queries to a
+with the number of decisions made rather than with accuracy. Chen et al. \cite{chen2023frugalgpt} showed routing most queries to a
 cheap model and escalating only the uncertain remainder to an expensive
 one recovers most of the expensive model's accuracy at a fraction of
-its cost; the cascade evaluated here applies that principle to pairwise
+its cost; the cascade here applies that principle to pairwise
 adjudication rather than single-query generation. Cost is rarely
-reported alongside accuracy in the entity matching literature, so what
-a given level of matching performance costs to obtain remains largely
-open, and that is the question this design answers.
+reported alongside accuracy in the entity matching literature, so what a
+given level of matching performance costs remains largely open -- the
+question this design answers.
 
 \subsection{Text Classification against Procurement Taxonomies}
 
@@ -218,14 +218,13 @@ is a long standing text classification problem, addressed classically
 with sparse lexical features and linear classifiers and more recently
 with dense sentence representations \cite{reimers2019}. Siciliani et al.
 \cite{siciliani2023cpv} classify Italian tenders directly against the
-Common Procurement Vocabulary, but as a single flat prediction; two
-properties of the present task are not addressed there or elsewhere.
-The vocabulary is hierarchical, so a coarse assignment may be reliable
-where a fine one is not, and the assignment carries a safety
-consequence, since a category determines which servicing and hazard
-rules an item inherits, so the precision at which it is made matters
-more than average accuracy. Neither arises when the same classification
-is performed for procurement analytics, which is where most existing
+Common Procurement Vocabulary as a single flat prediction; two
+properties of the present task are addressed by neither. The vocabulary
+is hierarchical, so a coarse assignment may be reliable where a fine one
+is not, and the assignment carries a safety consequence, since a
+category determines which servicing and hazard rules an item inherits,
+so the precision at which it is made matters more than average
+accuracy. Neither arises in procurement analytics, where most existing
 work sits.
 
 \subsection{Equipment Cataloguing and Asset Management}
@@ -233,16 +232,15 @@ work sits.
 Equipment cataloguing in higher education has been addressed
 operationally rather than analytically. Open source catalogue software
 such as Kit-Catalogue \cite{kitcatalogue} and aggregation services such
-as the Equipment Data Service \cite{jisc} publish and share
-institutional holdings, and asset management practice is codified in
-ISO 55000 \cite{iso55000}. Data quality in engineering asset management
-specifically, rather than in data cleaning generally \cite{rahm2000},
-has its own literature: Lin et al. \cite{lin2008dataquality} propose a
-framework for the technical, organisational and personal causes of
-asset data quality problems, and Woodall et al.
-\cite{woodall2015classifying} classify those problems empirically, but
-neither addresses the transition from an uncontrolled source into the
-register in the first place. That transition, and what it costs to
+as the Equipment Data Service \cite{jisc} publish institutional
+holdings, and asset management practice is codified in ISO 55000
+\cite{iso55000}. Data quality in engineering asset management
+specifically, not data cleaning generally \cite{rahm2000}, has its own
+literature: Lin et al. \cite{lin2008dataquality} frame the technical,
+organisational and personal causes of asset data quality problems, and
+Woodall et al. \cite{woodall2015classifying} classify those problems
+empirically, but neither addresses the transition from an uncontrolled
+source into the register. That transition, and what it costs to
 automate, is the omission this study addresses.
 
 \section{Methodology}
@@ -273,12 +271,11 @@ matching or non matching \cite{mudgal2018,koepcke2010}. The text heavy
 Abt-Buy benchmark \cite{koepcke2010,leipzigdbs} is used, because at
 least one of its attributes
 contains long free text, distinguishing equipment descriptions from
-purely structured records. Size, splits and positive rate are reported
-in Table~\ref{tab:corpus}; the supplied training, validation and test
+purely structured records. The supplied training, validation and test
 splits are used unchanged, so results remain comparable with the
-literature.
-
-\input{results/tables/T1_corpus.tex}
+literature: 5,743 training pairs, 1,916 validation and 1,916 test,
+9,575 in total, at a 10.7\% positive rate overall (10.8\% on validation
+and test).
 
 Product catalogue entries share the structural characteristics of
 equipment records: a short designation carrying brand and model
@@ -302,9 +299,13 @@ alongside a free text title and description.
 The corpus is filtered to the eight CPV divisions relevant to
 laboratory, engineering and computing equipment (30, 31, 32, 33, 38,
 42, 43 and 44), so the label distribution resembles a faculty register
-rather than public procurement as a whole; Table~\ref{tab:corpus}
-reports the resulting size against the ten-division alternative and the
-class-level support each retains. The CPV hierarchy is reconstructed
+rather than public procurement as a whole. The adopted set yields
+26,413 records (22,451 development, 3,962 test after the temporal
+split) at 88.3\% class-level coverage of the development partition at
+50 or more training examples; the ten-division alternative would carry
+45,051 records (37,250 development, 7,801 test) at 90.7\% coverage --
+the measured basis for adopting the narrower, asset-relevant set. The
+CPV hierarchy is reconstructed
 from the code and description pairs the notices themselves carry, with
 parents derived by truncation, so division and class level evaluation
 are supported from a single source with no external vocabulary file.
@@ -1091,11 +1092,10 @@ P.~Woodall, J.~Gao, A.~Parlikad, and A.~Koronios, ``Classifying data quality
 
 \bibitem{hse2025}
 Health and Safety Executive, ``Health and safety statistics for Great Britain,
-  2024/25,'' 2025. [Online]. Available: https://www.hse.gov.uk/statistics/
+  2024/25,'' 2025. https://www.hse.gov.uk/statistics/
 
 \bibitem{jisc}
-Jisc, ``Equipment data service.'' [Online]. Available:
-  https://equipment.data.ac.uk/
+Jisc, ``Equipment data service.'' https://equipment.data.ac.uk/
 
 \bibitem{contractsfinder}
 Cabinet Office, ``Contracts Finder: Open Contracting Data Standard release
