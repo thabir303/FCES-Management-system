@@ -397,7 +397,7 @@ def table_transfer(run: dict) -> str:
 
 _CLASS_LABEL = {
     "abbreviate": "Abbreviation",
-    "charnoise": "Char. ins./del./subst./transp.",
+    "charnoise": "Character noise",
     "case": "Casing",
     "whitespace": "Whitespace",
     "units": "Unit/voltage notation",
@@ -421,7 +421,7 @@ _CLASS_SOURCE = {
 }
 
 
-def _first_diff_window(before: str, after: str, context: int = 22) -> tuple[str, str]:
+def _first_diff_window(before: str, after: str, context: int = 15) -> tuple[str, str]:
     """A short window around the first point ``before`` and ``after`` diverge -- a real
     record is a paragraph, not a table cell, so this formats a legible fragment of the
     run's own measured before/after rather than computing anything new."""
@@ -475,13 +475,11 @@ def table_degradation(run: dict) -> str:
             f"{p_cells} & {_CLASS_SOURCE[cls]} \\\\\n"
         )
     caption = (
-        "The seven degradation error classes: a real Contracts Finder record's title/"
-        "description before and after that class alone (isolated via "
-        "\\texttt{DegradationConfig}'s per-class multiplier, severity 1.0, so the effect "
-        "shown is undiluted), and the probability each fires at the severities actually "
-        "swept. $p_s = \\min(1, s \\times \\text{multiplier})$; the multiplier is 1.0 for "
-        "every class in every reported run, so $p_s = s$ uniformly -- these columns are "
-        "identical across rows by construction, not by coincidence."
+        "The seven degradation error classes: a real Contracts Finder record before/after "
+        "that class alone (isolated via a per-class multiplier at severity 1.0, undiluted), "
+        "and the probability each fires at the severities swept. $p_s = \\min(1, s \\times "
+        "\\text{multiplier})$; the multiplier is 1.0 for every class in every reported run, "
+        "so $p_s = s$ uniformly -- identical across rows by construction, not coincidence."
     )
     return _wrap(
         "".join(rows), caption, "tab:degradation", run["run_id"], "p{2.1cm}p{9cm}rrrl",
