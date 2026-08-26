@@ -4,9 +4,12 @@
 Reads the completed hand-review sample from ``annotation/labels/cpv_label_noise.jsonl``
 (one row per reviewed record, ``verdict`` in ``{agree, disagree, unsure}``) and reports the
 disagreement rate with a two-sided 95% Wilson interval, the same instrument the distractor
-contamination rate uses. ``unsure`` counts as agreement neither way and is reported
-separately -- collapsing it into either side would assert a judgement the review did not
-reach.
+contamination rate uses. ``unsure`` is excluded from the denominator, not folded into either
+side -- collapsing it into either would assert a judgement the review did not reach. This
+matches ``annotate.py``'s own ``_summary()`` (``decided = judged - unsure``); an earlier
+version of this script divided by the full row count instead, silently including ``unsure``
+in the denominator despite this same docstring already saying otherwise. Fixed 2026-08-26:
+on the n=40 sample this moved the reported rate from 12.5% (5/40) to 13.2% (5/38).
 
 Zero quota, CPU only.
 
@@ -47,16 +50,18 @@ def main(argv: list[str] | None = None) -> int:
     if n_agree + n_disagree + n_unsure != n:
         raise ValueError(f"verdicts do not partition the sample: {n_agree}+{n_disagree}+{n_unsure} != {n}")
 
-    rate, lower, upper = wilson_interval(n_disagree, n)
+    decided = n_agree + n_disagree
+    rate, lower, upper = wilson_interval(n_disagree, decided)
 
-    print(f"n={n}  agree={n_agree}  disagree={n_disagree}  unsure={n_unsure}")
-    print(f"disagreement rate {rate:.3f}  95% CI [{lower:.3f}, {upper:.3f}]")
+    print(f"n={n}  agree={n_agree}  disagree={n_disagree}  unsure={n_unsure}  decided={decided}")
+    print(f"disagreement rate {rate:.3f}  95% CI [{lower:.3f}, {upper:.3f}]  (unsure excluded from denominator)")
 
     metrics = {
         "n": n,
         "n_agree": n_agree,
         "n_disagree": n_disagree,
         "n_unsure": n_unsure,
+        "n_decided": decided,
         "disagreement_rate": rate,
         "disagreement_rate_ci_lower": lower,
         "disagreement_rate_ci_upper": upper,
