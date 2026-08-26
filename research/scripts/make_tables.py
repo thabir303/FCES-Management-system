@@ -490,6 +490,45 @@ def table_degradation(run: dict) -> str:
     )
 
 
+def table_cost_scale(costs_run: dict, dedup_run: dict) -> str:
+    """T_cost_scale: the operational cost table extrapolated to illustrative register sizes
+    (supervisor request, 2026-08-27) -- appendix-only, not registered in ``BUILDERS`` because
+    it takes two run records rather than one and the main paper's page budget has no room
+    for a sixth table regardless.
+
+    **Extrapolation, stated as such.** ``run_costs`` measures the mean cost and token count
+    of one adjudication, and ``run_dedup``'s cascade record measures the severity-0 review
+    band as a fraction of candidate pairs (6.6%, the same figure F4 reports). Expected calls
+    at size $N$ is $N \\times$ that fraction; tokens and
+    USD scale from the measured per-call means. Nothing here is a new measurement: it is the
+    same per-call rate multiplied by a hypothetical $N$, and the caption says so. Sizes
+    1,000 / 10,000 / 50,000 are illustrative registers, not measured corpora.
+    """
+    band0 = next(r for r in dedup_run["metrics"]["cascade"] if r["severity"] == 0.0)
+    band_fraction = band0["band_fraction"]
+    usd_per_call = costs_run["metrics"]["usd_one_clean_run"] / costs_run["metrics"]["n_calls"]
+    tokens_per_call = costs_run["metrics"]["mean_tokens_per_call"]
+
+    rows = ["N (candidate pairs) & Expected LM calls & Tokens & Notional USD \\\\\n\\hline\n"]
+    for n in (1000, 10000, 50000):
+        calls = n * band_fraction
+        rows.append(
+            f"{n:,} & {calls:,.0f} & {calls * tokens_per_call:,.0f} & "
+            f"{calls * usd_per_call:,.4f} \\\\\n"
+        )
+    caption = (
+        f"Operational cost extrapolated from measured per-call figures ({tokens_per_call:.1f} "
+        f"tokens/call, \\${usd_per_call:.6f}/call, run {costs_run['run_id']}), scaled by the "
+        f"severity-0 cascade review band ({100 * band_fraction:.1f}\\% of candidate pairs, "
+        f"run {dedup_run['run_id']}) -- illustrative registers, not measured corpora."
+    )
+    return _wrap(
+        "".join(rows), caption, "tab:cost-scale",
+        f"{costs_run['run_id']}+{dedup_run['run_id']}", "rrrr",
+        compact=True, wide=False,
+    )
+
+
 BUILDERS = {
     # T3_blocking dropped as a table (supervisor ruling: five tables not eleven); its
     # numbers that matter for prose are folded into T9_transfer or stated inline.
