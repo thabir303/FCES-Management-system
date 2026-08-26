@@ -27,6 +27,10 @@ PROJECT_PLAN.amendments.diff
 *.out
 *.pdf
 
+# Mechanically regenerated from main.tex + results/tables/* for Overleaf upload; never
+# hand-edited, so not a source file worth tracking.
+main_overleaf.tex
+
 # Agent-local, never committed
 .claude/settings.local.json
 CLAUDE.local.md
