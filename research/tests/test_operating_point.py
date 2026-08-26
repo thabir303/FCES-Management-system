@@ -8,6 +8,7 @@ properties the headline result rests on.
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from fcesreg.metrics import prf1
@@ -16,6 +17,7 @@ from fcesreg.operating_point import (
     automated_share_at_precision,
     band_operating_point,
     precision_automation_curve,
+    record_level_share,
     reject_bound,
     residual_effort,
 )
@@ -312,6 +314,84 @@ class TestBandOperatingPoint:
         assert got["n_auto_accepted"] == 0
         assert got["n_auto_rejected"] > 0
         assert got["automated_share"] > 0.0
+
+
+class TestRecordLevelShare:
+    """RQ3 asks about a REGISTER, not a candidate pair. These pin the distinction: a record
+    with even one banded pair is reviewed, however many of its other pairs were resolved."""
+
+    def test_disjoint_pairs_agree_with_the_pair_level_share(self):
+        # No record appears in more than one pair, so a record and its one pair share a
+        # fate exactly -- the two shares must coincide, which is the sanity floor for the
+        # new function agreeing with the one already trusted.
+        pairs = pd.DataFrame(
+            {
+                "left_id": [f"L{i}" for i in range(10)],
+                "right_id": [f"R{i}" for i in range(10)],
+            }
+        )
+        # Scores 1.0 for the first 6 (accepted), 0.0 for the last 4 (rejected); none banded.
+        scores = np.array([1.0] * 6 + [0.0] * 4)
+        got = record_level_share(pairs, scores, lower=0.5, upper=0.5)
+        assert got["n_records"] == 20
+        assert got["n_review"] == 0
+        assert got["automated_share"] == pytest.approx(1.0)
+
+    def test_a_record_with_one_banded_pair_is_reviewed_even_if_its_other_pair_is_resolved(self):
+        # "A" appears in two pairs: one confidently accepted, one banded. "A" must still
+        # count as needing review -- the whole point of the record-level rule.
+        pairs = pd.DataFrame(
+            {"left_id": ["A", "A", "B"], "right_id": ["X", "Y", "Z"]}
+        )
+        scores = np.array([1.0, 0.5, 0.0])  # accepted, banded, rejected
+        got = record_level_share(pairs, scores, lower=0.2, upper=0.8)
+        assert got["n_records"] == 5  # A, X, Y, B, Z
+        assert got["n_review"] == 2  # A and Y, the endpoints of the one banded pair
+        assert got["n_automated"] == 3  # X, B, Z -- every pair they appear in is resolved
+
+    def test_a_record_automated_only_when_every_one_of_its_pairs_is(self):
+        # "A" appears only in resolved pairs (one accepted, one rejected) -- neither is
+        # banded, so "A" is automated even though it has more than one candidate pair.
+        pairs = pd.DataFrame({"left_id": ["A", "A"], "right_id": ["X", "Y"]})
+        scores = np.array([1.0, 0.0])
+        got = record_level_share(pairs, scores, lower=0.5, upper=0.5)
+        assert got["n_review"] == 0
+        assert got["automated_share"] == pytest.approx(1.0)
+
+    def test_a_record_entering_one_bad_pair_among_many_good_ones_still_needs_review(self):
+        # "A" enters 5 pairs, only one of them banded; "A" is still reviewed. The other four
+        # partners (X0-X3) each enter only their one, resolved, pair with A and are
+        # themselves automated -- a banded pair reviews its own two endpoints, not every
+        # record that ever shares a record with them.
+        left = ["A"] * 5 + ["B"] * 5
+        right = [f"X{i}" for i in range(5)] + [f"Y{i}" for i in range(5)]
+        pairs = pd.DataFrame({"left_id": left, "right_id": right})
+        # Every pair accepted except the very last one for each of A and B.
+        scores = np.array([1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0, 1.0, 1.0, 0.5])
+        got = record_level_share(pairs, scores, lower=0.2, upper=0.8)
+        n_banded_pairs = int(((scores > 0.2) & (scores < 0.8)).sum())
+        assert got["n_records"] == 12
+        assert got["n_review"] == 4  # A, X4, B, Y4 -- the endpoints of the 2 banded pairs
+        assert 1.0 - n_banded_pairs / len(scores) == pytest.approx(0.8)
+
+    def test_no_pairs_reports_zero_records_not_a_division_error(self):
+        pairs = pd.DataFrame({"left_id": [], "right_id": []})
+        got = record_level_share(pairs, np.array([]), lower=0.5, upper=0.5)
+        assert got["n_records"] == 0
+        assert got["automated_share"] == 0.0
+
+    def test_widening_the_band_never_increases_the_automated_share(self):
+        # A wider [lower, upper] gap can only add pairs to the band, never remove one, so
+        # the automated share it produces can only fall or hold, never rise.
+        rng = np.random.default_rng(3)
+        n = 200
+        pairs = pd.DataFrame(
+            {"left_id": [f"L{i}" for i in range(n)], "right_id": [f"R{i}" for i in range(n)]}
+        )
+        scores = rng.uniform(0.0, 1.0, size=n)
+        narrow = record_level_share(pairs, scores, lower=0.45, upper=0.55)
+        wide = record_level_share(pairs, scores, lower=0.3, upper=0.7)
+        assert narrow["automated_share"] >= wide["automated_share"]
 
 
 class TestRejectBound:

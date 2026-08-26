@@ -49,6 +49,7 @@ import yaml
 from fcesreg.operating_point import (
     EFFORT_FORMULA,
     band_operating_point,
+    record_level_share,
     residual_effort,
 )
 from fcesreg.paths import repo_root, results_path
@@ -113,7 +114,14 @@ def delivered(scores: np.ndarray, labels: np.ndarray, lower: float, upper: float
 
 
 def dedup_points(cfg: dict, dedup_cfg: dict) -> list[dict]:
-    """Automated share per matcher × severity × target, on PAIRS, two-bound rule."""
+    """Automated share per matcher × severity × target, on PAIRS and on RECORDS.
+
+    The two are reported side by side rather than one in place of the other (supervisor
+    ruling, 2026-08-27): RQ3 asks what share of a **register** -- records -- migrates
+    unattended, and :func:`record_level_share` answers exactly that from the same fitted
+    bounds :func:`band_operating_point` already uses for the pair-level share, so the two
+    numbers are directly comparable rather than independently derived.
+    """
     rows = []
     for severity in cfg["severities"]:
         records, dev, test = build_abtbuy(dedup_cfg, severity, cfg["seed"])
@@ -126,6 +134,9 @@ def dedup_points(cfg: dict, dedup_cfg: dict) -> list[dict]:
                 # Both bounds fitted on dev, then applied unchanged to test.
                 fitted = band_operating_point(dev_scores, dev_labels, target)
                 got = delivered(test_scores, test_labels, fitted["lower"], fitted["upper"])
+                by_record = record_level_share(
+                    test, test_scores, fitted["lower"], fitted["upper"]
+                )
                 rows.append(
                     {
                         "matcher": name,
@@ -135,12 +146,17 @@ def dedup_points(cfg: dict, dedup_cfg: dict) -> list[dict]:
                         "bounds_crossed_on_dev": fitted["bounds_crossed"],
                         "n_test_pairs": int(len(test_labels)),
                         **got,
+                        "n_records": by_record["n_records"],
+                        "n_review_records": by_record["n_review"],
+                        "n_automated_records": by_record["n_automated"],
+                        "automated_share_records": by_record["automated_share"],
                     }
                 )
                 precision = got["precision_auto_accepted"]
                 print(
                     f"  {name:<10} sev {severity:<5} P>={target}  "
-                    f"automated {got['automated_share']:.3f}  "
+                    f"automated (pairs) {got['automated_share']:.3f}  "
+                    f"automated (records) {by_record['automated_share']:.3f}  "
                     f"band {got['n_band']:>5}  "
                     + (
                         f"accept P {precision:.3f} on {got['n_auto_accepted']:>3}"

@@ -43,6 +43,7 @@ __all__ = [
     "automated_share_at_precision",
     "reject_bound",
     "band_operating_point",
+    "record_level_share",
     "residual_effort",
 ]
 
@@ -243,6 +244,43 @@ def band_operating_point(scores, labels, target: float = DEFAULT_TARGET) -> dict
             if n_positive
             else None
         ),
+    }
+
+
+def record_level_share(pairs: pd.DataFrame, scores, lower: float, upper: float) -> dict:
+    """The record-level automated share RQ3 actually asks -- alongside, never in place of,
+    :func:`band_operating_point`'s pair-level one.
+
+    RQ3 asks what proportion of a legacy **register** migrates without human intervention.
+    :func:`band_operating_point` answers a different question at the same floor: the
+    proportion of **candidate pair** decisions resolved without one. A record participates
+    in many candidate pairs, so a record is not automated just because one of its pairs
+    was -- it is automated only when **every** pair it appears in falls outside the review
+    band. A record with even a single banded pair still needs a human to open it, so it
+    counts as reviewed, not partially automated.
+
+    ``pairs`` must carry ``left_id`` and ``right_id`` aligned row-wise with ``scores``, and
+    both bounds must be the same ``lower``/``upper`` passed to ``band_operating_point`` (or
+    read from its return value), so the two shares are computed from the same operating
+    point and are directly comparable rather than independently fitted.
+    """
+    scores = np.asarray(scores)
+    accepted = scores >= upper
+    rejected = scores < lower
+    band = ~(accepted | rejected)
+
+    all_ids = set(pairs["left_id"]) | set(pairs["right_id"])
+    banded_ids = set(pairs.loc[band, "left_id"]) | set(pairs.loc[band, "right_id"])
+
+    n_records = len(all_ids)
+    n_review = len(banded_ids)
+    n_automated = n_records - n_review
+
+    return {
+        "n_records": n_records,
+        "n_review": n_review,
+        "n_automated": n_automated,
+        "automated_share": (n_automated / n_records) if n_records else 0.0,
     }
 
 
