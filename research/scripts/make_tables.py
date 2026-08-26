@@ -502,7 +502,9 @@ BUILDERS = {
     "run_dedup": {"T4_abtbuy.tex": table_abtbuy},
     "run_degradation_examples": {"T_degradation.tex": table_degradation},
     "run_profile": {
-        "T1_corpus.tex": table_corpus,
+        # T1_corpus dropped as a table too (supervisor ruling, 2026-08-27): the only
+        # descriptive-rather-than-interpretive table among six, in a document that could
+        # only afford five. Its numbers are folded into the Corpus A/B prose in main.tex.
         # T1_discard, T1_leaf_sparsity, T1_label_support, T1_division_choice dropped as
         # tables (supervisor ruling): each is a single number or short list that reads
         # fine in a sentence. The builder functions stay, for anyone regenerating the
