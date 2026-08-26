@@ -452,44 +452,41 @@ def _first_diff_window(before: str, after: str, context: int = 15) -> tuple[str,
 
 
 def table_degradation(run: dict) -> str:
-    """T-degradation: one real before/after example per error class, and the probability
-    each class fires at the three severities the paper actually sweeps (supervisor request,
-    2026-08-26) -- the Degradation Model subsection named the seven classes and deferred
-    their parameters to the code; this makes them reproducible from the paper directly.
+    """T-degradation: one real before/after example per error class, and its documented
+    source (supervisor request, 2026-08-26; redesigned single-column 2026-08-27) -- the
+    Degradation Model subsection named the seven classes and deferred their parameters to
+    the code; this makes them reproducible from the paper directly.
 
-    Every class shares the identical p(severity) column values because ``run_dedup.py`` and
+    **The per-severity probability columns this table carried were dropped.** Every class
+    shares the identical p(severity) value at every severity because ``run_dedup.py`` and
     ``run_transfer.py`` -- the runners that produced every other reported number -- construct
     ``DegradationConfig(severity)`` with no per-class multiplier override, so ``rate(class) =
-    severity`` uniformly for all seven. The per-class multiplier mechanism exists (used only
-    by the isolated degradation-damage diagnostic) but is not part of the reported sweeps --
-    stated in the caption rather than left for a reader to assume differentiation that is not
-    there.
+    severity`` uniformly for all seven. Three identical columns were a sentence, not a table
+    (supervisor finding, 2026-08-27): $p_s = s$ is now stated once, in the caption, and the
+    reclaimed width lets the table run single-column (``table``, not ``table*``) rather than
+    spanning both -- the example windows are correspondingly shorter (``context=8``, was 15)
+    to fit it. The per-class multiplier mechanism itself still exists (used only by the
+    isolated degradation-damage diagnostic) and is still not part of the reported sweeps.
     """
-    severities = run["metrics"]["severities"]
-    header = (
-        "Class & Example (before $\\to$ after) & "
-        + " & ".join(f"$p_{{{s}}}$" for s in severities)
-        + " & Source \\\\\n\\hline\n"
-    )
-    rows = [header]
+    rows = ["Class & Example (before $\\to$ after) & Source \\\\\n\\hline\n"]
     for cls in ERROR_CLASSES:
         c = run["metrics"]["classes"][cls]
-        before, after = _first_diff_window(c["example"]["before"], c["example"]["after"])
-        p_cells = " & ".join(f"{c['p_by_severity'][str(s)]:.2f}" for s in severities)
+        before, after = _first_diff_window(
+            c["example"]["before"], c["example"]["after"], context=8
+        )
         rows.append(
             f"{_CLASS_LABEL[cls]} & {_esc(before)} $\\to$ {_esc(after)} & "
-            f"{p_cells} & {_CLASS_SOURCE[cls]} \\\\\n"
+            f"{_CLASS_SOURCE[cls]} \\\\\n"
         )
     caption = (
         "The seven degradation error classes: a real Contracts Finder record before/after "
-        "that class alone (isolated via a per-class multiplier at severity 1.0, undiluted), "
-        "and the probability each fires at the severities swept. $p_s = \\min(1, s \\times "
-        "\\text{multiplier})$; the multiplier is 1.0 for every class in every reported run, "
-        "so $p_s = s$ uniformly -- identical across rows by construction, not coincidence."
+        "that class alone (isolated via a per-class multiplier at severity 1.0, undiluted). "
+        "Each fires with probability $p_s = s$ at swept severity $s$ -- the multiplier is "
+        "1.0 for every class in every reported run, so $p_s$ does not vary by class."
     )
     return _wrap(
-        "".join(rows), caption, "tab:degradation", run["run_id"], "p{2.1cm}p{9cm}rrrl",
-        compact=True, wide=True,
+        "".join(rows), caption, "tab:degradation", run["run_id"], "p{1.6cm}p{5.0cm}p{1.6cm}",
+        compact=True, wide=False,
     )
 
 
