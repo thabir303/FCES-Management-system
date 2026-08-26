@@ -1,0 +1,15 @@
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
+divisions:
+- '30'
+- '31'
+- '32'
+- '33'
+- '38'
+- '42'
+- '43'
+- '44'
+reported_severities:
+- 0.15
+- 0.25
+- 0.5
+seed: 0
