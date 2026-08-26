@@ -96,6 +96,18 @@ paper:
 	 } || \
 	 { echo "paper: BUILD FAILED — see main.log"; exit 1; }
 
+# Overleaf has no access to results/tables/ (gitignored, generated locally) -- this inlines
+# every \input{results/tables/*} with the referenced file's actual content so the single
+# file compiles standalone. Mechanically regenerated, never hand-edited; run this after
+# every `make tables` + `make paper` that touches main.tex, before uploading to Overleaf.
+overleaf:
+	@$(PY) -c "\
+import pathlib, re; \
+src = pathlib.Path('main.tex').read_text(); \
+out = re.sub(r'\\\\input\{(results/tables/[^}]+)\}', lambda m: pathlib.Path(m.group(1)).read_text(), src); \
+pathlib.Path('main_overleaf.tex').write_text(out); \
+print(f'wrote main_overleaf.tex ({len(out.splitlines())} lines)')"
+
 dev:
 	cd system/api && ../../.venv/bin/uvicorn fcesapi.main:app --reload --port 8000 & \
 	cd system/web && npm run dev
