@@ -230,11 +230,9 @@ work sits.
 \subsection{Equipment Cataloguing and Asset Management}
 
 Equipment cataloguing in higher education has been addressed
-operationally rather than analytically. Open source catalogue software
-such as Kit-Catalogue \cite{kitcatalogue} and aggregation services such
-as the Equipment Data Service \cite{jisc} publish institutional
-holdings, and asset management practice is codified in ISO 55000
-\cite{iso55000}. Data quality in engineering asset management
+operationally rather than analytically, and asset management practice
+is codified in ISO 55000 \cite{iso55000}. Data quality in engineering
+asset management
 specifically, not data cleaning generally \cite{rahm2000}, has its own
 literature: Lin et al. \cite{lin2008dataquality} frame the technical,
 organisational and personal causes of asset data quality problems, and
@@ -932,22 +930,16 @@ same obstacle, not a corpus-specific defect to engineer around.
 
 Label noise propagates into a measured result here rather than merely
 capping one. Code 4431 collides two unrelated senses of "hardware," a
-builders' ironmongery class and IT/AV equipment, in the published data.
-Both classifiers reproduce the collision: TF-IDF predicts it for 78
-test records and is scored correct on 28 of them, the embedding
-classifier for 44 records and 17 correct, in both cases against
-examples that read unambiguously as IT hardware rather than
-ironmongery. A noise rate acting only as a ceiling would make results
-pessimistic; a noise rate a classifier learns and is rewarded for
-reproducing makes them optimistic instead, and the second is the
-reading a register migration cannot afford to leave unflagged, because
-the register would inherit the same collision on every future record
-routed by the pattern rather than reviewed against it. The widened
-200-record review confirms this is not an isolated instance: the same
-class-4431 collision is its single largest disagreement type (7 of 34),
-followed by software or subscription licences published under a
-hardware-only equipment division (6 of 34) -- together over a third of
-all disagreements, not scattered anecdotes.
+builders' ironmongery class and IT/AV equipment; both classifiers
+reproduce the collision, TF-IDF predicting it for 78 test records and
+scored correct on 28, the embedding classifier for 44 and 17, in each
+case against examples that read unambiguously as IT hardware. A noise
+rate a classifier learns and is rewarded for reproducing is optimistic
+rather than merely a ceiling, and the independent 200-record review
+confirms it: the same collision is its single largest disagreement
+type (7 of 34), followed by software or subscription licences filed
+under a hardware-only division (6 of 34) -- together over a third of
+all disagreements.
 
 TF-IDF and embedding similarity trade places depending on what the task
 supplies. TF-IDF beats the embedding classifier at both taxonomy
@@ -1006,16 +998,13 @@ anomaly.
 
 What this paper did not measure is as informative as what it did.
 FCES's own register was never available, so every figure here is a
-proxy result and none is a claim about the faculty's actual holdings;
-that substitution, and what it costs the study, is stated rather than
-absorbed into the headline numbers. No handling time is measured,
-because no single reading speed generalises to the staff who would
-perform the curation; residual effort is reported as review volume,
-convertible by a reader who holds their own institution's figure. The
-pipeline studied here is deployed inside the asset management system
-delivered to FCES, so the review queue it feeds is positioned to
-supply that handling-time figure, and the transfer gap this paper
-measured, from deployment rather than from a second proxy corpus.
+proxy result rather than a claim about the faculty's actual holdings,
+and no handling time is measured because no single reading speed
+generalises to the staff who would perform the curation. Both gaps
+close the same way: the pipeline studied here is deployed inside the
+asset management system delivered to FCES, so its review queue is
+positioned to supply the handling-time figure and the transfer gap
+this paper could not measure directly.
 
 \begin{thebibliography}{99}
 
@@ -1094,17 +1083,10 @@ P.~Woodall, J.~Gao, A.~Parlikad, and A.~Koronios, ``Classifying data quality
 Health and Safety Executive, ``Health and safety statistics for Great Britain,
   2024/25,'' 2025. https://www.hse.gov.uk/statistics/
 
-\bibitem{jisc}
-Jisc, ``Equipment data service.'' https://equipment.data.ac.uk/
-
 \bibitem{contractsfinder}
 Cabinet Office, ``Contracts Finder: Open Contracting Data Standard release
   packages,'' OGL v3.0, nationalarchives.gov.uk/doc/open-government-licence/version/3/.
   [Online]. Available: https://www.gov.uk/contracts-finder
-
-\bibitem{kitcatalogue}
-Loughborough University, ``Kit-Catalogue: Open source equipment cataloguing
-  software,'' licensed under GPLv3.
 
 \end{thebibliography}
 
