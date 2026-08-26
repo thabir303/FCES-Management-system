@@ -17,6 +17,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "pydantic>=2.6",
     "pyyaml>=6.0",
+    "matplotlib>=3.8",
 ]
 
 # rapidfuzz is deliberately NOT here — it belongs to system/api, where it guesses
