@@ -47,7 +47,7 @@ def _title_desc(frame: pd.DataFrame) -> list[str]:
     out = []
     for title, desc in zip(frame["title"], frame["description"], strict=True):
         t = "" if pd.isna(title) else str(title)
-        d = "∅" if pd.isna(desc) else str(desc)
+        d = "(null)" if pd.isna(desc) else str(desc)
         out.append(f"title: {t} | description: {d}")
     return out
 
