@@ -57,67 +57,38 @@ classification, open data
 \section{Introduction}
 
 Higher education institutions hold research and teaching equipment worth
-many millions of pounds, and the records describing that equipment are
-very often kept in spreadsheets that were never designed to act as an
-authoritative register. A spreadsheet offers no access control beyond
-file permissions, no audit trail, and no constraint on what is typed
-into it: two members of staff recording the same microscope in the same
-week will produce two rows that differ in spelling, abbreviation,
-capitalisation and column alignment, and the file will accept both
-without complaint.
+many millions of pounds, often recorded in spreadsheets never designed as
+an authoritative register: two staff describing the same microscope in
+the same week produce two rows differing in spelling and abbreviation,
+and the file accepts both without complaint.
 
 The Faculty of Computing, Engineering and Science (FCES) at the
-University of South Wales is relocating a large volume of equipment into
-a new building, Calon, and requires a live system in which any item can
-be reached by scanning a QR or barcode label, updated in place, and
-associated with photographs, service history, a floor plan position and
-the relevant risk assessment, with tiered access across roles.
+University of South Wales is relocating equipment into a new building,
+Calon, and requires a live, scannable register linked to service
+history, floor plan position and risk assessment -- but populating such
+a register from years of inconsistent free text is where migration
+projects most often lose accuracy. A surviving duplicate overstates
+holdings; a misclassified item inherits the wrong hazard and servicing
+rule, propagating directly into a safety control -- not a hypothetical
+risk, given the Health and Safety Executive's estimated \pounds22.9
+billion annual cost of work related ill health \cite{hse2025}.
 
-Building such a system is a well understood software engineering
-exercise. Populating it is not. The migration step, in which thousands
-of free text rows written by different people over many years must be
-reconciled into a consistent structured register, is where asset
-management projects most often lose accuracy. Duplicates that survive
-migration overstate holdings and distort replacement planning; an item
-placed in the wrong category inherits whatever hazard classification
-and servicing rule that category carries, so a classification error
-propagates directly into a safety control.
-
-These consequences are not hypothetical. In 2024/25 employers in Great
-Britain reported 59,219 non fatal injuries under the Reporting of
-Injuries, Diseases and Dangerous Occurrences Regulations, and the Health
-and Safety Executive estimates the annual cost of work related ill
-health at \pounds22.9 billion \cite{hse2025}; handling, lifting or
-carrying and being struck by a moving object together accounted for 27
-per cent of reported non fatal injuries \cite{hse2025}. Correct
-identification of a machine and its risk assessment is a practical
-control, not an administrative formality.
-
-This paper therefore treats the migration problem itself as the object
-of study. The question is not whether a live register can be built, but
-how much of the transition from an uncontrolled spreadsheet to a
-governed one can be automated, how accurate that automation is, and how
-much human effort remains once it has been applied.
-
-The study is carried out alongside delivery of that system, and the two
-are related rather than parallel. The migration pipeline runs inside the
-delivered system as a bulk import: records it resolves confidently enter
-the register directly, and the remainder enter a review queue that
-records the duration of each decision, so the system is both the
+This paper treats that migration problem as the object of study: not
+whether a live register can be built, but how much of the transition to
+a governed one can be automated, how accurate that automation is, and
+how much human effort remains. The study runs alongside delivery of the
+system itself -- the migration pipeline is its bulk import path, so
+confidently resolved records enter the register directly and the
+remainder enter a timed review queue, making the system both the
 destination of the migration and the setting in which its residual
-human cost is measured rather than assumed.
+human cost is measured.
 
-Records held by FCES were not available for this study, and published
-institutional catalogues carry neither duplicate annotations nor a
-consistent category label, so the study draws on two corpora with
-complementary ground truth: an established entity resolution benchmark
-supplies human labelled duplicate pairs against which results can be
-positioned in the literature, and United Kingdom Contracts Finder
-notices supply free text procurement descriptions already carrying
-Common Procurement Vocabulary codes at a scale no manual annotation
-could reach. A parameterised degradation model reintroduces the error
-classes absent from both, so performance is observed as record quality
-falls rather than at one arbitrary operating point.
+FCES's own records were unavailable for this study, so it draws on two
+corpora with complementary ground truth -- an entity resolution
+benchmark for labelled duplicate pairs, and Contracts Finder procurement
+notices already carrying Common Procurement Vocabulary codes at a scale
+no manual annotation could reach -- with a parameterised degradation
+model reintroducing the error classes absent from both.
 
 The contributions of this paper are as follows.
 
