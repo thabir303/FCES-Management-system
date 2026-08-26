@@ -225,9 +225,9 @@ def main(argv: list[str] | None = None) -> int:
     else:
         rag_result, completed_sample = predict_whatever_completed(rag, sample)
         partial_reason = (
-            "per-minute pacing slowed to ~1 call/25min after a token-window accounting fix "
-            "made pacing more conservative on retries; recovered by reading the already-"
-            "cached live completions directly rather than re-issuing requests"
+            "the day's token allowance ran out mid-batch (DailyQuotaExhausted); resume by "
+            "re-running this config after the next quota reset, which replays completed "
+            "work from cache and continues on the remainder"
         )
     partial = len(completed_sample) < len(sample)
 

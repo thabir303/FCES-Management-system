@@ -97,6 +97,6 @@
   "n_test_sample_completed": 167,
   "n_test_sample_drawn": 298,
   "n_test_sample_requested": 300,
-  "partial_reason": "per-minute pacing slowed to ~1 call/25min after a token-window accounting fix made pacing more conservative on retries; recovered by reading the already-cached live completions directly rather than re-issuing requests",
+  "partial_reason": "the day's token allowance ran out mid-batch (DailyQuotaExhausted); resume by re-running this config after the next quota reset, which replays completed work from cache and continues on the remainder",
   "partial_run": true
 }
