@@ -1,0 +1,168 @@
+{
+  "seed_asset_created": {
+    "id": 322,
+    "public_id": "683c802d-ed22-4e5d-a307-32c52f78e565",
+    "asset_tag": "FCES-000001",
+    "name": "Centrifuge 5424 54619c66",
+    "description": "Bench top centrifuge, Eppendorf",
+    "manufacturer": null,
+    "model": null,
+    "serial_number": null,
+    "cpv_code": null,
+    "location_id": null,
+    "owning_department": null,
+    "service_interval_days": null,
+    "last_serviced_at": null,
+    "next_due_at": null,
+    "created_at": "2026-08-27T03:34:39.255115Z",
+    "updated_at": "2026-08-27T03:34:39.255115Z"
+  },
+  "bulk_import_request": {
+    "method": "POST",
+    "path": "/api/v1/imports",
+    "files": {
+      "file": "assets.csv (2 rows, see body below)"
+    }
+  },
+  "bulk_import_response": {
+    "batch_id": 57,
+    "detected_columns": [
+      "Equipment Name",
+      "Description",
+      "Make"
+    ],
+    "sample_rows": [
+      {
+        "Equipment Name": "Centrifuge 5424 54619c66",
+        "Description": "Bench top centrifuge",
+        "Make": "Eppendorf"
+      },
+      {
+        "Equipment Name": "Autoclave Pro 200 54619c66",
+        "Description": "Steam steriliser",
+        "Make": "Getinge"
+      }
+    ]
+  },
+  "flagged_duplicate_row": {
+    "id": 102,
+    "row_index": 0,
+    "raw": {
+      "Make": "Eppendorf",
+      "Description": "Bench top centrifuge",
+      "Equipment Name": "Centrifuge 5424 54619c66"
+    },
+    "normalised": {
+      "name": "Centrifuge 5424 54619c66",
+      "description": "Bench top centrifuge",
+      "manufacturer": "Eppendorf"
+    },
+    "dedup_decision": "duplicate",
+    "dedup_score": 0.8301,
+    "dedup_candidate_asset_id": 322,
+    "class_cpv_code": "4293",
+    "class_score": 0.669,
+    "class_alternatives": [
+      {
+        "code": "3800",
+        "score": 0.052895155472961974
+      },
+      {
+        "code": "4800",
+        "score": 0.035518276862431315
+      },
+      {
+        "code": "3300",
+        "score": 0.025113982319381774
+      },
+      {
+        "code": "4400",
+        "score": 0.016705422654743188
+      },
+      {
+        "code": "4851",
+        "score": 0.015022088325241116
+      }
+    ],
+    "evidence": {
+      "dedup": {
+        "method": "tfidf_char_ngrams",
+        "matched_ngrams": [
+          " 54",
+          "19c",
+          "24 ",
+          "4 5",
+          "424",
+          "461",
+          "542",
+          "546",
+          "619",
+          "9c6",
+          "c66",
+          "cen",
+          "e 5",
+          "ent",
+          "fug",
+          "ge ",
+          "ifu",
+          "ntr",
+          "rif",
+          "tri"
+        ]
+      },
+      "classification_floor": 0.42761286592202863
+    },
+    "route": "review",
+    "resolved_at": null,
+    "final_asset_id": null
+  },
+  "review_decision_response": {
+    "row_id": 102,
+    "action": "accept"
+  },
+  "review_decision_row": {
+    "id": 14,
+    "import_row_id": 102,
+    "actor_id": 1422,
+    "decision_type": "dedup",
+    "action": "accept",
+    "chosen_value": null,
+    "seconds_taken": 6,
+    "at": "2026-08-27T03:34:40.230457+00:00"
+  },
+  "commit_response": {
+    "batch_id": 57,
+    "assets_created": 1
+  },
+  "resulting_asset": {
+    "id": 323,
+    "public_id": "4ee03816-fa24-4b92-b1d0-87df5a8972ea",
+    "asset_tag": "FCES-000323",
+    "name": "Autoclave Pro 200 54619c66",
+    "description": "Steam steriliser",
+    "manufacturer": "Getinge",
+    "model": null,
+    "serial_number": null,
+    "cpv_code": "3319",
+    "location_id": null,
+    "owning_department": null,
+    "service_interval_days": null,
+    "last_serviced_at": null,
+    "next_due_at": null,
+    "created_at": "2026-08-27T03:34:40.244561Z",
+    "updated_at": "2026-08-27T03:34:40.244561Z"
+  },
+  "audit_row": {
+    "id": 147,
+    "actor_id": 1422,
+    "entity_type": "asset",
+    "entity_id": 323,
+    "action": "import_commit",
+    "before": null,
+    "after": {
+      "batch_id": 57,
+      "source_row_id": 103
+    },
+    "at": "2026-08-27T03:34:40.244561Z"
+  }
+}
