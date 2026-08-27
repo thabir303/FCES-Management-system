@@ -1,0 +1,19 @@
+condition: rq2_incontext
+corpus: data/processed/corpus_b_contractsfinder.parquet
+divisions:
+- '30'
+- '31'
+- '32'
+- '33'
+- '38'
+- '42'
+- '43'
+- '44'
+k_examples: 5
+level: division
+llm_config: research/configs/llm.yaml
+llm_sample_n: 300
+llm_sample_seed: 0
+max_tokens: 1000
+min_examples: 50
+taxonomy: data/processed/cpv_taxonomy.parquet
