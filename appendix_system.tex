@@ -156,6 +156,20 @@ exactly one file, so the paper's claim that ``the pipeline is deployed inside th
 management system delivered to FCES'' is a statement about this one crossing point, checkable
 by a single \texttt{grep}, rather than a claim taken on trust.
 
+\section{Degradation Model: Worked Examples}
+\label{sec:degradation-examples}
+
+Moved here in full and unchanged (supervisor ruling, 2026-08-27): illustration, not a result an
+argument in the paper depends on, and the ten-page limit has no room for it. The paper's
+Methodology names the seven error classes, states that each fires at the identical probability
+$p_s = s$ at swept severity $s$ (no run overrides the per-class multiplier), and that severity is
+an experimental stress parameter rather than a claim about FCES's real error mix -- all of that
+stays in the paper. What moves is only the worked example: a real Contracts Finder record
+before and after each class alone, isolated at severity 1.0 so the effect is undiluted, together
+with the source each class's construction is documented against.
+
+\input{results/tables/T_degradation.tex}
+
 \section{API-Level Evidence}
 \label{sec:api-evidence}
 
@@ -344,5 +358,12 @@ record to plot here, only the shape of the system every other exhibit measures a
 \end{figure}
 
 \input{results/tables/T_cost_scale.tex}
+
+\begin{thebibliography}{1}
+\bibitem{mudgal2018}
+S.~Mudgal \emph{et~al.}, ``Deep learning for entity matching: A design space
+  exploration,'' in \emph{Proc. ACM SIGMOD Int. Conf. Manage. Data}, 2018, pp.
+  19--34.
+\end{thebibliography}
 
 \end{document}
