@@ -352,6 +352,53 @@ def figure_pipeline_diagram() -> str:
     return "schematic (no run record; the structure every other exhibit measures a part of)"
 
 
+def figure_architecture_diagram() -> str:
+    """A1: appendix-only architecture diagram -- the research library, the API, the
+    database, and the one file that crosses between the first two.
+
+    Schematic, like F7, and for the same reason: nothing in a run record to plot, only the
+    codebase's own module boundary (``grep -r "import fcesreg" system/`` returns exactly
+    ``services/pipeline.py``, the boundary this diagram draws).
+    """
+    fig, ax = plt.subplots(figsize=(6.0, 2.8))
+    ax.axis("off")
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 4)
+
+    def box(x, y, w, h, text, fontsize=8, linewidth=1, linestyle="-"):
+        ax.add_patch(
+            plt.Rectangle(
+                (x, y), w, h, fill=False, edgecolor="black", linewidth=linewidth,
+                linestyle=linestyle,
+            )
+        )
+        ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=fontsize)
+
+    def arrow(x0, y0, x1, y1, text=None, ty=0.0):
+        ax.annotate(
+            "", xy=(x1, y1), xytext=(x0, y0),
+            arrowprops=dict(arrowstyle="<->", color="black", linewidth=1),
+        )
+        if text:
+            ax.text((x0 + x1) / 2, (y0 + y1) / 2 + ty, text, ha="center", fontsize=6.5)
+
+    box(0.3, 1.3, 2.6, 1.6, "research/\nfcesreg\n\n(pure Python:\npandas/numpy,\nno web, no DB)")
+    box(3.7, 1.3, 2.6, 1.6, "system/api\n(FastAPI)\n\nservices/\npipeline.py\nadapts here")
+    box(7.1, 1.3, 2.4, 1.6, "Postgres\n(:5433)")
+
+    arrow(2.9, 2.1, 3.7, 2.1, "import fcesreg\n(one file only)", ty=0.35)
+    arrow(6.3, 2.1, 7.1, 2.1, "SQLAlchemy")
+
+    ax.text(5.0, 3.35, "The only import boundary crossed anywhere in system/", fontsize=6.5,
+            ha="center", style="italic")
+    ax.set_title("Architecture: research library, API, database", fontsize=9)
+    fig.tight_layout()
+    out = FIGURES_ROOT / "A1_architecture.pdf"
+    fig.savefig(out)
+    plt.close(fig)
+    return "schematic (no run record; the module boundary grep -r verifies)"
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
@@ -382,6 +429,7 @@ def main(argv: list[str] | None = None) -> int:
         ("F5_taxonomy_f1.pdf", figure_taxonomy_f1(classify_run, rag_run)),
         ("F6_cost_severity.pdf", figure_cost_severity(costs_run)),
         ("F7_pipeline_diagram.pdf", figure_pipeline_diagram()),
+        ("A1_architecture.pdf", figure_architecture_diagram()),
     ]
     for filename, source in builds:
         print(f"  {FIGURES_ROOT / filename}  <- {source}")
