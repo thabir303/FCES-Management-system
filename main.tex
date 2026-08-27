@@ -185,7 +185,7 @@ formal treatment in the probabilistic framework of Fellegi and Sunter
 problem with configurable error rates. Subsequent work systematised the
 surrounding pipeline: the blocking step reducing the quadratic
 comparison space to a tractable candidate set, and the similarity
-measures applied within it \cite{christen2012,papadakis2020}. The
+measures applied within it \cite{christen2012}. The
 blocking schemes evaluated here are drawn from this line of work, which
 is largely evaluated on bibliographic and commercial product data; how
 the methods behave on institutional asset records has received little
@@ -200,10 +200,8 @@ protocol for constructing dirty variants of structured datasets by
 relocating attribute values into a free text field -- the closest
 published analogue to the column misalignment in manually maintained
 spreadsheets. Li et al. \cite{li2020ditto} showed pre-trained language
-models applied as cross encoders improve on these architectures, and
-Narayan et al. \cite{narayan2022} reported large foundation models
-perform competitively on data wrangling without task specific training.
-These approaches assume a labelled training set drawn from the same
+models applied as cross encoders improve on these architectures. This
+approach assumes a labelled training set drawn from the same
 distribution as the deployment data, an assumption a faculty migrating a
 single spreadsheet cannot satisfy.
 
@@ -240,9 +238,8 @@ work sits.
 Equipment cataloguing in higher education has been addressed
 operationally rather than analytically, and asset management practice
 is codified in ISO 55000 \cite{iso55000}. Data quality in engineering
-asset management
-specifically, not data cleaning generally \cite{rahm2000}, has its own
-literature: Lin et al. \cite{lin2008dataquality} frame the technical,
+asset management specifically has its own literature: Lin et al.
+\cite{lin2008dataquality} frame the technical,
 organisational and personal causes of asset data quality problems, and
 Woodall et al. \cite{woodall2015classifying} classify those problems
 empirically, but neither addresses the transition from an uncontrolled
@@ -1086,15 +1083,6 @@ I.~P. Fellegi and A.~B. Sunter, ``A theory for record linkage,'' \emph{J. Amer.
 P.~Christen, \emph{Data Matching: Concepts and Techniques for Record Linkage,
   Entity Resolution, and Duplicate Detection}. Berlin, Germany: Springer, 2012.
 
-\bibitem{papadakis2020}
-G.~Papadakis, D.~Skoutas, E.~Thanos, and T.~Palpanas, ``Blocking and filtering
-  techniques for entity resolution: A survey,'' \emph{ACM Comput. Surv.},
-  vol.~53, no.~2, 2021.
-
-\bibitem{rahm2000}
-E.~Rahm and H.~H. Do, ``Data cleaning: Problems and current approaches,''
-  \emph{IEEE Data Eng. Bull.}, vol.~23, no.~4, pp. 3--13, 2000.
-
 \bibitem{mudgal2018}
 S.~Mudgal \emph{et~al.}, ``Deep learning for entity matching: A design space
   exploration,'' in \emph{Proc. ACM SIGMOD Int. Conf. Manage. Data}, 2018, pp.
@@ -1113,10 +1101,6 @@ Database Group Leipzig, ``Benchmark datasets for entity resolution.''
 Y.~Li, J.~Li, Y.~Suhara, A.~Doan, and W.-C. Tan, ``Deep entity matching with
   pre-trained language models,'' \emph{Proc. VLDB Endowment}, vol.~14, no.~1,
   pp. 50--60, 2021.
-
-\bibitem{narayan2022}
-A.~Narayan, I.~Chami, L.~Orr, and C.~R\'{e}, ``Can foundation models wrangle
-  your data?'' \emph{Proc. VLDB Endowment}, vol.~16, no.~4, pp. 738--746, 2022.
 
 \bibitem{chen2023frugalgpt}
 L.~Chen, M.~Zaharia, and J.~Zou, ``FrugalGPT: How to use large language
