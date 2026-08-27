@@ -1,0 +1,348 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{verbatim}
+\usepackage{hyperref}
+
+\title{Appendix: System Evidence and Exhibit Overflow}
+\author{Md Ashik Reza \\ Faculty of Computing, Engineering and Science, University of South Wales}
+\date{}
+
+\begin{document}
+\maketitle
+
+\noindent This appendix sits outside the paper's page limit, per the handbook's placement of
+appendices after the main publication and their exemption from the template. It carries two
+things the main paper's ten pages have no room for: the evidence that the delivered system
+satisfies the client brief, and the exhibits from Section~\ref{sec:exhibits} that did not fit
+the paper.
+
+\textbf{No user interface was built.} \texttt{system/web} is an empty placeholder
+(\texttt{.gitkeep} only) -- the scope fence in the project plan named a dashboard, a user
+administration UI, and an audit-browsing UI explicitly out of scope, and no other interface was
+substituted for them. Every claim below about the delivered system is therefore evidenced at the
+API level: real HTTP requests and real HTTP responses against a live Postgres instance, not
+screenshots of a screen that does not exist. Stating this once, plainly, is the point --
+its absence should not have to be discovered by a reader.
+
+\section{Requirement-to-Test Table}
+\label{sec:req-test}
+
+One row per client-brief requirement (the brief is quoted verbatim in the paper's Methodology),
+populated from the 62 tests that actually run in \texttt{system/api/tests/} as of this
+appendix -- not from the brief's own wording. A tenth row covers the tests that verify internal
+plumbing (path safety) rather than a named requirement, so all 62 tests are accounted for and
+nothing is silently omitted. All 62 pass at the time of writing; a requirement with no passing
+test would be marked \emph{untested} here rather than asserted anyway.
+
+\begin{longtable}{p{3.1cm}p{5.0cm}p{4.3cm}p{1.0cm}}
+\toprule
+\textbf{Requirement} & \textbf{Test(s)} & \textbf{Expected result} & \textbf{P/F} \\
+\midrule
+\endhead
+
+Live register, not a spreadsheet &
+\texttt{test\_\allowbreak{}assets\_\allowbreak{}api.py\allowbreak{}::\allowbreak{}TestAssetCrud} (6: create/get round trip, patch partial update,
+404 envelope, GIN-index search, audit row on update, tag/public-id resolve the same asset) &
+An asset can be created, read, updated and searched, and resolves identically whether looked up
+by tag or public id & Pass \\
+\addlinespace
+
+Accessed via QR \emph{and} barcode &
+\texttt{test\_\allowbreak{}labels\_\allowbreak{}api.py\allowbreak{}::\allowbreak{}TestQrRoundTrip} (3), \texttt{::\allowbreak{}TestSingleLabel} (1),
+\texttt{::\allowbreak{}TestLabelSheet} (3) &
+The QR endpoint returns a PNG that decodes back to this asset's URL and requires
+authentication; the single-label SVG embeds both a QR code and a Code128 barcode; a
+multi-asset label sheet returns one PDF (broader than the fence's single-label endpoint --
+a scope reopening, built and tested on explicit instruction, recorded in
+\texttt{.claude/rules/system.md}) & Pass \\
+\addlinespace
+
+Updated live &
+\texttt{test\_\allowbreak{}assets\_\allowbreak{}api.py\allowbreak{}::\allowbreak{}test\_\allowbreak{}patch\_\allowbreak{}only\_\allowbreak{}changes\_\allowbreak{}supplied\_\allowbreak{}fields} (shared with row 1) &
+A partial \texttt{PATCH} changes only the fields supplied, leaving the rest untouched & Pass \\
+\addlinespace
+
+Photos, data, PDFs per item &
+\texttt{test\_\allowbreak{}attachments\_\allowbreak{}api.py\allowbreak{}} (8: image/PDF MIME acceptance and rejection per kind,
+risk-assessment kind, readonly write is 403, list/download/delete round trip, one-primary-per-kind,
+link kind requires a URL not a file) &
+Attachments are MIME-validated per kind, exactly one may be marked primary per kind (DB partial
+unique index), and a link-kind attachment cannot carry a file & Pass \\
+\addlinespace
+
+Floor plans showing machine location &
+\texttt{test\_\allowbreak{}floorplans\_\allowbreak{}api.py\allowbreak{}} (7: image dimensions recorded, non-image MIME rejected,
+readonly upload is 403, list includes the plan, pin create/move/delete round trip, out-of-range
+coordinate is 422, deleting a pin orphans no asset reference) &
+A floor-plan image's real pixel dimensions are recorded on upload; a pin is a percentage
+coordinate on that image, and deleting one leaves the asset it pointed to intact & Pass \\
+\addlinespace
+
+Link to H\&S / risk assessments &
+\texttt{test\_\allowbreak{}attachments\_\allowbreak{}api.py\allowbreak{}::\allowbreak{}test\_\allowbreak{}risk\_\allowbreak{}assessment\_\allowbreak{}kind\_\allowbreak{}accepts\_\allowbreak{}pdf} (shared with the
+photos/PDFs row) &
+A \texttt{risk\_\allowbreak{}assessment}-kind attachment accepts a PDF like any other document kind & Pass \\
+\addlinespace
+
+Service-due reminders &
+\texttt{test\_\allowbreak{}service\_\allowbreak{}api.py\allowbreak{}} (5: logging an event recomputes \texttt{next\_\allowbreak{}due\_\allowbreak{}at}, readonly
+cannot log an event, list service events, an overdue asset appears in the overdue bucket and not
+due-soon, running the notification scheduler twice in one day inserts no duplicate rows) &
+Logging a service event moves the due date forward from that event, not from today; the daily
+scheduler is idempotent within a day & Pass \\
+\addlinespace
+
+Levelled access (read-only tier) &
+\texttt{test\_\allowbreak{}assets\_\allowbreak{}api.py\allowbreak{}::\allowbreak{}TestRoleEnforcement} (4: readonly write is 403 not 401, technician
+write succeeds, no token is 401, every \texttt{GET} is permitted to readonly),
+\texttt{test\_\allowbreak{}security.py\allowbreak{}} (6: password hashing round-trips and salts, access token carries id
+and role, expires in the future, rejected under a different signing secret) &
+Three roles (admin, technician, readonly) are enforced consistently: unauthenticated is 401,
+authenticated-but-wrong-role is 403, never a stack trace. Every other file's own
+readonly/technician checks (attachments, floor plans, imports, service, audit) exercise the same
+mechanism per endpoint rather than duplicating this row & Pass \\
+\addlinespace
+
+Audit log of changes &
+\texttt{test\_\allowbreak{}audit\_\allowbreak{}api.py\allowbreak{}} (5: admin sees the create row it caused, filters by action,
+technician is 403 not 401, readonly is 403, page-size pagination) &
+Every write is queryable after the fact, filtered and paginated, restricted to admin -- the
+paper claims the log, not a browsing interface, and none is built & Pass \\
+\addlinespace
+
+Bulk import of the legacy spreadsheet &
+\texttt{test\_\allowbreak{}imports\_\allowbreak{}api.py\allowbreak{}::\allowbreak{}TestImportWizard} (6: a mismatched header file still maps by
+hand, rows are split with scores/alternatives/evidence populated, resolving a row writes all
+six review-queue fields, an unknown action is 422 not a silent no-op, committing writes one
+asset and one audit row per row, readonly cannot upload) &
+Upload $\to$ map $\to$ process $\to$ resolve $\to$ commit round-trips end to end against the
+real fitted \texttt{fcesreg} pipeline (not mocked), splitting rows into the auto and review
+queues E1--E5 specify & Pass \\
+\addlinespace
+
+\emph{(internal quality gate, not a named client requirement)} &
+\texttt{test\_\allowbreak{}config.py\allowbreak{}} (8: repo root is absolute, found by marker not by counting parents,
+stable from a different working directory; storage root is absolute and does not move with the
+cwd; an explicit override is still used as given; no bare relative data path anywhere in the
+package; no second \texttt{repo\_\allowbreak{}root} implementation) &
+Every path the API resolves is anchored to the repository root regardless of the process's
+current working directory -- the exact defect class that once gave 14 failures from a
+different working directory on the research side & Pass \\
+\bottomrule
+\end{longtable}
+
+\section{Architecture}
+\label{sec:architecture}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\linewidth]{results/figures/A1_architecture.pdf}
+\caption{The research library, the API, and the database, with the single import boundary
+between the first two. \texttt{grep -r "import fcesreg" system/} returns exactly
+\texttt{system/api/src/fcesapi/services/pipeline.py\allowbreak{}} -- this diagram draws that grep result,
+not an aspiration.}
+\end{figure}
+
+\texttt{fcesreg} is pure Python over pandas DataFrames and numpy arrays: no database access, no
+network access outside its own \texttt{ingest\_\allowbreak{}*} and \texttt{llm} modules, and no import from
+\texttt{system/}. \texttt{system/api} adapts between HTTP/SQLAlchemy and those DataFrames in
+exactly one file, so the paper's claim that ``the pipeline is deployed inside the asset
+management system delivered to FCES'' is a statement about this one crossing point, checkable
+by a single \texttt{grep}, rather than a claim taken on trust.
+
+\section{API-Level Evidence}
+\label{sec:api-evidence}
+
+Every body below is quoted from \texttt{results/\allowbreak{}appendix\_\allowbreak{}evidence.json},
+produced by \texttt{capture\_\allowbreak{}appendix\_\allowbreak{}evidence.py} (under
+\texttt{system/\allowbreak{}api/\allowbreak{}src/\allowbreak{}fcesapi/\allowbreak{}scripts/\allowbreak{}})
+against a live Postgres instance through the same code path (\texttt{TestClient} over the real
+FastAPI app, no auth faking, the real fitted \texttt{fcesreg} pipeline) the test suite itself
+exercises. The script
+seeds one asset, uploads a two-row CSV in which one row is an exact textual duplicate of that
+asset, resolves both rows, commits the batch, and reads back the result -- then deletes every
+row it created, in its own \texttt{finally} block, verified afterward to leave the database's
+user/asset/batch counts unchanged. Nothing below is illustrative.
+
+\subsection{A bulk import request and response}
+
+\begin{verbatim}
+POST /api/v1/imports
+files: assets.csv, 2 rows:
+  Centrifuge 5424 <tag>, Bench top centrifuge, Eppendorf
+  Autoclave Pro 200 <tag>, Steam steriliser, Getinge
+
+--> 201
+{
+  "batch_id": 57,
+  "detected_columns": ["Equipment Name", "Description", "Make"],
+  "sample_rows": [
+    {"Equipment Name": "Centrifuge 5424 <tag>",
+     "Description": "Bench top centrifuge", "Make": "Eppendorf"},
+    {"Equipment Name": "Autoclave Pro 200 <tag>",
+     "Description": "Steam steriliser", "Make": "Getinge"}
+  ]
+}
+\end{verbatim}
+
+\subsection{A flagged duplicate in the review queue, with confidence and competing candidate}
+
+The centrifuge row above is textually identical to an asset already in the register
+(\texttt{id: 322}, seeded moments earlier in the same run), and the real \texttt{tfidf}-based
+matcher -- not a stub -- scores it accordingly:
+
+\begin{verbatim}
+GET /api/v1/imports/57/rows  -->  row id 102:
+{
+  "dedup_decision": "duplicate",
+  "dedup_score": 0.8301,
+  "dedup_candidate_asset_id": 322,
+  "class_cpv_code": "4293",
+  "class_score": 0.669,
+  "class_alternatives": [
+    {"code": "3800", "score": 0.0529},
+    {"code": "4800", "score": 0.0355},
+    {"code": "3300", "score": 0.0251}
+  ],
+  "evidence": {
+    "dedup": {"method": "tfidf_char_ngrams",
+              "matched_ngrams": ["cen","ent","ntr","tri","rif","ifu","fug","...]},
+    "classification_floor": 0.4276
+  },
+  "route": "review"
+}
+\end{verbatim}
+
+\subsection{A review decision and the six logged fields it writes}
+
+The reviewer confirms the automated duplicate call. \texttt{ReviewDecision} joins to the row
+above by \texttt{import\_\allowbreak{}row\_\allowbreak{}id} rather than duplicating \texttt{dedup\_\allowbreak{}score}/\texttt{class\_\allowbreak{}score}
+onto itself:
+
+\begin{verbatim}
+POST /api/v1/imports/57/rows/102/resolve
+{"action": "accept", "decision_type": "dedup", "seconds_taken": 6}
+--> 200 {"row_id": 102, "action": "accept"}
+
+the row it wrote:
+{
+  "id": 14,
+  "import_row_id": 102,
+  "actor_id": 1422,
+  "decision_type": "dedup",
+  "action": "accept",
+  "chosen_value": null,
+  "seconds_taken": 6,
+  "at": "2026-08-27T03:34:40.230457+00:00"
+}
+\end{verbatim}
+
+\subsection{The resulting asset}
+
+The autoclave row was genuinely novel (\texttt{dedup\_\allowbreak{}decision} not \texttt{duplicate}); on
+commit it -- and only it -- is written as a new asset, auto-classified by the same fitted
+pipeline:
+
+\begin{verbatim}
+POST /api/v1/imports/57/commit  -->  200 {"batch_id": 57, "assets_created": 1}
+
+GET /api/v1/assets/323:
+{
+  "id": 323,
+  "asset_tag": "FCES-000323",
+  "name": "Autoclave Pro 200 <tag>",
+  "description": "Steam steriliser",
+  "manufacturer": "Getinge",
+  "cpv_code": "3319",
+  "created_at": "2026-08-27T03:34:40.244561Z"
+}
+\end{verbatim}
+
+The duplicate-confirmed centrifuge row is, correctly, not written a second time: a confirmed
+duplicate is never committed as a new asset.
+
+\subsection{An audit row}
+
+\begin{verbatim}
+GET /api/v1/audit?entity_id=323  -->  200, items[0]:
+{
+  "id": 147,
+  "actor_id": 1422,
+  "entity_type": "asset",
+  "entity_id": 323,
+  "action": "import_commit",
+  "before": null,
+  "after": {"batch_id": 57, "source_row_id": 103},
+  "at": "2026-08-27T03:34:40.244561Z"
+}
+\end{verbatim}
+
+\section{Exhibits That Did Not Fit the Paper}
+\label{sec:exhibits}
+
+Section~\ref{sec:req-test}'s discipline applies here too: every exhibit below is built by a
+committed script from a committed run record, never a hand-drawn illustration, and each caption
+names the run it came from. Figure~1 of the eight exhibits the supervisor asked for
+(manual review share against duplicates lost) fit into the main paper's own float slack and is
+not repeated here; the remaining seven are carried in full below, in the priority order given,
+so nothing asked for is discarded even where the ten-page limit could not hold it.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\linewidth]{results/figures/F2_blocking_transfer.pdf}
+\caption{Pair completeness against candidate volume, cap sweep, both corpora, log scale on
+volume. Source: run\_\allowbreak{}transfer\_\allowbreak{}attribution-20260821T065740-b89cbf3-119fabee -- the same run
+the paper's own T9\_\allowbreak{}transfer table cites.}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{results/figures/F3_precision_recall_severity.pdf}
+\caption{Precision and recall against degradation severity, Corpus A, one series per matcher
+plus the cascade. A severity where every seed's threshold is undefined is a gap in the
+precision line, not a plotted zero. Source: run\_\allowbreak{}dedup-20260821T065952-1b5b2a4-3331991b.}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\linewidth]{results/figures/F4_band_size_severity.pdf}
+\caption{Cascade review-band size against severity -- 6.6\%, 14.7\%, 100\%, the three
+severities the cascade is evaluated at. Source: run\_\allowbreak{}dedup-20260821T065952-1b5b2a4-3331991b.}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\linewidth]{results/figures/F5_taxonomy_f1.pdf}
+\caption{Taxonomy macro F1 across approaches and both levels. No error bars: no run computes a
+confidence interval on macro F1 itself, and the language model condition's own Wilson interval
+(reported in the paper's prose) is on accuracy, a different statistic. The hatched bar flags
+that the language model condition alone is a partial n=167 sample, not a full-partition figure
+like the other five. Source: run\_\allowbreak{}classify-20260820T064245-df3907d-744816d0 and
+run\_\allowbreak{}rag\_\allowbreak{}classify-20260826T100523-58395d3-f8b41ee3.}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\linewidth]{results/figures/F6_cost_severity.pdf}
+\caption{Cascade cost against severity, from the ledger, deduplicated by prompt hash so a
+resumed sweep's replayed rows cannot inflate the figure. Source:
+run\_\allowbreak{}costs-20260821T070245-77da5a1-0235907c.}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{results/figures/F7_pipeline_diagram.pdf}
+\caption{The pipeline as a single picture: ingest, blocking, matching, the cascade's three-way
+accept/band/reject partition, the review queue, the register. Schematic -- there is no run
+record to plot here, only the shape of the system every other exhibit measures a part of.}
+\end{figure}
+
+\input{results/tables/T_cost_scale.tex}
+
+\end{document}
