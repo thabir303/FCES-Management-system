@@ -823,27 +823,32 @@ retriever recovers the true class-level code in its top 12 for only
 the full 1,209-class taxonomy -- a shortlisted label set would have
 made the condition's accuracy a measurement of the retriever rather
 than the model. At division level the condition ran at n=300
-requested; live pacing slowed completion well below the day's
-allowance, and only 41 of 298 drawn records completed. The completed
-subset is a random prefix of a seeded draw, verified against
-publication date and label share (correlation $-0.085$, largest
-label-share drift 11 points). With Wilson 95\% intervals:
-the language model condition reaches accuracy 0.829 [0.687, 0.915]
-(macro F1 0.805), the embedding classifier 0.756 [0.607, 0.862]
-(0.674), and TF-IDF 0.683 [0.530, 0.804] (0.680); all three overlap,
-so n=41 does not separate the conditions. TF-IDF's known full-partition
-accuracy (0.782, macro F1 0.759) sits 9.9 points above its subsample
-accuracy, and the language model's 14.6-point accuracy margin over
-TF-IDF is only around 1.5 times that drift -- not distinguishable from
-sampling variation. A first partial re-run at n=167 supports this
-directly: the accuracy margin narrows to 6.6 points (macro F1 gap
-likewise 6.6, down from 12.5 at n=41) and TF-IDF's own drift from its
-full-partition accuracy falls to 4.0 points from 9.9 -- both shrinking
-exactly as sampling noise, not a real difference, would predict.
+requested; 298 of 300 could be drawn, and all 298 completed. With
+Wilson 95\% intervals: the language model condition reaches accuracy
+0.819 [0.771, 0.858] (macro F1 0.790), TF-IDF 0.775 [0.724, 0.819]
+(0.752), and the embedding classifier 0.765 [0.714, 0.810] (0.741).
+On the full test partition the classical-over-embedding result is
+established: TF-IDF's interval [0.769, 0.795] and the embedding
+classifier's [0.737, 0.764] are disjoint. On this 298-record
+subsample no pairwise difference among the three conditions is
+established -- all three intervals overlap, and the language model's
+lower bound sits below TF-IDF's own point estimate. The subsample is
+not equally representative for every condition: TF-IDF drifts $-0.7$
+macro points from its known full-partition value (0.752 against
+0.759), while the embedding classifier drifts $+3.2$ points in the
+opposite direction (0.741 against 0.709), compressing the
+classical-embedding gap from 5.0 points on the full partition to 1.1
+on the sample -- citing only the smaller drift would select the
+evidence that suits the argument, so both are reported. The language
+model's accuracy margin over TF-IDF narrows as n grows -- 14.6 points
+at n=41, 6.6 at n=167, 4.4 at the final n=298 -- moving with TF-IDF's
+own drift from its full-partition value over the same range: 9.9, 4.0,
+0.7 points. Both shrinking together is evidence the apparent margin is
+sampling noise, not a real difference, and is not extrapolated past
+this n.
 
-The run measures its own cost: 1,623 tokens/call, 123 calls/day, 2.43
-days of quota to reach n=300 -- affordable in principle, not within
-the single day available this session. Class level's larger label
+The run measures its own cost: 1,559 tokens/call, 128.3 calls/day, 2.34
+days of quota to reach n=300. Class level's larger label
 listing raises the per-call cost further, so the roughly 135
 calls/day estimated for it in advance was already optimistic, and it
 remains not attempted for the same reason.

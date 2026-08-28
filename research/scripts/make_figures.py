@@ -229,12 +229,13 @@ def figure_taxonomy_f1(classify_run: dict, rag_run: dict) -> str:
 
     Data: ``run_classify`` (TF-IDF and embedding, both levels, full test partition) and
     ``run_rag_classify`` (the exploratory language model condition, division level only,
-    n=167 of a partial run -- class level was never attempted, so no bar is drawn for it).
-    **No error bars**: no run computes a confidence interval on macro F1 itself -- the
-    language model condition's own Wilson interval (reported in prose) is on accuracy, a
-    different statistic, and inventing one for macro F1 here would not be a measurement.
-    The language model's bar is hatched to flag that it alone is a partial-n sample, not a
-    full-partition figure like the other five bars.
+    n=298 of 300 requested, all completed -- class level was never attempted, so no bar
+    is drawn for it). **No error bars**: no run computes a confidence interval on macro F1
+    itself -- the language model condition's own Wilson interval (reported in prose) is on
+    accuracy, a different statistic, and inventing one for macro F1 here would not be a
+    measurement. The language model's bar is hatched to flag that it alone is measured on
+    a 298-record sample, not the full 3,962-record test partition like the other four
+    bars.
     """
     levels = classify_run["metrics"]["levels"]
     division = {
@@ -243,7 +244,7 @@ def figure_taxonomy_f1(classify_run: dict, rag_run: dict) -> str:
     cls = {cond: d["macro_f1"] for cond, d in levels["class"]["conditions"].items()}
     rag_division = rag_run["metrics"]["conditions_on_sample"]["rag_fewshot_llm"]["macro_f1"]
 
-    labels = ["TF-IDF\n(division)", "Embedding\n(division)", "LM, n=167\n(division)",
+    labels = ["TF-IDF\n(division)", "Embedding\n(division)", "LM, n=298\n(division)",
               "TF-IDF\n(class)", "Embedding\n(class)"]
     values = [division["tfidf_svm"], division["embedding_logreg"], rag_division,
               cls["tfidf_svm"], cls["embedding_logreg"]]
