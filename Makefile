@@ -96,15 +96,19 @@ paper:
 	 } || \
 	 { echo "paper: BUILD FAILED — see main.log"; exit 1; }
 
-# Overleaf has no access to results/tables/ (gitignored, generated locally) -- this inlines
-# every \input{results/tables/*} with the referenced file's actual content so the single
-# file compiles standalone. Mechanically regenerated, never hand-edited; run this after
-# every `make tables` + `make paper` that touches main.tex, before uploading to Overleaf.
+# Overleaf has no access to results/tables/ or results/figures/ (both gitignored, generated
+# locally) -- this inlines every \input{results/tables/*} with the referenced file's actual
+# content, and rewrites every \includegraphics{results/figures/*} to a bare filename, since
+# the figure PDF is uploaded flat alongside main_overleaf.tex, not inside a results/figures/
+# subdirectory. Mechanically regenerated, never hand-edited; run this after every
+# `make tables` + `make figures` + `make paper` that touches main.tex, before uploading to
+# Overleaf -- last, so it reflects the final build, not an earlier snapshot.
 overleaf:
 	@$(PY) -c "\
 import pathlib, re; \
 src = pathlib.Path('main.tex').read_text(); \
 out = re.sub(r'\\\\input\{(results/tables/[^}]+)\}', lambda m: pathlib.Path(m.group(1)).read_text(), src); \
+out = re.sub(r'(\\\\includegraphics(?:\[[^\]]*\])?\{)results/figures/', r'\1', out); \
 pathlib.Path('main_overleaf.tex').write_text(out); \
 print(f'wrote main_overleaf.tex ({len(out.splitlines())} lines)')"
 
