@@ -1,0 +1,90 @@
+{
+  "condition": "rq2_incontext",
+  "conditions_on_full_partition": {
+    "embedding_logreg": {
+      "accuracy": 0.7511357900050479,
+      "accuracy_wilson_95": {
+        "lower": 0.737434180630181,
+        "point": 0.7511357900050479,
+        "upper": 0.7643508807907458
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.7094798148408883,
+      "n_items": 3962,
+      "n_labels": 8,
+      "weighted_f1": 0.7488378190436703
+    },
+    "tfidf_svm": {
+      "accuracy": 0.782180716809692,
+      "accuracy_wilson_95": {
+        "lower": 0.7690580583588277,
+        "point": 0.782180716809692,
+        "upper": 0.7947567141724247
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.7593311184428958,
+      "n_items": 3962,
+      "n_labels": 8,
+      "weighted_f1": 0.781234224160103
+    }
+  },
+  "conditions_on_sample": {
+    "embedding_logreg": {
+      "accuracy": 0.7651006711409396,
+      "accuracy_wilson_95": {
+        "lower": 0.7137825214454575,
+        "point": 0.7651006711409396,
+        "upper": 0.8096710843557863
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.7410336658415476,
+      "n_items": 298,
+      "n_labels": 8,
+      "weighted_f1": 0.7635716974311877
+    },
+    "rag_fewshot_llm": {
+      "accuracy": 0.8187919463087249,
+      "accuracy_wilson_95": {
+        "lower": 0.7710913300346074,
+        "point": 0.8187919463087249,
+        "upper": 0.8583781959289138
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.7902366937262344,
+      "n_items": 298,
+      "n_labels": 8,
+      "weighted_f1": 0.8178157997574516
+    },
+    "tfidf_svm": {
+      "accuracy": 0.7751677852348994,
+      "accuracy_wilson_95": {
+        "lower": 0.7244395842353464,
+        "point": 0.7751677852348994,
+        "upper": 0.8188920065963246
+      },
+      "labels_without_support": 0,
+      "macro_f1": 0.7524309260408704,
+      "n_items": 298,
+      "n_labels": 8,
+      "weighted_f1": 0.7735106643114503
+    }
+  },
+  "k_examples": 5,
+  "level": "division",
+  "llm_sample_seed": 0,
+  "measured_cost": {
+    "binding_limit": "tokens",
+    "calls_per_day": 128.26610482095472,
+    "days_to_reach_n300": 2.3388875838926175,
+    "mean_tokens_per_call": 1559.258389261745,
+    "n_calls": 298
+  },
+  "n_dev": 22451,
+  "n_supported_labels": 8,
+  "n_test_full": 3962,
+  "n_test_sample_completed": 298,
+  "n_test_sample_drawn": 298,
+  "n_test_sample_requested": 300,
+  "partial_reason": null,
+  "partial_run": false
+}
