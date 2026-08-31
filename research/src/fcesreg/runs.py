@@ -10,7 +10,6 @@ from __future__ import annotations
 import hashlib
 import json
 import platform
-import socket
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -138,7 +137,6 @@ def capture_env(
         "packages": _package_versions(),
         "model_ids": model_ids or {},
         "seeds": seeds or {},
-        "hostname": socket.gethostname(),
         "platform": platform.platform(),
         "processor": platform.machine(),
     }

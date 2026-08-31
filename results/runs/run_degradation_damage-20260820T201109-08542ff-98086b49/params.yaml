@@ -1,5 +1,5 @@
-corpus_a: /Users/tanvirhasanabir/Documents/FCES/data/processed/corpus_a_abtbuy.parquet
-corpus_b: /Users/tanvirhasanabir/Documents/FCES/data/processed/corpus_b_contractsfinder.parquet
+corpus_a: data/processed/corpus_a_abtbuy.parquet
+corpus_b: data/processed/corpus_b_contractsfinder.parquet
 divisions:
 - '30'
 - '31'

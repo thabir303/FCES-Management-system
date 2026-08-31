@@ -443,5 +443,5 @@ both stay — neither survives as prose. If it still overruns, Reproducibility d
 
 ## 8. Machine-local memory directory
 
-`[VERIFIED]` `~/.claude/projects/-Users-tanvirhasanabir-Documents-FCES/memory/` exists but is
-**empty** — nothing to fold in. Checked with `ls -la`.
+`[VERIFIED]` the project's `~/.claude/projects/<encoded-repo-path>/memory/` directory exists
+but is **empty** — nothing to fold in. Checked with `ls -la`.

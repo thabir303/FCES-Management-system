@@ -76,7 +76,6 @@ class TestCaptureEnv:
             "packages",
             "model_ids",
             "seeds",
-            "hostname",
             "platform",
         ):
             assert key in env
