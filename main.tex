@@ -72,12 +72,7 @@ a register from years of inconsistent free text is where migration
 projects most often lose accuracy. A surviving duplicate overstates
 holdings; a misclassified item attaches the wrong servicing schedule
 and the wrong risk assessment to it, which makes register data quality
-operationally consequential rather than a bookkeeping concern. That
-consequence sits within a real cost: the Health and Safety Executive
-separately estimates work related ill health at \pounds22.9 billion
-annually \cite{hse2025} -- the scale of harm register errors of this
-kind connect to, not a figure this paper measures or attributes to any
-specific record.
+operationally consequential rather than a bookkeeping concern.
 
 This paper treats that migration problem as the object of study: not
 whether a live register can be built, but how much of the transition to
@@ -179,31 +174,28 @@ faculty declaration was required.
 
 \subsection{Record Linkage and Entity Resolution}
 
-Deciding whether two records describe the same real world entity has a
-formal treatment in the probabilistic framework of Fellegi and Sunter
+Deciding whether two records describe the same real-world entity has a
+formal treatment in Fellegi and Sunter's probabilistic framework
 \cite{fellegi1969}, modelling record-pair comparison as a decision
-problem with configurable error rates. Subsequent work systematised the
-surrounding pipeline: the blocking step reducing the quadratic
-comparison space to a tractable candidate set, and the similarity
-measures applied within it \cite{christen2012}. The
-blocking schemes evaluated here are drawn from this line of work, which
-is largely evaluated on bibliographic and commercial product data; how
-the methods behave on institutional asset records has received little
+problem with configurable error rates; subsequent work systematised
+the surrounding pipeline -- blocking to a tractable candidate set,
+then similarity measures within it. The blocking
+schemes evaluated here are drawn from this line of work, largely
+evaluated on bibliographic and commercial product data; how the
+methods behave on institutional asset records has received little
 attention.
 
 \subsection{Learned Approaches to Entity Matching}
 
 Mudgal et al. \cite{mudgal2018} explored the design space of deep
-learning architectures for entity matching and established the benchmark
-suite most subsequent work reports on. Their study also introduced a
-protocol for constructing dirty variants of structured datasets by
-relocating attribute values into a free text field -- the closest
-published analogue to the column misalignment in manually maintained
-spreadsheets. Li et al. \cite{li2020ditto} showed pre-trained language
-models applied as cross encoders improve on these architectures. This
-approach assumes a labelled training set drawn from the same
-distribution as the deployment data, an assumption a faculty migrating a
-single spreadsheet cannot satisfy.
+learning architectures for entity matching, established the benchmark
+suite most subsequent work reports on, and introduced a protocol for
+constructing dirty variants of structured datasets by relocating
+attribute values into a free text field -- the closest published
+analogue to the column misalignment in manually maintained
+spreadsheets. These architectures assume a labelled training set drawn
+from the same distribution as the deployment data, an assumption a
+faculty migrating a single spreadsheet cannot satisfy.
 
 \subsection{Cost and Efficiency of Language Model Pipelines}
 
@@ -268,36 +260,30 @@ implicit.
 
 \subsection{Corpus A: Duplicate Ground Truth}
 
-Matching accuracy is measured on benchmarks from the entity resolution
-literature in which candidate pairs have been manually labelled as
-matching or non matching \cite{mudgal2018,koepcke2010}. The text heavy
-Abt-Buy benchmark \cite{koepcke2010,leipzigdbs} is used, because at
-least one of its attributes
-contains long free text, distinguishing equipment descriptions from
-purely structured records. The supplied training, validation and test
-splits are used unchanged, so results remain comparable with the
-literature: 5,743 training pairs, 1,916 validation and 1,916 test,
-9,575 in total, at a 10.7\% positive rate overall (10.8\% on validation
-and test).
-
-Product catalogue entries share the structural characteristics of
-equipment records: a short designation carrying brand and model
-information, attached to a variable free text description written by
-another party. Published results also exist for this benchmark, so
-methods evaluated here can be positioned against the literature. The
-limitation, that the domain is commercial rather than institutional, is
-carried through to the threats to validity, and is why the
-closer-domain proxy corpus comparison in Section~\ref{sec:external} is
-reported alongside the benchmark figures rather than in place of them.
+The text-heavy Abt-Buy benchmark \cite{mudgal2018,koepcke2010,leipzigdbs}
+is used, since at least one of its attributes carries long free text,
+distinguishing equipment descriptions from purely structured records.
+The supplied training, validation and test splits are used unchanged,
+so results remain comparable with the literature: 5,743 training
+pairs, 1,916 validation and 1,916 test, 9,575 total, at a 10.7\%
+positive rate overall (10.8\% on validation and test). Product
+catalogue entries share equipment records' structure -- a short
+designation carrying brand and model information, attached to a free
+text description written by another party -- and published results
+exist for this benchmark, positioning methods evaluated here against
+the literature. The domain is commercial rather than institutional, a
+limitation carried through to threats to validity and addressed by the
+closer-domain proxy comparison in Section~\ref{sec:external}, reported
+alongside the benchmark figures rather than in place of them.
 
 \subsection{Corpus B: Category Ground Truth}
 
 Category assignment is evaluated on notices published through the UK
 Contracts Finder service in Open Contracting Data Standard format,
-containing public sector information licensed under the Open
-Government Licence v3.0 \cite{contractsfinder}. Every notice carries at least one Common
-Procurement Vocabulary code assigned by the purchasing authority
-alongside a free text title and description.
+licensed under the Open Government Licence v3.0 \cite{contractsfinder};
+every notice carries at least one Common Procurement Vocabulary code
+assigned by the purchasing authority alongside a free text title and
+description.
 
 The corpus is filtered to the eight CPV divisions relevant to
 laboratory, engineering and computing equipment (30, 31, 32, 33, 38,
@@ -308,16 +294,13 @@ split) at 88.3\% class-level coverage of the development partition at
 50 or more training examples; the ten-division alternative would carry
 45,051 records (37,250 development, 7,801 test) at 90.7\% coverage --
 the measured basis for adopting the narrower, asset-relevant set. The
-CPV hierarchy is reconstructed
-from the code and description pairs the notices themselves carry, with
-parents derived by truncation, so division and class level evaluation
-are supported from a single source with no external vocabulary file.
-
-This corpus plays a second role. Its records are drawn from the same
-descriptive register as equipment entries, so degraded variants serve
-as the closer-domain proxy material for the duplicate detection
-experiments, and a filtered subset populates the delivered system with
-demonstration data.
+CPV hierarchy is reconstructed from the code and description pairs the
+notices themselves carry, with parents derived by truncation, so
+division and class level evaluation are supported from a single source
+with no external vocabulary file. This corpus also supplies the
+closer-domain proxy material for duplicate detection (degraded variants
+of its records) and a filtered subset of demonstration data for the
+delivered system.
 
 Labels assigned by purchasing authorities are not error free, and the
 publisher documents known quality issues \cite{contractsfinder}. A
@@ -429,23 +412,17 @@ undegraded records and carrying the result across would not satisfy the
 target on the data it is applied to, and is not done.
 
 A threshold satisfies the target when the lower bound of a Wilson score
-interval on its precision reaches the target, not when its point estimate
-does -- in plain terms, a threshold is accepted only when there is
-enough statistical evidence that the precision target is genuinely
-met, rather than because the observed precision on a handful of
-development pairs happened to exceed it. The distinction is not pedantic. A point estimate admits thresholds
-whose precision rests on a handful of accepted pairs, and one estimated
-from a single pair is not an estimate at all; such thresholds are
-selected on the development partition and then fail on the held out data,
-which is the behaviour a precision floor exists to prevent. Requiring
-confidence rather than a favourable point estimate also scales the
-evidence demanded with the strictness of the target, which a fixed
-minimum on accepted pairs would not. Measured on Corpus A at severity 0:
-selecting on the point estimate admits an embedding threshold supported
-by 54 development pairs that returns 0.917 precision on the held out
-split against the 0.95 target, where the confidence rule declines to
-select a threshold at all -- the cost of the stricter rule is a refusal,
-the cost of the looser one a target quietly missed.
+interval on its precision reaches the target, not when its point
+estimate does: a point estimate admits thresholds resting on a handful
+of accepted pairs that then fail on held-out data, and confidence
+scales the evidence demanded with the strictness of the target where a
+fixed minimum on accepted pairs would not. Measured on Corpus A at
+severity 0: selecting on the point estimate admits an embedding
+threshold supported by 54 development pairs that returns 0.917
+precision on the held-out split against the 0.95 target, where the
+confidence rule declines to select a threshold at all -- the cost of
+the stricter rule is a refusal, the cost of the looser one a target
+quietly missed.
 
 The target is not always attainable. Where no threshold on the base
 similarity reaches the required precision, the upper threshold is
@@ -454,20 +431,17 @@ to every pair not confidently rejected. This is reported, not avoided: the sever
 be reachable by a base matcher alone is itself a result, and it bounds
 what any pipeline of this shape can offer on records of that quality.
 
-A distinction follows that the cascade's structure makes easy to miss.
-The threshold guarantees the target only on the pairs it accepts without
-adjudication. Pairs resolved by the language model carry no such
-guarantee, since no threshold governs them, so the precision of the
-cascade's combined output is not bounded below by the target and may fall
-beneath it. Both quantities are therefore reported: the precision of the
-auto-accepted portion, which the selection procedure constrains, and the
-precision of the combined output, which it does not. Where the two
-diverge the difference is attributable to the adjudicator, and the
-severity at which the combined output first falls below the target is
-reported as the point beyond which the pipeline cannot deliver the
-guarantee it was designed around. The proportion of pairs reaching the language model, and the resulting
-cost per thousand records, are reported alongside accuracy, because a
-cascade that improves accuracy at unbounded cost is not a usable result.
+The threshold guarantees the target only on the pairs it accepts
+without adjudication -- pairs the language model resolves carry no
+such guarantee, so the cascade's combined-output precision is not
+bounded below by the target and may fall beneath it. Both are
+therefore reported: precision of the auto-accepted portion, which the
+selection procedure constrains, and of the combined output, which it
+does not, so a divergence between them is attributable to the
+adjudicator. The proportion of pairs reaching the language model, and
+the resulting cost per thousand records, are reported alongside
+accuracy, since a cascade that improves accuracy at unbounded cost is
+not a usable result.
 
 The three methods above are evaluated across the full factorial of
 degradation severities and repetitions on both corpora, since none of
@@ -490,39 +464,36 @@ character n-grams of the normalised title, which applies to both corpora;
 a leading token key taking the first substantive token of the title,
 which approximates a brand designation where the title carries one; and
 the identifier of the publishing authority, which is available on the
-procurement corpus only. Blocking is evaluated separately by pair completeness and reduction
-ratio, since recall lost during blocking cannot be recovered downstream,
-and the availability of each scheme differs between the two corpora,
-which is reported alongside its performance. The scheme parameters are selected on the
-benchmark development partition, subject to a stated floor on pair
-completeness, and carried unchanged to the procurement corpus in keeping
-with the transfer design; any loss of completeness that transfer incurs
-is reported rather than recovered by refitting. Because completeness lost
-in blocking bounds the recall of every method downstream of it, a second
-configuration selected on the procurement corpus is also reported, so
-that the comparison between matchers remains measurable on the
-closer-domain proxy corpus even where the transferred configuration
-does not support it. The two are
-reported separately and never combined: the first answers what transfers,
-the second answers how the matchers rank.
+procurement corpus only. Blocking is evaluated by pair completeness and reduction ratio, since
+recall lost during blocking cannot be recovered downstream; scheme
+availability differs between the two corpora, reported alongside
+performance. Scheme parameters are selected on the benchmark
+development partition, subject to a stated floor on pair completeness,
+and carried unchanged to the procurement corpus in keeping with the
+transfer design -- any completeness loss transfer incurs is reported
+rather than recovered by refitting. A second configuration selected
+directly on the procurement corpus is also reported, so the matcher
+comparison stays measurable there even where the transferred
+configuration does not support it; the two are never combined, since
+the first answers what transfers and the second how the matchers rank.
 
 \subsection{Category Assignment}
 
-Three approaches are compared, one from each family and in ascending
-order of cost per decision. A lexical baseline represents each record as
-character level n-gram features and classifies with a linear support
-vector machine. An embedding baseline encodes the record with a sentence
-embedding model and classifies with a logistic regression head. A
-retrieval augmented language model condition is given the full
-supported label set, not a shortlist of it: measured before spending
-quota, the embedding retriever recovers the true code in its top twelve
-for only a minority of records at class level, so a shortlisted label
-set would have made the condition's accuracy a measurement of the
-retriever rather than the model. Shortlisting is retained instead for
-the in context examples, where an unhelpful example costs accuracy and
-an absent label forecloses it entirely; the nearest labelled examples
-from the development partition are supplied with each record. Shortlist
-recall at k is reported as a ceiling in its own right.
+Three approaches are compared, one from each family, in ascending
+order of cost per decision: a lexical baseline (character n-gram
+features, a linear support vector machine), an embedding baseline (a
+sentence embedding model with a logistic regression head), and a
+retrieval-augmented language model condition given the full supported
+label set rather than a shortlist of it -- measured before spending
+quota, the embedding retriever recovers the true code in its top
+twelve for only a minority of records at class level, so a
+shortlisted label set would have made the condition's accuracy a
+measurement of the retriever rather than the model. Shortlisting is
+retained for the in-context examples instead, where an unhelpful
+example costs accuracy and an absent label forecloses it entirely; the
+nearest labelled examples from the development partition are supplied
+with each record, and shortlist recall at k is reported as a ceiling
+in its own right.
 
 The comparison asks whether a language model given the labels already
 available in Corpus B outperforms a classifier trained on the same
@@ -534,18 +505,18 @@ figures are reported on that same sample alongside their full-partition
 figures so the sample can be seen to be representative.
 
 The two levels present different difficulties: division level is small
-and only moderately skewed, so the task is tractable but coarse; class
-level is an order of magnitude larger with a long tail, most classes
-too rare to learn. Class level evaluation is restricted on two grounds
-reported apart. Labels below a stated minimum of training examples are
-excluded as unlearnable, and records whose published code names a
-division and assigns no class are excluded as carrying no class level
-ground truth at all, since scoring them would ask whether a classifier
-can predict that a buyer was vague. Each restriction's share is reported
-with the results, so accuracy is read against the share of the register
-it applies to. Records outside the scored set are not discarded from
-the pipeline; they are routed to review, where both an unlearnable and
-an absent category belong.
+and only moderately skewed, tractable but coarse; class level is an
+order of magnitude larger with a long tail, most classes too rare to
+learn. Class-level evaluation is restricted on two grounds reported
+apart: labels below a stated training-example minimum are excluded as
+unlearnable, and records whose published code names a division but no
+class are excluded as carrying no class-level ground truth, since
+scoring them would ask whether a classifier can predict that a buyer
+was vague. Each restriction's share is reported with the results, so
+accuracy is read against the share of the register it applies to;
+records outside the scored set are not discarded from the pipeline,
+only routed to review, where both an unlearnable and an absent
+category belong.
 
 Macro averaged scores are the primary measure at both levels, weighted
 averages are reported alongside them, and a per class breakdown is
@@ -608,63 +579,41 @@ different quantities, and this paper reports only the first. In
 practice the binding constraint was the free tier's daily token
 allowance, not money or closed weights.
 
-The automated share is not one quantity. It comprises confident
-acceptance and confident rejection, and the two carry asymmetric risk. A
-wrong acceptance creates a false merge, which a subsequent reader can
-see and undo, and which the precision floor is fitted to bound. A wrong
-rejection lets a duplicate pass into the register unreviewed, where it is
-indistinguishable from a genuine second item and inflates the recorded
-holdings; nothing in the selection procedure bounds it, and no one ever
-looks at it. That is the harm this paper opens by describing, so
-automation that produces it cannot be reported as though it were free.
-
-Both sides are therefore reported at every operating point: the precision
-of the accepted set, and the number and proportion of true duplicates
-discarded by confident rejection without reaching review. The second is reported in absolute terms as well as as a rate, since a
-faculty deciding whether to adopt the pipeline is choosing how many
-undetected duplicates to accept in exchange for how much review it
-avoids, and that trade is legible in counts and not in percentages.
-
-A floor stated as one number does not demand the same thing of the two
-rules, and the asymmetry is a consequence of the class balance rather
-than of the design. Duplicates are a small minority of candidate pairs,
-so accepting every pair would yield a precision close to the positive
-rate and a floor well above it demands a large lift. Rejecting every pair
-would yield a purity close to one minus that rate, so the same floor
-demands almost nothing of the reject rule: it is satisfied by performing
-slightly better than discarding the entire corpus. The nominal symmetry
-of a single floor therefore conceals a rule that binds tightly on one
-side and barely at all on the other, and the duplicates lost to confident
-rejection are the price of that slack. A design intended to bound the
-loss directly would constrain the number of duplicates in the rejected
-set, and not its purity.
+The automated share comprises confident acceptance and confident
+rejection, which carry asymmetric risk: a wrong acceptance creates a
+false merge a subsequent reader can see and undo, and which the
+precision floor is fitted to bound, whereas a wrong rejection lets a
+duplicate pass into the register unreviewed, indistinguishable from a
+genuine second item and unbounded by the selection procedure -- the
+harm this paper opens by describing, so automation producing it cannot
+be reported as though it were free. Both sides are therefore reported
+at every operating point: the precision of the accepted set, and the
+number and proportion of true duplicates discarded by confident
+rejection, in absolute terms as well as a rate, since a faculty
+adopting the pipeline is choosing how many undetected duplicates to
+accept in exchange for how much review it avoids -- a trade legible in
+counts, not percentages. Why a single floor binds the two rules so
+unequally is a consequence of class balance rather than of the design,
+taken up in Section~\ref{sec:discussion} against the measured counts
+rather than argued here in the abstract.
 
 The operating point consequently fixes a ceiling on recall before any
-adjudication occurs. Only pairs that are accepted outright or that reach
-the band remain reachable, so the duplicates discarded by confident
-rejection cap what the pipeline can find however capable the adjudicator.
-That ceiling is reported with every operating point and the measured
-recall is reported against it, because the gap between them separates two
-different failures: the shortfall below the ceiling is attributable to
-the adjudicator, and the ceiling itself to the choice of floor. Where the
-measured recall sits close to its ceiling, improving the adjudicator has
-little left to recover and the leverage lies in the operating point
-instead.
+adjudication occurs: only pairs accepted outright or reaching the band
+remain reachable, so confident rejection caps what the pipeline can
+find however capable the adjudicator. That ceiling is reported with
+every operating point and measured recall against it, since the gap
+between them separates two failures -- the shortfall below ceiling is
+the adjudicator's, the ceiling itself the floor's.
 
-Residual manual effort is reported as the count and proportion of records
-the pipeline routes to review, and total effort is expressed as that
-count multiplied by a per record handling time and not fixed by a single
-measured constant. No handling time is measured here. One observer's
-reading speed would not generalise to the staff who would perform the
-curation, and quoting it as though it did would put a precision on the
-effort estimate that the evidence does not support. A reader holding a
-figure for their own institution obtains their own total; a reader
-without one still has the review volume, which is the quantity the
-automated share determines. The review queue in the delivered system
-records the duration of each decision, so the figure becomes measurable
-in deployment without being asserted in advance. The precision target is
-0.95, consistent with the floor at which the automated share and duplicate
-loss are reported throughout Section~\ref{sec:results}.
+Residual manual effort is reported as the count and proportion of
+records routed to review, not converted to hours by a single measured
+handling time: no reading speed measured here would generalise to the
+staff who would perform the curation. A reader holding their own
+institution's figure obtains a total; one without still has the review
+volume, which the automated share determines and which the delivered
+system's review queue makes measurable in deployment without being
+asserted in advance. The precision target is 0.95 throughout
+Section~\ref{sec:results}.
 
 \subsection{External Validation}
 \label{sec:external}
@@ -677,40 +626,37 @@ overrepresents an error class the methods handle easily would flatter
 every subsequent result, so this comparison is a precondition for
 interpreting the rest.
 
-Second, the pipeline is tuned on Corpus A and then evaluated, without
-further tuning, on degraded records from Corpus B. The comparison is
-made on recall and pair completeness, which the contamination in Corpus
-B's negative set does not affect. The thresholds selected on the Corpus
-A development partition are carried across unchanged; no parameter is
-refitted on Corpus B, and the transfer is reported as a single paired
-comparison rather than as two independent results. The severity
-specific thresholds reported elsewhere describe the best available
-operating point at a known severity; a deployment does not know that
-severity in advance, so this fixed threshold -- selected once at
-severity 0 and carried unchanged across every severity on both corpora
--- is the harder, deployment realistic test, and its outcome is
-already the transfer finding above: above severity 0 it accepts
-nothing on either corpus.
+Second, the pipeline is tuned on Corpus A and evaluated, without
+further tuning, on degraded records from Corpus B, on recall and pair
+completeness (unaffected by Corpus B's negative-set contamination).
+Thresholds selected on the Corpus A development partition carry across
+unchanged -- no parameter is refitted on Corpus B, and the transfer is
+reported as a single paired comparison rather than two independent
+results. This fixed threshold, selected once at severity 0 and carried
+unchanged across every severity on both corpora, is the harder,
+deployment-realistic test against which the severity-specific
+thresholds reported elsewhere are read (a deployment does not know the
+severity in advance); its outcome is already the transfer finding
+above -- above severity 0 it accepts nothing on either corpus.
 
-A blocking guard complicates a naive reading of that comparison. The
-blocking scheme caps how large a single key's posting list may grow
-before it is dropped, to bound candidate volume; Corpus B is an order
-of magnitude larger and more repetitive than Corpus A, so the same
-absolute cap binds far harder there, and a completeness gap measured
-under one shared configuration conflates the guard saturating with the
-matching key itself failing to transfer. A cap sweep separates the two:
-each corpus is measured at several cap values, holding severity fixed,
-so completeness recovered purely by rescaling the guard is attributable
-to the guard and not to the key. Rescaling is not free, and the
-candidate volume it costs is reported alongside completeness for
-exactly that reason. Because Corpus B's positives are byte-identical at
-severity 0, that severity alone cannot show whether the key transfers
-under real textual variation; the rescaled cap is therefore also
-measured at the lowest severity where Corpus B's positives genuinely
-differ, and the resulting pair completeness is checked against the
+A blocking guard complicates a naive reading of that comparison: it
+caps how large a single key's posting list may grow before dropping
+it, to bound candidate volume, and since Corpus B is an order of
+magnitude larger and more repetitive than Corpus A, the same absolute
+cap binds far harder there -- a completeness gap measured under one
+shared configuration conflates guard saturation with the matching key
+itself failing to transfer. A cap sweep separates the two, measuring
+each corpus at several cap values with severity fixed, so completeness
+recovered purely by rescaling the guard is attributable to the guard
+and not the key; rescaling is not free, and the candidate volume it
+costs is reported alongside completeness for that reason. Corpus B's
+positives are byte-identical at severity 0, so that severity alone
+cannot show whether the key transfers under real textual variation --
+the rescaled cap is therefore also measured at the lowest severity
+where Corpus B's positives genuinely differ, checked against the
 distribution of shared grams between true duplicate pairs, since an
-absolute overlap threshold meeting two different amounts of headroom is
-a candidate explanation for any gap that survives rescaling.
+absolute overlap threshold meeting two different amounts of headroom
+is a candidate explanation for any gap that survives rescaling.
 
 Corpus A carries human labels but a commercial domain; Corpus B carries
 a domain closer to institutional equipment but synthetic duplicate
@@ -723,24 +669,21 @@ the threats to validity discussion.
 \subsection{Integration into the Delivered System}
 
 The pipeline is deployed inside the asset management system built for
-FCES so that its behaviour can be observed under realistic use, with a
-filtered subset of Corpus B standing in for the faculty register until
-the real records become available. The
-system provides item records with attached photographs and documents, a
-QR label per item resolving to a persistent item URL, pin placement on
-an uploaded floor plan image, service interval tracking with scheduled
-reminders, tiered access comprising administrator, technician and read
-only roles, and an audit log of changes.
+FCES, with a filtered subset of Corpus B standing in for the faculty
+register until the real records become available. The system provides
+item records with attached photographs and documents, a QR label
+resolving to a persistent item URL, pin placement on an uploaded floor
+plan, service interval tracking with scheduled reminders, tiered
+administrator/technician/read-only access, and an audit log.
 
-Migration is exposed as a bulk import in which an uploaded spreadsheet
-passes through the deduplication and classification stages and the
-outcome is routed to one of two destinations. Records resolved above the
-precision threshold are written directly to the register. Records below
-it enter a review queue presenting the candidate decision, the competing
-alternatives and the similarity evidence, so the residual effort reported
-here corresponds to a task a curator can actually perform and not to an
-abstract count of uncertain records. The queue records the duration of
-each decision, which is what makes the per record handling time an
+Migration is exposed as a bulk import: an uploaded spreadsheet passes
+through deduplication and classification, and records above the
+precision threshold are written directly to the register while records
+below it enter a review queue presenting the candidate decision,
+competing alternatives and similarity evidence -- so the residual
+effort reported here corresponds to a task a curator can actually
+perform, not an abstract count. The queue records each decision's
+duration, which is what makes the per-record handling time an
 institution would need obtainable from its own use of the system.
 
 \subsection{Reproducibility}
@@ -923,6 +866,7 @@ degradation-driven erosion crosses that edge for more of them, sooner
 gap's exact size.
 
 \section{Discussion}
+\label{sec:discussion}
 
 Blocking bounds everything that runs after it, and the bound is not
 visible from the matcher comparison alone. At severity 0.5, the
@@ -933,26 +877,21 @@ between the two is the adjudicator's, on the pairs blocking already
 retained, but the ceiling itself belongs to blocking, and a matcher
 comparison read without it credits or blames the wrong stage.
 
-The transfer finding carries a price that a completeness figure alone
-does not show. The blocking key transfers, in the sense that rescaling
-the same absolute cap recovers Corpus B's pair completeness to within
-measurement distance of Corpus A's. But the guard that was masking that
-result cannot be rescaled for free: recovering completeness at severity
-0.0 costs 1,209x the candidate volume, and the severity-0.25 cell
-needed to show the key surviving real textual variation already sits at
-90.9 million candidates on Corpus B alone. Blocking parameters that look
-independent -- an absolute size cap and a corpus's own repetitiveness --
-are coupled through corpus statistics, and that coupling is what fails
-to transfer even where the key itself does.
-
-The severity-0.25 reversal, where Corpus B's rescaled pair completeness
-exceeds Corpus A's, is not an artefact of the degradation model treating
-the two corpora unequally: the damage check shows Corpus B receiving
-\emph{more} textual damage at the same severity, not less. The mechanism
-the shared-gram check offers -- Corpus A's true pairs sitting closer to
-the blocking threshold's edge to begin with, so the same erosion crosses
-it for more of them -- is a real, measured, contributing factor, stated
-as exactly that and not as a closed derivation of the gap's size.
+The transfer finding carries a price a completeness figure alone does
+not show: the blocking key transfers, in that rescaling the same
+absolute cap recovers Corpus B's pair completeness to within
+measurement distance of Corpus A's, but not for free -- the 1,209x
+candidate-volume cost reported above recurs at severity 0.25's
+90.9-million-candidate cell too. Blocking parameters that look
+independent -- an absolute size cap and a corpus's own repetitiveness
+-- are coupled through corpus statistics, and that coupling is what
+fails to transfer even where the key itself does. The severity-0.25
+reversal is not an artefact of the degradation model treating the two
+corpora unequally: the damage check shows Corpus B receiving
+\emph{more} textual damage at the same severity, not less, and the
+shared-gram mechanism reported above is a real, measured, contributing
+factor, stated as exactly that and not as a closed derivation of the
+gap's size.
 
 The two error types the operating point trades against each other carry
 asymmetric risk, and a single precision floor does not treat them
@@ -1051,8 +990,7 @@ independently validated against human judgement.
 
 This paper measured how much of the migration from an uncontrolled
 spreadsheet to a governed asset register can be automated, at what
-cost, and with how much human effort left over, rather than treating
-that migration as preparatory work beneath a system's engineering. On
+cost, and with how much human effort left over. On
 the benchmark corpus, a cost-aware cascade fitted to a 0.95 precision
 floor on the pairs it accepts outright resolves 83.0\% of
 comparison-eligible records without human review at severity 0 (93.4\%
@@ -1084,10 +1022,6 @@ this paper could not measure directly.
 I.~P. Fellegi and A.~B. Sunter, ``A theory for record linkage,'' \emph{J. Amer.
   Statist. Assoc.}, vol.~64, no.~328, pp. 1183--1210, 1969.
 
-\bibitem{christen2012}
-P.~Christen, \emph{Data Matching: Concepts and Techniques for Record Linkage,
-  Entity Resolution, and Duplicate Detection}. Berlin, Germany: Springer, 2012.
-
 \bibitem{mudgal2018}
 S.~Mudgal \emph{et~al.}, ``Deep learning for entity matching: A design space
   exploration,'' in \emph{Proc. ACM SIGMOD Int. Conf. Manage. Data}, 2018, pp.
@@ -1101,11 +1035,6 @@ H.~K\"{o}pcke, A.~Thor, and E.~Rahm, ``Evaluation of entity resolution
 \bibitem{leipzigdbs}
 Database Group Leipzig, ``Benchmark datasets for entity resolution.''
   [Online]. Available: dbs.uni-leipzig.de/research/projects/benchmark-datasets-for-entity-resolution
-
-\bibitem{li2020ditto}
-Y.~Li, J.~Li, Y.~Suhara, A.~Doan, and W.-C. Tan, ``Deep entity matching with
-  pre-trained language models,'' \emph{Proc. VLDB Endowment}, vol.~14, no.~1,
-  pp. 50--60, 2021.
 
 \bibitem{chen2023frugalgpt}
 L.~Chen, M.~Zaharia, and J.~Zou, ``FrugalGPT: How to use large language
@@ -1137,10 +1066,6 @@ P.~Woodall, J.~Gao, A.~Parlikad, and A.~Koronios, ``Classifying data quality
   Systems, Professional Practices and Certification}, P.~Tse, J.~Mathew,
   K.~Wong, R.~Lam, and C.~Ko, Eds. Cham, Switzerland: Springer, 2015, pp.
   321--334.
-
-\bibitem{hse2025}
-Health and Safety Executive, ``Health and safety statistics for Great Britain,
-  2024/25,'' 2025. https://www.hse.gov.uk/statistics/
 
 \bibitem{contractsfinder}
 Cabinet Office, ``Contracts Finder: Open Contracting Data Standard release
