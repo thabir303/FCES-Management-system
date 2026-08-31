@@ -382,9 +382,19 @@ def table_transfer(run: dict) -> str:
     table answers "what does rescaling the guard cost", not "does the matcher rank the same
     way" -- that comparison lives in T4_abtbuy's Corpus A panel and T3_blocking's Corpus B
     panel, unaffected by any of this.
+
+    **At severity 0.0 only the two endpoint caps (500, shipped; none, fully rescaled) are
+    shown** (page-budget cut, 2026-09-01) -- the only two the prose narrates ("at the shipped
+    500-cap configuration... rescaling the cap recovers completeness"). The intermediate
+    sweep points (2,000 and 10,000) are still in the run record for anyone regenerating this
+    table to check; dropping them from the rendered table loses no cited number. Severity
+    0.25's single rescaled-cap row is unaffected -- it was never swept at multiple caps.
     """
+    shown_caps = {500, None}
     rows = ["Corpus & Sev. & Cap & PC & Candidates & Dropped \\\\\n\\hline\n"]
     for row in run["metrics"]["rows"]:
+        if row["severity"] == 0.0 and row["cap"] not in shown_caps:
+            continue
         short = "A (Abt-Buy)" if row["corpus"] == "corpus_a" else "B (Contracts Finder)"
         cap = "none" if row["cap"] is None else f"{row['cap']:,}"
         rows.append(
@@ -392,11 +402,11 @@ def table_transfer(run: dict) -> str:
             f"{row['n_candidates']:,} & {row['blocks_dropped']:,} \\\\\n"
         )
     caption = (
-        "Block-size cap sweep, both corpora, at severity 0.0 (Corpus B positives "
-        "byte-identical there) and the rescaled cap at severity 0.25, where the two "
-        "corpora's blocking behaviour diverges. PC is pair completeness; candidates and "
-        "blocks dropped are reported directly since reduction ratio alone does not convey "
-        "the volume cost of rescaling the cap."
+        "Block-size cap, shipped (500) against fully rescaled (none), both corpora, at "
+        "severity 0.0 (Corpus B positives byte-identical there); and the rescaled cap at "
+        "severity 0.25, where the two corpora's blocking behaviour diverges. PC is pair "
+        "completeness; candidates and blocks dropped are reported directly since reduction "
+        "ratio alone does not convey the volume cost of rescaling the cap."
     )
     return _wrap("".join(rows), caption, "tab:transfer", run["run_id"], "lcccrr", compact=True)
 
