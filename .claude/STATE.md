@@ -25,9 +25,9 @@ n=298). Cost figures updated everywhere: 1,559 tokens/call, 128.3 calls/day, 2.3
 n=300. `research/scripts/make_figures.py`'s F5 regenerated from the final run (n=298, not
 partial n=167); `appendix_system.tex`'s F5 caption updated to match.
 
-**The paper's last `[TBC]` is resolved.** Commit `d97a02f` (RQ2 rewrite + cost figures) is
-tagged `paper-2026-08-28` — that tag and its short SHA are named beside the repository URL
-in Reproducibility. `grep -c 'TBC' main.tex` reads 0.
+**The paper's last `[TBC]` is resolved.** The commit that finalized RQ2 (rewrite + cost
+figures) was tagged at the time; Reproducibility no longer names a specific tag, commit, or
+repository account (removed 2026-09-01, direct request). `grep -c 'TBC' main.tex` reads 0.
 
 **A real bug was caught and fixed in the same pass**: the TBC-resolution edit used
 `\texttt{}` around the tag/SHA, which needs a Type1 Courier metric (`pcrr7t`) this TeX
@@ -141,5 +141,4 @@ this session, unchanged:
 5.887pt (well under the 10pt failure threshold). `appendix_system.tex`: 11 pages, zero
 undefined refs, builds standalone with `-halt-on-error`. `main_overleaf.tex`: regenerated
 after the final rebuild, zero `\input{`, zero `[TBC]`, figure by bare filename, verified by
-an actual standalone compile in an isolated directory. Tag `paper-2026-08-28` on commit
-`d97a02f`.
+an actual standalone compile in an isolated directory.
