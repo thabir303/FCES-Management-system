@@ -528,9 +528,9 @@ def table_cost_scale(costs_run: dict, dedup_run: dict) -> str:
         )
     caption = (
         f"Operational cost extrapolated from measured per-call figures ({tokens_per_call:.1f} "
-        f"tokens/call, \\${usd_per_call:.6f}/call, run {_esc(costs_run['run_id'])}), scaled by "
-        f"the severity-0 cascade review band ({100 * band_fraction:.1f}\\% of candidate pairs, "
-        f"run {_esc(dedup_run['run_id'])}) -- illustrative registers, not measured corpora."
+        f"tokens/call, \\${usd_per_call:.6f}/call), scaled by "
+        f"the severity-0 cascade review band ({100 * band_fraction:.1f}\\% of candidate pairs) "
+        f"-- illustrative registers, not measured corpora."
     )
     return _wrap(
         "".join(rows), caption, "tab:cost-scale",
