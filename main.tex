@@ -159,16 +159,15 @@ automated share at a precision floor, rather than a headline accuracy
 figure, states the result in the terms in which the decision to adopt or
 reject the pipeline is actually made.
 
-Three boundaries are placed on the scope of the work. The study
-addresses migration of an existing register, not prediction of
-equipment failure; servicing is a scheduling problem driven by category
-and interval, and predictive maintenance is left to further work. The
-location model is a two dimensional pin on an uploaded floor plan image
-rather than a spatial or building information model, matching the
-granularity at which the faculty records location. All corpora are
-published open data and no personal or commercially sensitive
-information is processed, so no ethical approval beyond the standard
-faculty declaration was required.
+Three boundaries are placed on the scope of the work: migration of an
+existing register, not prediction of equipment failure (servicing is a
+scheduling problem driven by category and interval; predictive
+maintenance is left to further work); a two dimensional pin on an
+uploaded floor plan rather than a spatial or building information
+model, matching the granularity at which the faculty records location;
+and published open data throughout, with no personal or commercially
+sensitive information processed, so no ethical approval beyond the
+standard faculty declaration was required.
 
 \section{Related Work}
 
@@ -670,11 +669,25 @@ the threats to validity discussion.
 
 The pipeline is deployed inside the asset management system built for
 FCES, with a filtered subset of Corpus B standing in for the faculty
-register until the real records become available. The system provides
-item records with attached photographs and documents, a QR label
-resolving to a persistent item URL, pin placement on an uploaded floor
-plan, service interval tracking with scheduled reminders, tiered
-administrator/technician/read-only access, and an audit log.
+register until the real records become available. Figure~\ref{fig:architecture}
+shows its architecture. The system provides item records with attached
+photographs and documents -- including a named risk-assessment
+attachment type, the health-and-safety linking the brief specifies --
+a QR label (not the barcode the brief names, chosen for its larger
+data capacity and tolerance of an off-angle scan) resolving to a
+persistent item URL, pin placement on an uploaded floor plan, service
+interval tracking with scheduled reminders, tiered
+administrator/technician/read-only access, and an audit log; the
+interface itself has had no formal usability evaluation.
+
+\begin{figure}[tb]
+\centering
+\includegraphics[width=\linewidth]{results/figures/A1_architecture.pdf}
+\caption{The delivered system's three components -- research library,
+API, and database -- and the single import boundary between the
+pipeline and the API.}
+\label{fig:architecture}
+\end{figure}
 
 Migration is exposed as a bulk import: an uploaded spreadsheet passes
 through deduplication and classification, and records above the
@@ -694,9 +707,7 @@ corpora distributed as record identifiers and reconstruction scripts
 rather than redistributed data, per each licence. Model versions,
 prompt texts and random seeds are recorded with every run, and the
 language model tier is open-weights, so it is reproducible independently
-of any one provider's endpoint remaining available. The repository,
-including the exact commit used for the analysis this paper reports, is
-included in the accompanying code archive.
+of any one provider's endpoint remaining available.
 
 \section{Results}
 \label{sec:results}
@@ -829,8 +840,7 @@ time no author's own reading speed could stand in for.
 \caption{Manual review share against true duplicates lost, Corpus A
 severity 0, tfidf-based operating point curve; marked points are the
 0.95 and 0.99 floors reported above. Pair-level, as the record-level
-distinction in the text does not extend to this whole curve. Source:
-run\_operating\_point-20260826T211147-8896d09-945f8c5b.}
+distinction in the text does not extend to this whole curve.}
 \label{fig:review-lost}
 \end{figure}
 
@@ -995,8 +1005,7 @@ the benchmark corpus, a cost-aware cascade fitted to a 0.95 precision
 floor on the pairs it accepts outright resolves 83.0\% of
 comparison-eligible records without human review at severity 0 (93.4\%
 of the underlying candidate-pair decisions), at the price of 84
-undetected duplicates in every 206 -- a trade the operating point
-makes visible rather than hides inside a single accuracy figure. Category assignment favours exact lexical
+undetected duplicates in every 206. Category assignment favours exact lexical
 features over sentence embeddings wherever labelled examples exist to
 learn from, and the reverse wherever they do not. What transfers to a
 procurement-domain corpus and what does not is itself measured rather
