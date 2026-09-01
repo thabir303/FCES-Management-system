@@ -10,7 +10,7 @@ Everything left to cut is a measured result or a citation, feeding Results/Inter
 Difficulty/Quality of Approach (double-weighted), against a page limit under Clarity
 (five per cent, single-weighted). **Ruled: ship at eleven. Do not revisit this.**
 
-**RQ2 is finished.** `run_rag_classify-20260828T050059-2c53d19-f8b41ee3`: n=298 of 298
+**RQ2 is finished.** The final RQ2 run: n=298 of 298
 drawn, `partial_run: false`. Rewritten in `main.tex` with two statements kept apart: on the
 full 3,962-record test partition the classical-over-embedding result is established at
 interval strength (TF-IDF [0.769, 0.795] vs. embedding [0.737, 0.764], disjoint); on the
