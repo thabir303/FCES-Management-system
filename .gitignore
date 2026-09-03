@@ -6,7 +6,8 @@ __pycache__/
 *.egg-info/
 .env
 .DS_Store
-
+FCES-code 
+FCES-code.zip
 # Corpora are distributed as identifiers + reconstruction scripts, never redistributed.
 data/raw/
 data/interim/
